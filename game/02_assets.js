@@ -9,6 +9,8 @@ const TEX = {}, MAT = {}, HEADS = {};
 const FACE_IMG = new Image();
 
 function mkCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+// colour textures stay LinearEncoding on purpose: the render pipeline decodes sRGB once, on the final albedo
+// (gtaLin in 03_render), which also covers vertex colours, material colours and custom shader maths
 function tex(c, rep) {
   const t = new THREE.CanvasTexture(c);
   t.anisotropy = Math.min(8, MAX_ANISO);
@@ -389,9 +391,10 @@ function drawHat(g, kind, T) {
   }
 }
 // where the eyes are in the face image (300×364): the default face looks a little to the left;
-// a face you upload is lined up to the centred pair
-const FACE_EYES_DEFAULT = [[50, 148], [142, 158]], FACE_EYES_CENTRED = [[104, 160], [196, 160]];
-let FACE_EYES = FACE_EYES_DEFAULT;
+// a face you upload is lined up to the centred pair. FACE_YAW: how far the face in the picture is turned
+// (radians, − = toward the picture's left), so the 3D head (02c_head3d) puts a 3/4 photo on the right side
+const FACE_EYES_DEFAULT = [[50, 148], [142, 158]], FACE_EYES_CENTRED = [[104, 160], [196, 160]], FACE_YAW_DEFAULT = -0.5;
+let FACE_EYES = FACE_EYES_DEFAULT, FACE_YAW = FACE_YAW_DEFAULT;
 function drawGlasses(g, kind, T) {
   const X = (fx) => T.x + fx * T.s, Y = (fy) => T.y + fy * T.s, S = (v) => v * T.s;
   const [L, R] = FACE_EYES, top = Math.min(L[1], R[1]), span = R[0] - L[0];
@@ -599,15 +602,18 @@ function drawHead(kind) {
       break;
     default: {
       const skin = pick(['#f1c9a5', '#e0ac86', '#f5d5b8', '#c98e6b']);
-      const hair = pick(['#1b1b1b', '#3b2a20', '#6b4a2f', '#111']);
+      const hair = pick(['#1b1b1b', '#3b2a20', '#6b4a2f', '#111111']);
       face(skin); g.fillStyle = hair;
       if (kind === 'clerk2') { g.beginPath(); g.ellipse(128, 110, 92, 88, 0, Math.PI * 0.95, TAU * 1.02); g.fill(); }
       else if (kind === 'clerk3') { g.fillStyle = '#1f6feb'; g.beginPath(); g.ellipse(128, 66, 84, 30, 0, Math.PI, TAU); g.fill(); g.fillRect(40, 60, 176, 14); }
       else { g.beginPath(); g.ellipse(128, 70, 76, 36, 0, Math.PI, TAU); g.fill(); }
       eyes(130, 28, 8); smile(176, 24, 10);
+      c.meta = { skin, hair: kind === 'clerk3' ? '#1f6feb' : hair }; // the 3D head paints the back of the head in these
     }
   }
-  return stickerOf(c, 256, 7);
+  // the sticker is for portraits; the plain drawing (raw) is what gets projected onto the 3D head
+  const out = stickerOf(c, 256, 7); out.raw = c;
+  return out;
 }
 
 // ---------------- robot paint jobs & outfits ----------------
@@ -743,7 +749,7 @@ function buildAssets() {
   TEX.helmet = tex(helmetCanvas(PAINTS.classic));
   TEX.legalDecal = decalTex('法务', '#15171b', '#ffffff');
   TEX.taxiDecal = decalTex('出租', '#f5c518', '#111111');
-  for (const k of ['klaude', 'klaudeEvil', 'kodex', 'alfred', 'gordon', 'rachel', 'crane', 'shadow', 'master', 'bug', 'labeler', 'clerk1', 'clerk2', 'clerk3', 'dama', 'daye', 'shopkeeper', 'doctor', 'waiter', 'xs1', 'xs2']) HEADS[k] = tex(drawHead(k));
+  for (const k of ['klaude', 'klaudeEvil', 'kodex', 'alfred', 'gordon', 'rachel', 'crane', 'shadow', 'master', 'bug', 'labeler', 'clerk1', 'clerk2', 'clerk3', 'dama', 'daye', 'shopkeeper', 'doctor', 'waiter', 'xs1', 'xs2']) { HEADS[k] = tex(drawHead(k)); HEADS[k].headKind = k; }
   HEADS.hero = TEX.faceEq;
 
   MAT.vc = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -753,6 +759,7 @@ function buildAssets() {
   MAT.facades = FACADES.map((f) => Render.cutout(makeFacade(f)));
   MAT.shops = [0, 1, 2, 3].map(() => Render.cutout(makeShopfront()));
   MAT.bldProps = Render.cutout(new THREE.MeshLambertMaterial({ vertexColors: true }));
+  MAT.vcCut = Render.cutout(new THREE.MeshLambertMaterial({ vertexColors: true })); // street trees / lamp posts / parked bikes: dithered away right in front of the lens
   MAT.coin = new THREE.MeshLambertMaterial({ map: TEX.coin, emissive: 0xffffff, emissiveMap: TEX.coin, emissiveIntensity: 0.55 });
   MAT.lampHead = new THREE.MeshBasicMaterial({ color: 0xfff1b8 });
   MAT.lampPool = new THREE.MeshBasicMaterial({ map: TEX.disc, color: 0xffcf7a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });

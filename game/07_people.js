@@ -1,184 +1,10 @@
 /* ============================================================
-   people: pedestrians on the sidewalks + the player's human body
+   people: the character builder (hero, cast, NPC actors).
+   Street pedestrians, e-bike riders and street life live in 07a_peds.js.
    ============================================================ */
-const SKINS = [0xf1c9a5, 0xe0ac86, 0xc98e6b, 0xf5d5b8];
-const SHIRTS = [0xe63946, 0x457b9d, 0x2a9d8f, 0xf4a261, 0xffffff, 0x222222, 0x8e44ad, 0xf1c40f, 0x16a085, 0xd35400, 0x5c7cfa];
-const PANTS = [0x1d3557, 0x333333, 0x5c4033, 0x6c757d, 0x264653];
-const HAIRS = [0x1b1b1b, 0x3b2a20, 0x6b4a2f, 0x111111, 0xb08a58];
-const PANIC_LINES = ['变形金刚来了！快跑啊！', '我的妈呀！', '嘛呢这是？！', '快报警！', '拍下来发朋友圈……', '这是 AGI 吗？！', '得，今儿不遛弯儿了！', '撒丫子跑吧！', '哎哟喂！', '我的 KPI 诶！'];
-const IDLE_LINES = ['吃了吗您呐？', '今儿个天儿不错', '这 Token 又涨价了', '遛弯儿去喽', '胡同口新开了家咖啡', '卷不动了……', '周报写完了吗？', '这需求很简单，今儿晚上线', '显卡嘛时候到货啊', '嘿，您瞧那楼！', '豆汁儿喝了没？', '这天儿，得来碗炸酱面'];
-const HIT_LINES = ['哎哟喂！', '打人啦！', '你丫有病吧！', '我的钱！', '报警！报警！', '嘛呢这是！', '我这老腰诶！', '打人不打脸！', '钱都给你，别打了！', '讹上你了啊！', '光天化日的！'];
-
-function pedPerim(b) { const r = b.rect, i = 1.6; return { x0: r.x0 + i, x1: r.x1 - i, z0: r.z0 + i, z1: r.z1 - i, w: r.x1 - r.x0 - 2 * i, d: r.z1 - r.z0 - 2 * i }; }
-function perimPoint(pm, s) {
-  const L = 2 * (pm.w + pm.d);
-  s = ((s % L) + L) % L;
-  if (s < pm.w) return [pm.x0 + s, pm.z0, 1, 0];
-  s -= pm.w; if (s < pm.d) return [pm.x1, pm.z0 + s, 0, 1];
-  s -= pm.d; if (s < pm.w) return [pm.x1 - s, pm.z1, -1, 0];
-  s -= pm.w; return [pm.x0, pm.z1 - s, 0, -1];
-}
-function perimNearestS(pm, x, z) {
-  const cx = clamp(x, pm.x0, pm.x1), cz = clamp(z, pm.z0, pm.z1);
-  const c = [[Math.abs(cz - pm.z0), cx - pm.x0], [Math.abs(cx - pm.x1), pm.w + (cz - pm.z0)], [Math.abs(cz - pm.z1), pm.w + pm.d + (pm.x1 - cx)], [Math.abs(cx - pm.x0), 2 * pm.w + pm.d + (pm.z1 - cz)]];
-  c.sort((a, b) => a[0] - b[0]);
-  return c[0][1];
-}
-
-class Ped {
-  constructor(geo) {
-    this.mesh = new THREE.Mesh(geo, MAT.vc); this.mesh.castShadow = true; scene.add(this.mesh);
-    this.pos = new V3(); this.heading = 0; this.y = 0; this.bubbleH = 0.2;
-    this.state = 'walk'; this.t = 0; this.ph = rand(TAU); this.vx = 0; this.vz = 0; this.fx = 0; this.fz = 0;
-    this.speed = rand(1.2, 1.9); this.dir = Math.random() < 0.5 ? 1 : -1; this.checkT = rand(0.3); this.talkT = rand(6, 20);
-  }
-  place(b, s) { this.b = b; this.pm = pedPerim(b); this.s = s ?? rand(2 * (this.pm.w + this.pm.d)); this.state = 'walk'; this.tick(0); }
-  panic(fx, fz, dur = 3.5) {
-    if (this.state === 'dive') return;
-    const wasCalm = this.state !== 'panic';
-    this.state = 'panic'; this.t = dur * rand(0.8, 1.2); this.fx = fx; this.fz = fz;
-    if (wasCalm && Math.random() < 0.18) Bubble.say(this, pick(PANIC_LINES), 1.8, 'ped');
-  }
-  dive(nx, nz) {
-    if (this.state === 'down') return;
-    this.state = 'dive'; this.t = 0.45; this.vx = nx * 10; this.vz = nz * 10;
-    if (Math.random() < 0.3) Bubble.say(this, pick(['哎哟！', '会不会开车啊您！', '差点儿交代这儿！', '嘿！长没长眼啊！']), 1.2, 'ped');
-  }
-  // punched / kicked: fly back, fall, lie there a moment, get up and leg it. Returns true when money comes out.
-  hit(kx, kz, strong) {
-    const coins = G.time - (this.coinT || -99) > 2.5 && this.state !== 'down';
-    this.state = 'down'; this.t = strong ? rand(2.4, 3.4) : rand(1.6, 2.4); this.vx = kx; this.vz = kz; this.vy = strong ? 7 : 3.5; this.y = Math.max(this.y, 0.05); this.fallA = 0;
-    if (coins) { this.coinT = G.time; Bubble.say(this, pick(HIT_LINES), 1.6, 'ped'); Sfx.ouch(); }
-    return coins;
-  }
-  tick(dt) {
-    this.ph += dt * (this.state === 'panic' ? 16 : 8);
-    switch (this.state) {
-      case 'walk': {
-        this.s += this.dir * this.speed * dt;
-        const [x, z, dx, dz] = perimPoint(this.pm, this.s);
-        this.pos.set(x, 0, z); this.heading = Math.atan2(dx * this.dir, dz * this.dir);
-        if (Math.random() < dt * 0.04) { this.state = 'idle'; this.t = rand(1, 3); }
-        break;
-      }
-      case 'idle': this.t -= dt; if (this.t <= 0) { this.state = 'walk'; if (Math.random() < 0.3) this.dir = -this.dir; } break;
-      case 'panic': {
-        this.t -= dt;
-        let dx = this.pos.x - this.fx, dz = this.pos.z - this.fz; const l = hyp(dx, dz) || 1; dx /= l; dz /= l;
-        this.pos.x += dx * 7 * dt; this.pos.z += dz * 7 * dt;
-        collideCircle(this.pos, 0.4);
-        this.heading = dampA(this.heading, Math.atan2(dx, dz), 10, dt);
-        if (this.t <= 0) this.state = 'return';
-        break;
-      }
-      case 'dive': {
-        this.t -= dt; this.pos.x += this.vx * dt; this.pos.z += this.vz * dt; collideCircle(this.pos, 0.4);
-        if (this.t <= 0) this.panic(this.pos.x - this.vx, this.pos.z - this.vz, 1.5);
-        break;
-      }
-      case 'down': {
-        this.t -= dt; this.fallA = Math.min(1, (this.fallA || 0) + dt * 5);
-        this.vy -= 26 * dt; this.y = Math.max(0, this.y + this.vy * dt); if (this.y === 0) { this.vy = 0; const f = Math.exp(-5 * dt); this.vx *= f; this.vz *= f; }
-        this.pos.x += this.vx * dt; this.pos.z += this.vz * dt; collideCircle(this.pos, 0.4);
-        if (this.t <= 0) { this.fallA = 0; this.y = 0; this.panic(Player.pos.x, Player.pos.z, 4); }
-        break;
-      }
-      case 'return': {
-        const bi = clamp(Math.floor((this.pos.x + HALF) / PITCH), 0, NB - 1), bj = clamp(Math.floor((this.pos.z + HALF) / PITCH), 0, NB - 1);
-        const nb = blockAt(bi, bj);
-        if (nb !== this.b) { this.b = nb; this.pm = pedPerim(nb); }
-        const s = perimNearestS(this.pm, this.pos.x, this.pos.z), [x, z] = perimPoint(this.pm, s);
-        const dx = x - this.pos.x, dz = z - this.pos.z, l = hyp(dx, dz);
-        if (l < 0.4) { this.s = s; this.state = 'walk'; break; }
-        this.pos.x += (dx / l) * 2.6 * dt; this.pos.z += (dz / l) * 2.6 * dt; collideCircle(this.pos, 0.4);
-        this.heading = dampA(this.heading, Math.atan2(dx, dz), 8, dt);
-        break;
-      }
-    }
-    const moving = this.state !== 'idle' && this.state !== 'down';
-    const bob = moving ? Math.abs(Math.sin(this.ph)) * (this.state === 'panic' ? 0.22 : 0.1) : 0;
-    this.mesh.position.set(this.pos.x, groundH(this.pos.x, this.pos.z) + bob + (this.state === 'down' ? this.y + 0.15 : 0), this.pos.z);
-    this.mesh.rotation.set(this.state === 'dive' ? -1.1 : this.state === 'down' ? -1.45 * (this.fallA || 0) : 0, this.heading, moving ? Math.sin(this.ph) * 0.08 : 0, 'YXZ');
-  }
-}
-
-const Peds = {
-  list: [], geos: [], checkT: 0, streamT: 0,
-  target() { return LOWQ ? 20 : 40; },
-  init() {
-    const body = (shirt, pants, skin, hair, extra = [], o = {}) => mergeParts([
-      box(-0.17, 0.42, 0, 0.26, 0.84, 0.3, pants), box(0.17, 0.42, 0, 0.26, 0.84, 0.3, pants),
-      box(0, 1.15, 0, 0.66, 0.72, 0.38, shirt), box(-0.43, 1.12, 0, 0.18, 0.68, 0.22, o.tank ? skin : shirt), box(0.43, 1.12, 0, 0.18, 0.68, 0.22, o.tank ? skin : shirt),
-      box(0, 1.72, 0, 0.44, 0.44, 0.42, skin), ...(hair === null ? [] : [box(0, 1.97, -0.02, 0.48, 0.14, 0.46, hair)]), ...extra,
-    ]);
-    for (let k = 0; k < 10; k++) this.geos.push(body(pick(SHIRTS), pick(PANTS), pick(SKINS), pick(HAIRS)));
-    // 胡同大爷: 跨栏背心 + 蒲扇
-    this.geos.push(body(0xf4f2ec, 0x3b4252, 0xe8b890, 0xbdbdbd, [box(0.5, 1.2, 0.3, 0.05, 0.5, 0.45, 0xd9c28e)], { tank: true }));
-    // 大妈: red top, perm, a folding fan for 广场舞
-    this.geos.push(body(0xd7263d, 0x1f2937, 0xf0c8a4, null, [gpart(new THREE.SphereGeometry(0.3, 8, 6), 0x2b1d16, 0, 2.0, 0, 0, 0, 0, 1, 0.7, 1), box(-0.5, 1.4, 0.2, 0.05, 0.45, 0.5, 0xf472b6)]));
-    // 外卖小哥: yellow jacket, helmet, box on the back
-    this.geos.push(body(0xf6c21a, 0x1f2937, pick(SKINS), null, [gpart(new THREE.SphereGeometry(0.3, 8, 6, 0, TAU, 0, Math.PI / 2), 0xf6c21a, 0, 1.9, 0), box(0, 1.3, -0.45, 0.7, 0.7, 0.5, 0xf6c21a)]));
-    // 快递小哥: red jacket + cap
-    this.geos.push(body(0xc81e28, 0x1f2937, pick(SKINS), 0x1b1b1b, [box(0, 2.05, 0.12, 0.5, 0.08, 0.6, 0xc81e28)]));
-    // 上班族: white shirt, backpack
-    this.geos.push(body(0xf8fafc, 0x1f2937, pick(SKINS), 0x1b1b1b, [box(0, 1.2, -0.36, 0.56, 0.62, 0.28, 0x1f2937)]));
-    // 游客: bright shirt, red cap, camera
-    this.geos.push(body(0x22c55e, 0xe5e7eb, pick(SKINS), 0x3b2a20, [box(0, 2.05, 0.1, 0.5, 0.1, 0.58, 0xd7263d), box(0, 1.35, 0.22, 0.24, 0.16, 0.12, 0x111111)]));
-    for (let k = 0; k < this.target(); k++) { const p = new Ped(pick(this.geos)); p.place(this.randomBlock(0, 0, 0, 170)); this.list.push(p); }
-  },
-  randomBlock(x, z, minD, maxD) {
-    for (let k = 0; k < 30; k++) {
-      const b = W.blocks[randi(0, W.blocks.length - 1)], r = b.rect;
-      const d = hyp((r.x0 + r.x1) / 2 - x, (r.z0 + r.z1) / 2 - z);
-      if (d >= minD && d <= maxD) return b;
-    }
-    return W.blocks[randi(0, W.blocks.length - 1)];
-  },
-  spawnAt(x, z) {
-    let far = null, fd = -1;
-    for (const p of this.list) { const d = dist2(p.pos.x, p.pos.z, Player.pos.x, Player.pos.z); if (d > fd) { fd = d; far = p; } }
-    if (!far) return null;
-    const bi = clamp(Math.floor((x + HALF) / PITCH), 0, NB - 1), bj = clamp(Math.floor((z + HALF) / PITCH), 0, NB - 1);
-    far.place(blockAt(bi, bj)); far.pos.set(x, 0, z); far.state = 'return';
-    return far;
-  },
-  panicAround(x, z, r, dur = 3.5) { for (const p of this.list) if (dist2(p.pos.x, p.pos.z, x, z) < r * r) p.panic(x, z, dur); },
-  dodge(x, z, vx, vz, r) {
-    const sp = hyp(vx, vz) || 1, ux = vx / sp, uz = vz / sp;
-    for (const p of this.list) {
-      if (p.state === 'dive') continue;
-      const dx = p.pos.x - x, dz = p.pos.z - z;
-      const ahead = dx * ux + dz * uz;
-      if (ahead < -1 || ahead > r + sp * 0.35) continue;
-      const lat = dx * uz - dz * ux;
-      if (Math.abs(lat) > r) continue;
-      const s = lat >= 0 ? 1 : -1;
-      p.dive(uz * s, -ux * s);
-    }
-  },
-  update(dt) {
-    this.checkT -= dt;
-    const mech = Player.isMech();
-    if (this.checkT <= 0) {
-      this.checkT = 0.25;
-      if (mech) this.panicAround(Player.pos.x, Player.pos.z, 26, 3);
-      else if (Player.mode === 'human') for (const p of this.list) {
-        p.talkT -= 0.25;
-        if (p.talkT <= 0 && p.state === 'walk' && dist2(p.pos.x, p.pos.z, Player.pos.x, Player.pos.z) < 100) { p.talkT = rand(14, 30); Bubble.say(p, pick(IDLE_LINES), 2.2, 'ped'); }
-      }
-    }
-    for (const p of this.list) p.tick(dt);
-    this.streamT -= dt;
-    if (this.streamT <= 0) {
-      this.streamT = 0.6;
-      for (const p of this.list) if (dist2(p.pos.x, p.pos.z, Player.pos.x, Player.pos.z) > 130 * 130) { p.place(this.randomBlock(Player.pos.x, Player.pos.z, 45, 110)); break; }
-    }
-  },
-};
-
 /* ============================================================
    characters: one builder for the hero, the cast and NPCs.
-   Everyone gets a big billboard head (sticker style).
+   Everyone gets a big 3D head (02c_head3d: their drawing / photo on a real skull).
    ============================================================ */
 function buildCharacter(o = {}) {
   const skin = o.skin ?? 0xe9c3a0, shirt = o.shirt ?? 0x17191e, pants = o.pants ?? 0x2b2f3a, shoe = o.shoe ?? 0x2b2b2b;
@@ -254,9 +80,9 @@ function buildCharacter(o = {}) {
     root.add(fan);
   }
   if (o.head) {
-    const size = o.headSize ?? 2.1;
-    const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: o.head, transparent: true, depthWrite: false }));
-    head.scale.set(size, size, 1); head.position.set(0, (o.rack ? 2.45 : 1.95) + size * 0.42, 0); head.renderOrder = 7;
+    // a real 3D head (02c_head3d) with the drawing projected on the front: it turns with the body
+    const size = o.headSize ?? 2.1, head = Head3D.forCast(o.head, size);
+    head.position.y = (o.rack ? 2.45 : 1.95) + size * 0.42;
     root.add(head); R.head = head; R.headY = head.position.y;
   }
   if (o.scale) root.scale.setScalar(o.scale);
@@ -267,6 +93,9 @@ function buildHuman(outfit = 'tee', eqp = {}) {
   const R = buildCharacter({ shirt: O.shirt, print: O.tang ? undefined : O.print, pants: O.pants, shoe: O.shoe, plaid: O.plaid, tie: O.tie, cape: O.cape, emblem: outfit === 'batsuit' ? 0xe0b64a : undefined, trim: outfit === 'batsuit' ? 0xe0b64a : undefined,
     longSleeve: O.longSleeve || outfit === 'suit' || outfit === 'hoodie' || outfit === 'batsuit', tank: O.tank, stripes: O.stripes, tang: O.tang,
     hand: eqp.hand, neck: eqp.neck, back: eqp.back, wrist: eqp.wrist, shoeKind: eqp.feet });
+  // the hero's own face as a 3D head, hat and glasses on it (the billboard sticker only stays for the mech helmet)
+  const head = Head3D.heroHead(eqp.head, eqp.face);
+  R.root.add(head); R.head = R.head3d = head; R.headY = head.position.y;
   scene.add(R.root);
   return R;
 }
@@ -344,6 +173,7 @@ const Actors = {
     Object.assign(def, opts);
     const R = buildCharacter(def);
     scene.add(R.root);
+    [x, z] = standableSpot(x, z); // outdoors: never inside a building or a lake
     const a = { id, kind, R, pos: new V3(x, 0, z), heading, anim: opts.anim || 'idle', ph: rand(TAU), target: null, speed: 3, y: 0, bubbleH: 0.4, onArrive: null, t: 0, name: def.name };
     this.map[id] = a;
     this.sync(a, 0);
@@ -356,7 +186,7 @@ const Actors = {
   face(id, x, z) { const a = this.map[id]; if (a) a.heading = Math.atan2(x - a.pos.x, z - a.pos.z); },
   faceEach(a, b) { const A = this.map[a], B = this.map[b]; if (A && B) { this.face(a, B.pos.x, B.pos.z); this.face(b, A.pos.x, A.pos.z); } },
   anim(id, name) { const a = this.map[id]; if (a) { a.anim = name; a.t = 0; } },
-  place(id, x, z, h) { const a = this.map[id]; if (a) { a.pos.set(x, 0, z); if (h !== undefined) a.heading = h; a.target = null; } },
+  place(id, x, z, h) { const a = this.map[id]; if (a) { [x, z] = standableSpot(x, z); a.pos.set(x, 0, z); if (h !== undefined) a.heading = h; a.target = null; } },
   update(dt) {
     for (const id in this.map) {
       const a = this.map[id];

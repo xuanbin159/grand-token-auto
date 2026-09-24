@@ -13,32 +13,35 @@ const TIPS = ['吃满 1M Token 才能变身，变完身 Token 会一点点儿烧
   '按 Tab 打开角色面板：技能树、专精、地图、任务，全在里头。', '5 级以后能选专精，攒满能量按 R 放大招。', '拳头招呼 Kwen 办公、飞脚踹逗包办公，伤害翻倍。',
   '打人会爆金币！戴上大金链子、貔貅手串，爆得更多。', '琉璃厂、王府井、大栅栏、老王五金、中关村都能买装备，买了立马穿身上。', '天桥得云社能听相声，乐呵完了经验涨得快。',
   '护锅寺小吃的卤煮火烧能回满血，权重德的二锅头喝了能打醉拳。', 'Kodex 应用科学部能给战甲上镀层、换涂装。', '变身动画太长？按 T 或空格直接跳到亮相。'];
-const TOUCH_LABELS = {
-  human: { KeyJ: '拳', KeyK: '踢', Space: '跳', KeyF: '上车', KeyT: '变身', KeyL: '', KeyR: '', KeyQ: '' },
-  car: { KeyJ: '喇叭', KeyK: '', Space: '手刹', KeyF: '下车', KeyT: '变身', KeyL: '', KeyR: '', KeyQ: '' },
-  robot: { KeyJ: '拳', KeyK: '踢', Space: '砸地', KeyF: '抓车', KeyT: '卡车', KeyL: '光束', KeyR: '大招', KeyQ: '解除' },
-  truck: { KeyJ: '喇叭', KeyK: '', Space: '手刹', KeyF: '', KeyT: '机器人', KeyL: '', KeyR: '大招', KeyQ: '解除', ShiftLeft: '氮气' },
-};
 
 /* ---- your own face: pick a picture, line the eyes up, and it becomes the hero everywhere.
    Kept only in this browser (localStorage); nothing leaves the page. ---- */
 const HeroFace = {
-  KEY: 'gta-hero-face', custom: false,
-  stored() { const d = Store.get(this.KEY); return d && typeof d.img === 'string' && d.img.startsWith('data:image/') ? d : null; },
+  // stored: { v: 2, img: data URL of the 300×364 crop | 'default' (the built-in face, re-aligned), eyes: [[x,y],[x,y]] in the crop, yaw: radians,
+  //   cut: the picture is a clean cut-out (made from the built-in face) — else the 3D head fades out the background around the head }
+  KEY: 'gta-hero-face', custom: false, cut: true,
+  stored() { const d = Store.get(this.KEY); return d && typeof d.img === 'string' && (d.img === 'default' || d.img.startsWith('data:image/')) ? d : null; },
   async load(url) {
     FACE_IMG.src = url;
     await Promise.race([FACE_IMG.decode().catch(() => {}), new Promise((r) => { if (FACE_IMG.complete) r(); else { FACE_IMG.onload = r; FACE_IMG.onerror = r; } }), new Promise((r) => setTimeout(r, 1500))]);
   },
+  eyesOk(e) { return Array.isArray(e) && e.length === 2 && e.every((p) => Array.isArray(p) && p.length === 2 && p.every((v) => Number.isFinite(v) && v > -50 && v < 450)) && e[1][0] - e[0][0] > 8; },
+  apply(d) {
+    const def = d.img === 'default';
+    FACE_EYES = this.eyesOk(d.eyes) ? d.eyes : def ? FACE_EYES_DEFAULT : FACE_EYES_CENTRED;
+    FACE_YAW = Number.isFinite(d.yaw) ? clamp(d.yaw, -1.2, 1.2) : def ? FACE_YAW_DEFAULT : 0;
+    this.cut = def || !!d.cut;
+  },
   // at boot, before any texture is made from the face
-  async boot() { const d = this.stored(); if (!d) return; this.custom = true; FACE_EYES = d.eyes || FACE_EYES_CENTRED; await this.load(d.img); },
-  async set(url) {
-    const saved = Store.set(this.KEY, { v: 1, img: url, eyes: FACE_EYES_CENTRED });
-    this.custom = true; FACE_EYES = FACE_EYES_CENTRED; await this.load(url); this.refresh();
+  async boot() { const d = this.stored(); if (!d) return; this.apply(d); if (d.img !== 'default') { this.custom = true; await this.load(d.img); } },
+  async set(url, eyes = FACE_EYES_CENTRED, yaw = 0, cut = false) {
+    const d = { v: 2, img: url, eyes, yaw, cut }, saved = Store.set(this.KEY, d);
+    this.apply(d); this.custom = url !== 'default'; await this.load(this.custom ? url : FACE_DATA); this.refresh();
     return saved;
   },
-  async reset() { Store.del(this.KEY); this.custom = false; FACE_EYES = FACE_EYES_DEFAULT; await this.load(FACE_DATA); this.refresh(); },
-  // everything that has the face baked in: head sprite with hat/glasses, helmet, portraits, title art
-  refresh() { TEX.face = tex(faceSticker(256, 9)); Player.refreshHead(); Robot.repaint(RPG.paint); this.titleArt(); },
+  async reset() { Store.del(this.KEY); this.custom = false; this.cut = true; FACE_EYES = FACE_EYES_DEFAULT; FACE_YAW = FACE_YAW_DEFAULT; await this.load(FACE_DATA); this.refresh(); },
+  // everything that has the face baked in: the 3D head (rebuilt with the body), sticker + portraits, helmet, title art
+  refresh() { TEX.face = tex(faceSticker(256, 9)); Head3D.invalidateHero(); Player.rebuildHuman(); Robot.repaint(RPG.paint); this.titleArt(); },
   titleArt() {
     const bust = this.custom ? heroBustCanvas().toDataURL('image/jpeg', 0.9) : BUST_DATA;
     $('t-bust').src = bust; $('ld-bust').src = bust;
@@ -80,6 +83,12 @@ const UI = {
     $('lb-skip').addEventListener('click', () => { if (Cutscene.active) Cutscene.skip(); });
     if (IS_TOUCH) { document.body.classList.add('touch'); this.initTouch(); }
     canvasEl.addEventListener('pointerdown', () => { Input.click = true; });
+    // map: tap the radar for the big map; the pause screen opens on it (GTA-style); the base map paints while the title shows
+    this.radar.addEventListener('click', () => { if (G.started && !Cutscene.active && !G.paused && !UI.panelOpen && !UI.shopId) { Sfx.click(); this.openPanel('map'); } });
+    const pz = $('pause'), pm = $('pause-map');
+    if (pz && pm && window.MutationObserver) new MutationObserver(() => { if (!pz.hidden) BigMap.mount(pm); else if (BigMap.host === pm) BigMap.unmount(); }).observe(pz, { attributes: true, attributeFilter: ['hidden'] });
+    setTimeout(() => guard('MapGfx.build', () => { MapGfx.ready(); MapLabels.build(); }), 400);
+    setTimeout(() => { if (window.GTA) Object.assign(window.GTA, { GPS, BigMap, MapGfx, MapLabels, Radar }); }, 0);
     this.resize();
   },
   resize() {
@@ -87,7 +96,7 @@ const UI = {
     this.radar.width = Math.max(10, Math.round(r.width * dpr)); this.radar.height = Math.max(10, Math.round(r.height * dpr)); this.rdpr = dpr;
   },
   showHud() { $('hud').hidden = false; if (IS_TOUCH) $('touch').hidden = false; this.resize(); },
-  hudDim(on) { $('hud').classList.toggle('dim', on); if (IS_TOUCH) $('touch').hidden = on || !G.started; },
+  hudDim(on) { $('hud').classList.toggle('dim', on); if (IS_TOUCH) { $('touch').hidden = on || !G.started; if (on) Touch.release(); } },
   // ---- transient text ----
   big(title, sub = '', style = 'white', dur = 2.2, force = false) {
     // SA keeps pickup/level banners out of cutscenes: hold them until the letterbox lifts
@@ -106,12 +115,13 @@ const UI = {
   news(text) { $('news-text').textContent = text; $('news').classList.add('show'); this.newsT = 6; },
   radio() { const [s, song] = pick(RADIO); $('radio').innerHTML = `<b>${esc(s)}</b><span>正在播放 ${esc(song)}</span>`; $('radio').classList.add('show'); this.radioT = 3; },
   carName(n) { $('carname').textContent = n; $('carname').classList.add('show'); this.carT = 2.6; },
-  district(cn, en) { $('d-cn').textContent = cn; $('d-en').textContent = en; $('district').classList.add('show'); this.distT = 3; },
+  // GTA-style corner caption: the area big, the street under it
+  district(cn, en, dur = 3.2) { $('d-cn').textContent = cn; $('d-en').textContent = en || ''; $('district').classList.add('show'); this.distT = dur; },
   hurt(a) { this.hurtA = Math.min(0.9, this.hurtA + a); },
   flash() { this.flashA = 1; },
   flashHeal() { this.healA = 0.7; },
   stat(t) { const el = $('statpop'); el.textContent = t; el.classList.add('show'); this.statT = 2.6; },
-  levelUp(lv) { if (Cutscene.active && document.body.classList.contains('cine')) { this.deferred.lv = lv; return; } const el = $('lvup'); el.innerHTML = `<b>等级提升！</b><span>Lv.${lv} · 获得 1 个技能点（Tab 查看）</span>`; el.classList.add('show'); this.lvT = 3.2; },
+  levelUp(lv) { if (Cutscene.active && document.body.classList.contains('cine')) { this.deferred.lv = lv; return; } const el = $('lvup'); el.innerHTML = `<b>等级提升！</b><span>Lv.${lv} · 获得 1 个技能点（${IS_TOUCH ? '点「角色」' : 'Tab '}查看）</span>`; el.classList.add('show'); this.lvT = 3.2; },
   wasted(busted) { canvasEl.classList.add('wasted'); this.big(busted ? 'BUSTED' : 'WASTED', busted ? '让法务部请去喝茶了 · 律师函已送达' : 'OOM · 显存溢出，人撂这儿了', busted ? 'busted' : 'wasted', 4); },
   unwasted() { canvasEl.classList.remove('wasted'); },
   fade(to, dur, cb) {
@@ -154,7 +164,8 @@ const UI = {
   card(on) { $('card').classList.toggle('show', on); },
   confirm(text, yes, o = {}) {
     $('confirm-text').textContent = text; $('confirm').hidden = false;
-    $('confirm-yes').textContent = o.yes || '确定'; $('confirm-no').textContent = o.no || '取消';
+    const kh = (t) => (IS_TOUCH ? t.replace(/\s*[(（](Esc|Enter|Tab|Space|空格|[A-Z])[)）]/g, '') : t); // no keyboard on a phone
+    $('confirm-yes').textContent = kh(o.yes || '确定'); $('confirm-no').textContent = kh(o.no || '取消');
     $('confirm-yes').onclick = () => { $('confirm').hidden = true; yes(); };
     $('confirm-no').onclick = () => { $('confirm').hidden = true; if (o.no && o.onNo) o.onNo(); };
   },
@@ -167,7 +178,7 @@ const UI = {
   credits(done) {
     const el = $('credits'), roll = $('cr-roll');
     const lines = [['GRAND TOKEN AUTO', '四九城 · 侠影之谜'], ['主演', 'Token 侠'], ['反派', 'Klaude（本色出演）'], ['友情客串', 'Kodex'], ['管家', '阿福 · 25 号机（4×RTZ 5090）'],
-      ['法务部唯一的明白人', '老戈'], ['发小儿', '瑞秋'], ['幻觉供应商', '幻觉博士'], ['相声', '甄逗 · 贾捧'], ['群众演员', '百模帮全体成员 · 胡同儿里的大爷大妈'], ['特别鸣谢', '所有被 rm -rf 过的同事'], ['下集预告', '《Token 骑士》']];
+      ['法务部唯一的明白人', '老戈'], ['发小儿', '瑞秋'], ['幻觉供应商', '幻觉博士'], ['相声', '甄逗 · 贾捧'], ['群众演员', '百模帮全体成员 · 胡同儿里的大爷大妈'], ['特别鸣谢', '所有被 rm -rf 过的同事'], ['地图数据', '© OpenStreetMap 贡献者 · ODbL'], ['下集预告', '《Token 骑士》']];
     roll.innerHTML = lines.map(([a, b]) => `<p><small>${esc(a)}</small>${esc(b)}</p>`).join('');
     el.hidden = false; roll.style.animation = 'none'; void roll.offsetWidth; roll.style.animation = 'roll 16s linear forwards';
     Sfx.mood('cut');
@@ -191,8 +202,9 @@ const UI = {
     this.panelOpen = true; this.panelHome = atHome; this.panelTab = tab || this.panelTab; Input.lock = true;
     $('panel').hidden = false; this.renderPanel();
   },
-  closePanel() { this.panelOpen = false; $('panel').hidden = true; Input.lock = Cutscene.active || !!Gym.active; },
+  closePanel() { this.panelOpen = false; $('panel').hidden = true; Input.lock = Cutscene.active || !!Gym.active; if (BigMap.host && BigMap.host.id === 'panel-map') BigMap.unmount(); },
   renderPanel() {
+    if (BigMap.host && BigMap.host.id === 'panel-map') BigMap.unmount();
     for (const b of document.querySelectorAll('#panel .tabs button')) b.classList.toggle('on', b.dataset.tab === this.panelTab);
     const body = $('panel-body'), R = RPG, m = R.m;
     if (this.panelTab === 'stats') {
@@ -239,10 +251,8 @@ const UI = {
         RPG.chooseSpec(b.dataset.spec); this.renderPanel(); this.toast('专精已选择：' + SPECS.find((s) => s.id === b.dataset.spec).name, 2.4);
       }));
     } else if (this.panelTab === 'map') {
-      body.innerHTML = '<canvas id="bigmap"></canvas><p class="note">圆圈字是能进的铺子（府 = 王府存档），字母是任务，彩色街区是百模帮的地盘，拆了总部就变绿。黄框是二环，虚线是上下文轻轨。</p>';
-      const c = $('bigmap'), dpr = Math.min(2, window.devicePixelRatio || 1), sz = Math.min(body.clientWidth - 4, 560);
-      c.style.width = c.style.height = sz + 'px'; c.width = c.height = Math.round(sz * dpr);
-      this.drawMap(c.getContext('2d'), c.width, dpr, true);
+      body.innerHTML = `<div class="bm" id="panel-map"></div><p class="note bm-legend"><i class="lg-shop"></i>能进的铺子（府 = 王府存档）<i class="lg-hq"></i>百模帮总部，圈里是地盘，拆了变绿 <i class="lg-metro"></i>地铁站 <i class="lg-cam"></i>电子眼 <i class="lg-ring"></i>二环 <i class="lg-rail"></i>上下文轻轨 <i class="lg-route"></i>导航路线</p>`;
+      BigMap.mount($('panel-map'));
     } else if (this.panelTab === 'story') {
       const recap = { m0: '显存看守所里，杜卡德找上了您。', m1: '西山道场，杜卡德教您吃 Token、变身。', m2: '您不肯 rm -rf，道场一把火烧了，您还把杜卡德背了出来。', m3: '回到 Token 王府，25 号机还给您开着。', m4: 'Kodex 给了您卡车模块：“有黑色款吗？”绕二环跑了一圈儿。', m5: '杜卡德远程支招儿，您在望京拳打了 Kwen 办公。', m6: '大钟寺，脚踢逗包办公。', m7: '国贸横扫起查查，老戈找上了您。', m8: '安定门外的阿卡姆：死在道场的，不过是个 prompt。', m9: '生日宴上杜卡德亮了底牌——他就是 Klaude。', m10: 'Kodex 给了您一批 Token。', m11: '二环上下文轻轨上的最终决战，天亮在景山。' };
       body.innerHTML = '<ol class="log">' + MISSIONS.map((mm, i) => {
@@ -251,30 +261,66 @@ const UI = {
       }).join('') + `</ol><p class="note">支线：拆掉剩下的百模帮总部（${W.hqs.filter((h) => h.dead).length} / ${W.hqs.length}）。</p>`;
     }
   },
-  // ---- face picker: drag to move, wheel / slider to zoom, slider to straighten; eyes on the two circles ----
+  // ---- face picker: pick a picture → the face and eyes are found automatically → drag the eye rings or the picture,
+  // zoom (wheel / pinch / slider), straighten, set how far the face is turned; the 3D head (02c_head3d) turns next to it ----
   openFacePicker() {
     if (!this.fp) this.fp = this.initFacePicker();
     this.fpLock = Input.lock; Input.lock = true;
-    $('facepick').hidden = false; $('fp-reset').disabled = !HeroFace.custom;
-    this.fp.draw();
+    $('facepick').hidden = false; $('fp-reset').disabled = !HeroFace.stored();
+    this.fp.open();
   },
-  closeFacePicker() { $('facepick').hidden = true; Input.lock = this.fpLock || false; },
+  closeFacePicker() { $('facepick').hidden = true; Input.lock = this.fpLock || false; if (this.fp) this.fp.close(); },
   initFacePicker() {
-    const cv = $('fp-canvas'), g = cv.getContext('2d'), K = cv.width / 300, E = FACE_EYES_CENTRED;
-    const st = { img: null, x: 150, y: 182, fit: 1, s: 1, r: 0 };
+    const cv = $('fp-canvas'), g = cv.getContext('2d'), K = cv.width / 300, PX = 115, EYE_Y = 160; // crop px per head unit, eye line
+    // the picture (source px) placed in the 300×364 crop: centre x/y, scale s, rotation r; the eyes in source px; yaw in radians
+    const st = { img: null, x: 150, y: 182, fit: 1, s: 1, r: 0, eyes: [[0, 0], [1, 0]], yaw: 0, def: false, cut: false, moved: false, gen: 0 };
+    const toCrop = (p) => { const c = Math.cos(st.r), s = Math.sin(st.r), dx = (p[0] - st.img.width / 2) * st.s, dy = (p[1] - st.img.height / 2) * st.s; return [st.x + dx * c - dy * s, st.y + dx * s + dy * c]; };
+    const toImg = (q) => { const c = Math.cos(st.r), s = Math.sin(st.r), dx = q[0] - st.x, dy = q[1] - st.y; return [(dx * c + dy * s) / st.s + st.img.width / 2, (-dx * s + dy * c) / st.s + st.img.height / 2]; };
     const paint = (ctx) => { ctx.save(); ctx.translate(st.x, st.y); ctx.rotate(st.r); ctx.scale(st.s, st.s); ctx.drawImage(st.img, -st.img.width / 2, -st.img.height / 2); ctx.restore(); };
+    const crop = mkCanvas(300, 364), cg = crop.getContext('2d');
+    const cropNow = () => { cg.clearRect(0, 0, 300, 364); cg.save(); cg.beginPath(); cg.ellipse(150, 182, 150, 182, 0, 0, TAU); cg.clip(); paint(cg); cg.restore(); return crop; };
+    const pv = Head3D.preview($('fp-3d'));
+    const sliders = () => {
+      $('fp-zoom').value = String(Math.round((st.s / st.fit) * 100)); $('fp-rot').value = String(Math.round((st.r * 180) / Math.PI));
+      const d = Math.round((st.yaw * 180) / Math.PI); $('fp-yaw').value = String(d); $('fp-yaw-v').textContent = Math.abs(d) < 3 ? '正脸' : `脸朝${d < 0 ? '左' : '右'} ${Math.abs(d)}°`;
+    };
     const draw = () => {
       g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#0b0d11'; g.fillRect(0, 0, cv.width, cv.height);
-      g.setTransform(K, 0, 0, K, 0, 0);
-      if (st.img) paint(g);
+      if (!st.img) return;
+      g.setTransform(K, 0, 0, K, 0, 0); paint(g);
       g.fillStyle = 'rgba(8,10,14,.66)'; g.beginPath(); g.rect(0, 0, 300, 364); g.ellipse(150, 182, 150, 182, 0, 0, TAU, true); g.fill('evenodd');
       g.lineWidth = 2; g.strokeStyle = '#ffc940'; g.beginPath(); g.ellipse(150, 182, 149, 181, 0, 0, TAU); g.stroke();
-      g.strokeStyle = '#38e1ff';
-      for (const [ex, ey] of E) { g.beginPath(); g.arc(ex, ey, 14, 0, TAU); g.stroke(); g.beginPath(); g.moveTo(ex - 5, ey); g.lineTo(ex + 5, ey); g.moveTo(ex, ey - 5); g.lineTo(ex, ey + 5); g.stroke(); }
-      g.setLineDash([5, 5]); g.strokeStyle = 'rgba(56,225,255,.45)'; g.beginPath(); g.moveTo(150, 40); g.lineTo(150, 330); g.stroke(); g.setLineDash([]);
-      g.fillStyle = 'rgba(56,225,255,.95)'; g.font = `800 12px ${FONT_CN}`; g.textAlign = 'center'; g.fillText('两只眼睛放圈里', 150, E[0][1] + 34);
+      const E = st.eyes.map(toCrop);
+      g.strokeStyle = 'rgba(56,225,255,.5)'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(E[0][0], E[0][1]); g.lineTo(E[1][0], E[1][1]); g.stroke(); g.setLineDash([]);
+      g.lineWidth = 2.5; g.strokeStyle = '#38e1ff';
+      for (const [ex, ey] of E) { g.beginPath(); g.arc(ex, ey, 13, 0, TAU); g.stroke(); g.beginPath(); g.moveTo(ex - 5, ey); g.lineTo(ex + 5, ey); g.moveTo(ex, ey - 5); g.lineTo(ex, ey + 5); g.stroke(); }
+      // the hint at ~13 css px whatever size the stage is shown at (crop units shrink to ~0.6 px on a phone)
+      const fz = clamp(Math.round((13 * 300) / Math.max(1, cv.getBoundingClientRect().width)), 12, 26);
+      g.fillStyle = 'rgba(56,225,255,.95)'; g.font = `800 ${fz}px ${FONT_CN}`; g.textAlign = 'center';
+      g.fillText('圈没对准眼睛？拖过去', 150, clamp(Math.max(E[0][1], E[1][1]) + 22 + fz, 20, 356));
+      pv.set(cropNow(), E, st.yaw, st.cut);
     };
-    const setZoom = (v) => { st.s = clamp(v, st.fit * 0.2, st.fit * 6); $('fp-zoom').value = String(Math.round((st.s / st.fit) * 100)); draw(); };
+    const setZoom = (v) => { st.s = clamp(v, st.fit * 0.2, st.fit * 6); st.moved = true; sliders(); draw(); };
+    // line a detected face up in the crop: eyes level, spaced for the yaw, the head filling the oval
+    const place = (r) => {
+      st.eyes = r.eyes.map((p) => p.slice()); st.yaw = r.yaw || 0;
+      const [L, R] = st.eyes, D = Math.max(4, Math.hypot(R[0] - L[0], R[1] - L[1]));
+      st.r = clamp(-Math.atan2(R[1] - L[1], R[0] - L[0]), -Math.PI / 4, Math.PI / 4);
+      st.s = clamp((2 * Head3D.EX * PX * Math.cos(st.yaw)) / D, st.fit * 0.2, st.fit * 6);
+      const mx = (L[0] + R[0]) / 2 - st.img.width / 2, my = (L[1] + R[1]) / 2 - st.img.height / 2, c = Math.cos(st.r), s = Math.sin(st.r);
+      st.x = 150 + PX * Head3D.EZ * Math.sin(st.yaw) - (mx * c - my * s) * st.s; st.y = EYE_Y - (mx * s + my * c) * st.s;
+    };
+    const auto = async () => {
+      if (!st.img) return;
+      const gen = ++st.gen; $('fp-busy').hidden = false;
+      let r = null; try { r = await Head3D.detect(st.img); } catch (e) { r = null; }
+      if (gen !== st.gen) return;
+      $('fp-busy').hidden = true;
+      if (r) { place(r); st.moved = true; }
+      if (!r || !r.found) this.toast(r ? '脸找着了，眼睛没找准：把两个青色圈拖到眼睛上' : '没认出脸来，手动把两个青色圈拖到眼睛上吧', 2.8);
+      sliders(); draw();
+    };
+    const useImage = (c, def, cut = def) => { st.img = c; st.def = def; st.cut = cut; st.moved = false; st.fit = Math.max(300 / c.width, 364 / c.height); st.s = st.fit; st.x = 150; st.y = 182; st.r = 0; $('fp-ok').disabled = false; $('fp-empty').hidden = true; };
     const pick = (file) => {
       if (!file) return;
       const url = URL.createObjectURL(file), im = new Image();
@@ -283,38 +329,71 @@ const UI = {
         // big phone pictures: work on a copy no larger than 1600 px
         const k = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight)), c = mkCanvas(Math.max(1, Math.round(im.naturalWidth * k)), Math.max(1, Math.round(im.naturalHeight * k)));
         c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-        st.img = c; st.fit = Math.max(300 / c.width, 364 / c.height); st.s = st.fit; st.x = 150; st.y = 182; st.r = 0;
-        $('fp-zoom').value = '100'; $('fp-rot').value = '0'; $('fp-ok').disabled = false; $('fp-empty').hidden = true; draw();
+        useImage(c, false); st.moved = true; st.yaw = 0; st.eyes = [[c.width * 0.36, c.height * 0.42], [c.width * 0.64, c.height * 0.42]];
+        sliders(); draw(); auto();
       };
       im.onerror = () => { URL.revokeObjectURL(url); this.toast('这张图片打不开，换一张试试（手机的 HEIC 格式先转成 JPG）', 3); };
       im.src = url;
     };
+    // opening starts from the face you have now (the default or yours), its eyes and yaw, ready to fine-tune
+    const open = () => {
+      const w = FACE_IMG.naturalWidth || 300, h = FACE_IMG.naturalHeight || 364, c = mkCanvas(w, h);
+      try { c.getContext('2d').drawImage(FACE_IMG, 0, 0, w, h); } catch (e) { /* not decoded */ }
+      useImage(c, !HeroFace.custom, !HeroFace.custom || HeroFace.cut); st.gen++; $('fp-busy').hidden = true;
+      st.eyes = FACE_EYES.map((p) => [(p[0] * w) / 300, (p[1] * h) / 364]); st.yaw = FACE_YAW;
+      sliders(); draw(); pv.start();
+    };
+    const close = () => { st.gen++; pv.stop(); };
     $('fp-input').addEventListener('change', (e) => { pick(e.target.files && e.target.files[0]); e.target.value = ''; });
     $('fp-pick').addEventListener('click', () => $('fp-input').click());
-    let drag = null;
+    $('fp-auto').addEventListener('click', () => auto());
+    // one finger: drag an eye ring (if you grab one) or the picture; two fingers: pinch to zoom
+    const ptrs = new Map(); let drag = null;
     const at = (e) => { const b = cv.getBoundingClientRect(); return [((e.clientX - b.left) / b.width) * 300, ((e.clientY - b.top) / b.height) * 364]; };
-    cv.addEventListener('pointerdown', (e) => { if (!st.img) { $('fp-input').click(); return; } drag = { id: e.pointerId, p: at(e), x: st.x, y: st.y }; try { cv.setPointerCapture(e.pointerId); } catch (err) { /* synthetic / already released */ } cv.classList.add('drag'); });
-    cv.addEventListener('pointermove', (e) => { if (!drag || e.pointerId !== drag.id) return; const p = at(e); st.x = drag.x + p[0] - drag.p[0]; st.y = drag.y + p[1] - drag.p[1]; draw(); });
-    const end = (e) => { if (drag && e.pointerId === drag.id) { drag = null; cv.classList.remove('drag'); } };
+    cv.addEventListener('pointerdown', (e) => {
+      if (!st.img) { $('fp-input').click(); return; }
+      const p = at(e); ptrs.set(e.pointerId, p);
+      try { cv.setPointerCapture(e.pointerId); } catch (err) { /* synthetic / already released */ }
+      if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; drag = { pinch: Math.max(10, Math.hypot(a[0] - b[0], a[1] - b[1])), s: st.s }; return; }
+      const E = st.eyes.map(toCrop), hit = E.findIndex((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < (IS_TOUCH ? 34 : 22));
+      drag = hit >= 0 ? { id: e.pointerId, eye: hit } : { id: e.pointerId, p, x: st.x, y: st.y };
+      cv.classList.add('drag');
+    });
+    cv.addEventListener('pointermove', (e) => {
+      if (!drag || !ptrs.has(e.pointerId)) return;
+      const p = at(e); ptrs.set(e.pointerId, p);
+      if (drag.pinch) { if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; setZoom((drag.s * Math.hypot(a[0] - b[0], a[1] - b[1])) / drag.pinch); } return; }
+      if (e.pointerId !== drag.id) return;
+      if (drag.eye !== undefined) st.eyes[drag.eye] = toImg([clamp(p[0], 0, 300), clamp(p[1], 0, 364)]);
+      else { st.x = drag.x + p[0] - drag.p[0]; st.y = drag.y + p[1] - drag.p[1]; st.moved = true; }
+      draw();
+    });
+    const end = (e) => {
+      ptrs.delete(e.pointerId);
+      if (!drag || (drag.pinch ? ptrs.size >= 2 : e.pointerId !== drag.id)) return;
+      if (drag.eye !== undefined && toCrop(st.eyes[0])[0] > toCrop(st.eyes[1])[0]) st.eyes.reverse();
+      drag = null; cv.classList.remove('drag'); draw();
+    };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
     cv.addEventListener('wheel', (e) => { if (!st.img) return; e.preventDefault(); setZoom(st.s * (e.deltaY < 0 ? 1.06 : 1 / 1.06)); }, { passive: false });
     cv.addEventListener('dragover', (e) => e.preventDefault());
     cv.addEventListener('drop', (e) => { e.preventDefault(); pick(e.dataTransfer && e.dataTransfer.files[0]); });
     $('fp-zoom').addEventListener('input', (e) => { if (st.img) setZoom(st.fit * (+e.target.value / 100)); });
-    $('fp-rot').addEventListener('input', (e) => { st.r = (+e.target.value * Math.PI) / 180; draw(); });
+    $('fp-rot').addEventListener('input', (e) => { if (!st.img) return; st.r = (+e.target.value * Math.PI) / 180; st.moved = true; draw(); });
+    $('fp-yaw').addEventListener('input', (e) => { if (!st.img) return; st.yaw = (+e.target.value * Math.PI) / 180; sliders(); draw(); });
     $('fp-ok').addEventListener('click', async () => {
       if (!st.img) return;
-      const out = mkCanvas(300, 364), o = out.getContext('2d');
-      o.save(); o.beginPath(); o.ellipse(150, 182, 150, 182, 0, 0, TAU); o.clip(); paint(o); o.restore();
-      let url = out.toDataURL('image/webp', 0.9); if (!url.startsWith('data:image/webp')) url = out.toDataURL('image/png');
-      const saved = await HeroFace.set(url);
+      const E = st.eyes.map((p) => toCrop(p).map((v) => Math.round(v * 10) / 10));
+      let url = 'default'; // the built-in face only re-aligned: keep it as is
+      if (!st.def || st.moved) { const out = cropNow(); url = out.toDataURL('image/webp', 0.9); if (!url.startsWith('data:image/webp')) url = out.toDataURL('image/png'); }
+      const saved = await HeroFace.set(url, E, Math.round(st.yaw * 1000) / 1000, st.cut);
       this.closeFacePicker(); Sfx.buy();
-      this.toast(saved ? '主角头像换好了（只存在这个浏览器里）' : '头像换好了，但浏览器存不下，刷新后会恢复默认', 3);
+      this.toast(saved ? '换好了：3D 脑袋按这张脸生成了（只存在这个浏览器里）' : '头像换好了，但浏览器存不下，刷新后会恢复默认', 3);
     });
     $('fp-reset').addEventListener('click', async () => { await HeroFace.reset(); this.closeFacePicker(); this.toast('已恢复默认头像', 2); });
     $('fp-close').addEventListener('click', () => this.closeFacePicker());
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('facepick').hidden) { delete Input.hit.Escape; this.closeFacePicker(); } });
-    return { draw };
+    return { open, close, draw, st, pv, pick: (c) => { useImage(c, false); st.moved = true; return auto(); } };
   },
   // ---- shops ----
   openShop(id) {
@@ -380,6 +459,7 @@ const UI = {
     const mech = P.isMech(), m = RPG.m;
     this.set('clock', $('sa-clock'), 'textContent', DayNight.timeText());
     this.set('hp', $('hp-fill').style, 'width', ((P.hp / m.maxHp) * 100).toFixed(1) + '%');
+    this.set('hpLow', $('hp-row'), 'className', P.hp / m.maxHp < 0.25 && P.mode !== 'dead' ? 'bar hp low' : 'bar hp');
     this.set('armorOn', $('armor-row'), 'hidden', !mech);
     if (mech) this.set('armor', $('armor-fill').style, 'width', ((P.rhp / m.maxArmor) * 100).toFixed(1) + '%');
     this.set('tok', $('tok-fill').style, 'width', ((P.tokens / m.capacity) * 100).toFixed(1) + '%');
@@ -409,14 +489,34 @@ const UI = {
     this.set('mt', $('m-title'), 'textContent', mt); this.set('mo', $('m-obj'), 'textContent', mo); this.set('mOn', $('mission'), 'hidden', !mt);
     // interaction prompt
     const na = Interiors.nearAct;
-    const pr = na ? `${IS_TOUCH ? '点「交互」' : 'E'} · ${na.label}` : this.contextHint();
+    // on a phone the context button carries the act's own label when it fits (Touch.ctxF): name that button
+    const pr = na ? (IS_TOUCH ? (na.label && na.label.length <= 4 ? `点「${na.label}」` : `点「交互」 · ${na.label}`) : 'E · ' + na.label) : this.contextHint();
     this.set('prompt', $('prompt'), 'textContent', pr); this.set('promptOn', $('prompt'), 'hidden', !pr || Cutscene.active);
-    // district
-    if (!Interiors.cur && G.started && !Cutscene.active) { const [dn, de] = districtAt(P.pos.x, P.pos.z); if (dn !== this.lastDist) { this.lastDist = dn; this.district(dn, de); } }
+    // place name: the area whenever it changes, the street once you've settled on a new one
+    this.placeT = (this.placeT || 0) - rdt;
+    if (this.placeT <= 0) {
+      this.placeT = 0.3;
+      if (Interiors.cur || !G.started || Cutscene.active) this.lastDist = '';
+      else {
+        const ar = MapLabels.area(P.pos.x, P.pos.z), st = MapLabels.street(P.pos.x, P.pos.z);
+        if (ar !== this.lastDist) { this.lastDist = ar; this.lastStreet = this.streetCand = st; this.district(ar, st, 4); }
+        else if (st && st !== this.lastStreet) {
+          if (st !== this.streetCand) { this.streetCand = st; this.streetT = 0; }
+          else if ((this.streetT += 0.3) >= 1.2) { this.lastStreet = st; this.district(ar, st, 3); }
+        }
+      }
+    }
     const tgt = Cutscene.active ? null : Story.target();
-    Pillar.update(tgt); this.edge(tgt); this.hqbars();
-    this.radarT -= rdt; if (this.radarT <= 0) { this.radarT = 1 / 30; this.drawRadar(tgt); }
-    if (IS_TOUCH) this.touchLabels();
+    GPS.update(tgt, rdt);
+    const shown = tgt || (GPS.wp && !Cutscene.active ? GPS.wp : null); // no mission blip: the pillar / edge arrow lead to your waypoint
+    Pillar.update(shown && shown.kind === 'wp' ? { x: shown.x, z: shown.z, kind: 'marker', color: MAPC.route } : shown); this.edge(shown); this.hqbars();
+    this.radarT -= rdt; if (this.radarT <= 0 && !Cutscene.active) { this.radarT = LOWQ ? 1 / 20 : 1 / 30; this.drawRadar(tgt); } // (hidden under the letterbox)
+    if (IS_TOUCH) {
+      this.touchLabels();
+      // the message stack (head.html #hudB, sideways) ends left of the context-button column: its right offset from Touch.place
+      const cx = $('tctx') && $('tctx').style.getPropertyValue('--x');
+      if (cx && cx !== this.last.ctxR) { this.last.ctxR = cx; $('hud').style.setProperty('--ctx-r', cx); }
+    }
     if (this.panelOpen && kpRaw('Escape', 'Tab')) this.closePanel();
     else if (this.shopId && kpRaw('Escape')) this.closeShop();
   },
@@ -424,11 +524,12 @@ const UI = {
     const P = Player;
     if (Interiors.cur) return '';
     if (P.mode === 'human' && Cars.nearestDrivable(P.pos.x, P.pos.z, 4.8)) return `${IS_TOUCH ? '「上车」' : 'F'} 上车（抢车也行）`;
+    if (P.mode === 'human' && Bikes.nearest(P.pos.x, P.pos.z, 2.2)) return `${IS_TOUCH ? '「扫码」' : 'F'} 扫码骑共享单车（¥1.5 / 15 分钟）`;
     if (P.mode === 'human' && P.tokens >= CAP && Story.flags.transform) return `${IS_TOUCH ? '「变身」' : 'T'} 变身！`;
     if (IS_TOUCH) return '';
     if (P.mode === 'robot') return 'J 连拳 · K 飞踢 · 空格 砸地 · F 抓车 · 按住 L 光束' + (Story.flags.truck ? ' · T 卡车' : '') + ' · Q 解除' + (RPG.spec ? ' · R 大招' : '');
     if (P.mode === 'truck') return 'W/S 油门 · A/D 转向 · 空格 手刹 · Shift 氮气 · T 机器人';
-    if (P.mode === 'car') return 'F 下车 · 空格 手刹 · J 喇叭';
+    if (P.mode === 'car') return P.car && P.car.k && P.car.k.bike ? 'F 锁车还车（停地铁口 / 车堆旁，别让调度费宰了）· J 喇叭' : 'F 下车 · 空格 手刹 · J 喇叭';
     return '';
   },
   edge(tgt) {
@@ -461,167 +562,11 @@ const UI = {
       b.fill.style.width = ((h.hp / h.maxHp) * 100).toFixed(1) + '%';
     }
   },
-  // a painted Beijing map, drawn once: hutong grey, modern blocks, the palace, lakes, parks, 二环 and 长安街
-  buildBaseMap() {
-    const E = BOUND + 60, N = 1400, c = mkCanvas(N, N), g = c.getContext('2d'), k = N / (2 * E);
-    const X = (x) => (x + E) * k, Y = (z) => (z + E) * k, rect = (x0, z0, x1, z1, col) => { g.fillStyle = col; g.fillRect(X(x0), Y(z0), (x1 - x0) * k, (z1 - z0) * k); };
-    const ell = (x, z, rx, rz, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(X(x), Y(z), rx * k, rz * k, 0, 0, TAU); g.fill(); };
-    g.fillStyle = '#5b7450'; g.fillRect(0, 0, N, N);
-    rect(-CITY, -CITY, CITY, CITY, '#a3a6ab');
-    const COL = { outer: '#6b717b', modern: '#646b76', tall: '#5b626d', xizhan: '#7d7368', bjstation: '#7d7368', tower: '#555c67', sanlitun: '#6a6f7e', '798': '#7b5e4b', hq: '#646b76',
-      park: '#56864a', lakepark: '#56864a', forest: '#44723d', dojo: '#44723d', wheelpark: '#56864a', arkham: '#465233', yonghegong: '#b58d34', guijie: '#8a5a4a', lab: '#4b6a63', gym: '#6b717b', garage: '#5f6b6b' };
-    for (const b of W.blocks) {
-      if (b.m) continue;
-      const r = b.rect, old = inOldCity(b.i, b.j), col = COL[b.type] || (old ? '#8f8476' : '#6b717b');
-      rect(r.x0, r.z0, r.x1, r.z1, col);
-      if (old && !COL[b.type]) { // hutong lanes + courtyards
-        g.strokeStyle = 'rgba(214,204,188,.55)'; g.lineWidth = Math.max(1, 1.1 * k);
-        for (let q = 1; q < 4; q++) { const z = r.z0 + (q * BLK) / 4; g.beginPath(); g.moveTo(X(r.x0 + 1), Y(z)); g.lineTo(X(r.x1 - 1), Y(z)); g.stroke(); }
-        g.fillStyle = 'rgba(60,52,44,.35)'; for (let q = 0; q < 4; q++) for (let w = 0; w < 4; w++) g.fillRect(X(r.x0 + 2 + w * 10.5), Y(r.z0 + 2 + q * 11), 3.5 * k, 3 * k);
-      }
-      if (b.type === 'yonghegong') { for (let q = 0; q < 4; q++) rect((r.x0 + r.x1) / 2 - 7, r.z0 + 6 + q * 9, (r.x0 + r.x1) / 2 + 7, r.z0 + 11 + q * 9, '#d6a93c'); }
-    }
-    for (const m of W.merged) {
-      const { x0, x1, z0, z1 } = m, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-      if (m.type === 'palace') {
-        rect(x0, z0, x1, z1, '#4d8fbf'); rect(x0 + 4, z0 + 4, x1 - 4, z1 - 4, '#a8342b'); rect(x0 + 6, z0 + 6, x1 - 6, z1 - 6, '#d9c08a');
-        for (const [w, d, zz] of [[30, 10, 0.28], [16, 8, 0.4], [22, 9, 0.5], [34, 12, 0.66], [14, 7, 0.78], [10, 6, 0.9]]) rect(cx - w / 2, z0 + (z1 - z0) * zz - d / 2, cx + w / 2, z0 + (z1 - z0) * zz + d / 2, '#e1a82b');
-        for (const sx of [-1, 1]) for (let q = 0; q < 5; q++) rect(cx + sx * 30 - 6, z0 + 16 + q * 16, cx + sx * 30 + 6, z0 + 24 + q * 16, '#c9962e');
-      } else if (m.type === 'jingshan') { rect(x0, z0, x1, z1, '#6c8f58'); ell(cx, cz, (x1 - x0) * 0.33, (z1 - z0) * 0.3, '#4f7a42'); ell(cx, cz, 3.5, 3.5, '#e1a82b'); }
-      else if (m.type === 'tiantan') {
-        rect(x0, z0, x1, z1, '#4a7a40'); g.strokeStyle = '#a8342b'; g.lineWidth = 2 * k; g.strokeRect(X(x0 + 3), Y(z0 + 3), (x1 - x0 - 6) * k, (z1 - z0 - 6) * k);
-        const L = W.landmarks.tiantan; rect(cx - 2.5, z0 + 12, cx + 2.5, z1 - 12, '#cfc6b4');
-        ell(cx, z0 + 22, 11, 11, '#e9e2d0'); ell(cx, z0 + 22, 6, 6, '#2c4f9e'); ell(cx, z1 - 24, 12, 12, '#e9e2d0'); ell(cx, z1 - 24, 3, 3, '#cfc6b4'); if (L) ell(L.x, L.z, 5, 5, '#2c4f9e');
-      } else if (m.type === 'qianmen') { rect(x0, z0, x1, z1, '#c4bdb0'); rect(cx - 17, z1 - 11, cx + 17, z1 - 3, '#7a7068'); ell(cx, z0 + 14, 4.5, 4.5, '#8d8272'); }
-      else if (m.type === 'gulou') { rect(x0, z0, x1, z1, '#aaa092'); rect(cx - 9, cz - 12, cx + 9, cz - 1, '#a8342b'); rect(cx - 7, cz + 3, cx + 7, cz + 14, '#6b6760'); }
-      else if (m.type === 'olympic') { rect(x0, z0, x1, z1, '#9aa3ad'); rect(x0 + 10, cz - 12, x0 + 34, cz + 12, '#6fb6e6'); ell(x1 - 24, cz, 17, 14, '#8a8f98'); ell(x1 - 24, cz, 12, 9, '#b0463c'); }
-      else if (m.type === 'yongdingmen') { rect(x0, z0, x1, z1, '#aaa399'); rect(cx - 14, cz - 5, cx + 14, cz + 5, '#7a7068'); }
-      else if (m.type === 'houhai') rect(x0, z0, x1, z1, '#978b7c');
-      else if (m.type === 'beihai') rect(x0, z0, x1, z1, '#5e8a50');
-      else rect(x0, z0, x1, z1, '#8f8476');
-    }
-    for (const w of W.water) { if (w.ellipse) ell(w.x, w.z, w.rx, w.rz, '#3f86b8'); else rect(w.x0, w.z0, w.x1, w.z1, '#3f86b8'); }
-    for (const d of W.dry) { if (d.ellipse) ell(d.x, d.z, d.rx, d.rz, '#6d9460'); else rect(d.x0, d.z0, d.x1, d.z1, '#c9c1b3'); }
-    if (W.landmarks.beihai) ell(W.landmarks.beihai.x, W.landmarks.beihai.z, 2.6, 2.6, '#f4f1ea');
-    // 长安街 and the 二环
-    g.strokeStyle = '#e8e3d6'; g.lineWidth = RW * 1.15 * k; g.beginPath(); g.moveTo(X(-CITY), Y(0)); g.lineTo(X(CITY), Y(0)); g.stroke();
-    const A = roadC(RING_LO), B = roadC(RING_HI);
-    g.strokeStyle = '#f2d27a'; g.lineWidth = RW * 1.1 * k; g.strokeRect(X(A), Y(A), (B - A) * k, (B - A) * k);
-    g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = Math.max(1, 0.8 * k); g.strokeRect(X(A), Y(A), (B - A) * k, (B - A) * k);
-    this.baseMap = c; this.baseE = E;
-  },
-  drawMap(g, S, dpr, full) {
-    const P = Player, R = S / 2;
-    if (!this.baseMap) this.buildBaseMap();
-    const range = full ? BOUND + 12 : P.mode === 'car' || P.mode === 'truck' ? 170 : 125;
-    const k = (R - 3 * dpr) / range, px = full ? 0 : P.pos.x, pz = full ? 0 : P.pos.z;
-    const X = (x) => R + (x - px) * k, Y = (z) => R + (z - pz) * k;
-    g.save(); g.clearRect(0, 0, S, S);
-    if (!full) { g.beginPath(); g.arc(R, R, R - 3 * dpr, 0, TAU); g.clip(); }
-    g.fillStyle = '#5b7450'; g.fillRect(0, 0, S, S);
-    const E = this.baseE; g.imageSmoothingEnabled = true; g.drawImage(this.baseMap, X(-E), Y(-E), 2 * E * k, 2 * E * k);
-    // 百模帮 turf and their HQs
-    for (const h of W.hqs) {
-      const b = h.blk, r = b.rect, x0 = X(r.x0), y0 = Y(r.z0), w = BLK * k;
-      if (x0 > S + 3 * w || y0 > S + 3 * w || x0 + 2 * w < -w || y0 + 2 * w < -w) continue;
-      if (!h.dead) { g.fillStyle = h.c1 + '40'; g.fillRect(X(r.x0 - PITCH), Y(r.z0 - PITCH), (BLK + 2 * PITCH) * k, (BLK + 2 * PITCH) * k); }
-      g.fillStyle = h.dead ? '#2f7d4a' : h.c1; g.fillRect(x0, y0, w, w);
-      g.fillStyle = '#fff'; g.font = `900 ${Math.round(w * 0.42)}px ${FONT_CN}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(h.dead ? '✓' : h.short.slice(0, 1), x0 + w / 2, y0 + w / 2 + 1);
-    }
-    // shops & places you can walk into
-    const ICON = { home: ['府', '#d7263d'], snack: ['吃', '#ea580c'], electronics: ['卡', '#0891b2'], clothes: ['衣', '#b4402f'], dept: ['百', '#a16207'], antique: ['古', '#7c2d12'], shoes: ['鞋', '#92400e'],
-      pharmacy: ['药', '#15803d'], duck: ['鸭', '#b91c1c'], teahouse: ['茶', '#0f766e'], hardware: ['砖', '#57534e'], gym: ['健', '#c2410c'], lab: ['X', '#10b981'], dojo: ['道', '#7c2d12'], arkham: ['阿', '#4d7c0f'] };
-    const dot = (x, y, ic, rr) => { g.fillStyle = ic[1]; g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill(); g.lineWidth = 1.5 * dpr; g.strokeStyle = '#fff'; g.stroke(); g.fillStyle = '#fff'; g.font = `900 ${Math.round(rr * 1.25)}px ${FONT_CN}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ic[0], x, y + 1); };
-    const rr = Math.max(5 * dpr, (full ? 7 : 6) * dpr);
-    for (const d of W.doors) {
-      const ic = ICON[d.interior]; if (!ic || d.locked || (d.interior === 'dojo' && Story.flags.dojoBurnt)) continue;
-      const x = X(d.x), y = Y(d.z - 4); if (x < -10 || y < -10 || x > S + 10 || y > S + 10) continue; dot(x, y, ic, rr);
-    }
-    if (W.garage) dot(X(W.garage.x), Y(W.garage.z - 4), ['喷', '#0f766e'], rr);
-    if (W.towerPos) dot(X(W.towerPos.x), Y(W.towerPos.z), ['塔', '#b8860b'], rr);
-    if (full) {
-      // place names, like a tourist map
-      const lab = (t, x, z, sz = 11, col = '#fff') => { g.font = `900 ${Math.round(sz * dpr)}px ${FONT_CN}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(t, X(x), Y(z)); g.fillStyle = col; g.fillText(t, X(x), Y(z)); };
-      const NAMES = { palace: '故宫', jingshan: '景山', gulou: '钟鼓楼', qianmen: '天安门广场 · 前门', tiantan: '天坛', houhai: '什刹海', beihai: '北海', olympic: '奥林匹克公园', yongdingmen: '永定门' };
-      for (const m of W.merged) lab(NAMES[m.type] || '', (m.x0 + m.x1) / 2, m.type === 'qianmen' ? m.z0 + 26 : m.type === 'palace' ? (m.z0 + m.z1) / 2 + 30 : (m.z0 + m.z1) / 2, m.type === 'palace' ? 14 : 11, m.type === 'palace' ? '#ffe9a8' : '#fff');
-      const SP = { yonghegong: '雍和宫', guijie: '簋街', bjstation: '北京站', '798': '798', sanlitun: '三里屯', tower: '国贸', electronics: '中关村', xizhan: '北京西站', deshengmen: '德胜门', jiaolou: '东南角楼', wheelpark: '朝阳公园', dashilar: '大栅栏', antique: '琉璃厂', teahouse: '天桥', dept: '王府井', clothes: '西单', home: '恭王府' };
-      for (const b of W.blocks) { const t = SP[b.type]; if (t) lab(t, (b.rect.x0 + b.rect.x1) / 2, b.rect.z1 - 6, 9.5, '#fde68a'); }
-      lab('长 安 街', -150, -8, 10, '#fffbe8'); lab('二 环', roadC(RING_HI) + 18, roadC(RING_LO) + 40, 10, '#fde68a');
-    }
-    if (Monorail.pts.length) { g.strokeStyle = 'rgba(255,201,64,.7)'; g.lineWidth = 2 * dpr; g.setLineDash([5 * dpr, 4 * dpr]); g.beginPath(); Monorail.pts.forEach(([x, z], i) => (i ? g.lineTo(X(x), Y(z)) : g.moveTo(X(x), Y(z)))); g.closePath(); g.stroke(); g.setLineDash([]);
-      const [tx, tz] = Monorail.carPos(1); g.fillStyle = Story.trainFight ? '#ff5a2a' : '#ffffff'; g.fillRect(X(tx) - 3 * dpr, Y(tz) - 3 * dpr, 6 * dpr, 6 * dpr); }
-    if (!full) { g.fillStyle = '#ffc940'; for (const t of Tokens.items) { if (!t.alive) continue; const x = X(t.x), y = Y(t.z); if (x < 0 || y < 0 || x > S || y > S) continue; g.fillRect(x - 1.2 * dpr, y - 1.2 * dpr, 2.4 * dpr, 2.4 * dpr); } }
-    g.fillStyle = '#ff4d5a'; for (const e of Enemies.list) { if (e.dead) continue; g.beginPath(); g.arc(X(e.pos.x), Y(e.pos.z), 2.6 * dpr, 0, TAU); g.fill(); }
-    const blink = Math.floor(G.time * 6) % 2;
-    for (const cc of Cars.list) { if (cc.state !== 'legal' || cc.removed) continue; g.fillStyle = blink ? '#ff3344' : '#3a7bff'; g.beginPath(); g.arc(X(cc.pos.x), Y(cc.pos.z), 3.4 * dpr, 0, TAU); g.fill(); }
-    for (const m of Story.available()) { const w = m.where(), gv = GIVERS[m.giver]; let x = X(w.x), y = Y(w.z); if (!full) { const dx = x - R, dy = y - R, dl = hyp(dx, dy), lim = R - 10 * dpr; if (dl > lim) { x = R + dx / dl * lim; y = R + dy / dl * lim; } } g.fillStyle = gv.color; g.beginPath(); g.arc(x, y, 7 * dpr, 0, TAU); g.fill(); g.lineWidth = 2 * dpr; g.strokeStyle = '#111'; g.stroke(); g.fillStyle = '#fff'; g.font = `900 ${Math.round(9 * dpr)}px ${FONT_CN}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(gv.letter, x, y + 0.5); }
-    const tgt = this.lastTgt;
-    if (tgt && tgt.kind !== 'marker') {
-      let x = X(tgt.x), y = Y(tgt.z);
-      if (!full) { const dx = x - R, dy = y - R, dl = hyp(dx, dy), lim = R - 10 * dpr; if (dl > lim) { x = R + (dx / dl) * lim; y = R + (dy / dl) * lim; } }
-      const pulse = 4 + Math.sin(G.time * 8) * 1.5;
-      g.fillStyle = tgt.kind === 'hq' ? '#ffd23f' : tgt.kind === 'enemy' ? '#ff4d5a' : '#fff3b0'; g.strokeStyle = '#111'; g.lineWidth = 2 * dpr;
-      g.beginPath(); g.arc(x, y, pulse * dpr, 0, TAU); g.fill(); g.stroke();
-    } else if (tgt && tgt.kind === 'marker') {
-      let x = X(tgt.x), y = Y(tgt.z);
-      if (!full) { const dx = x - R, dy = y - R, dl = hyp(dx, dy), lim = R - 10 * dpr; if (dl > lim) { x = R + (dx / dl) * lim; y = R + (dy / dl) * lim; } }
-      g.fillStyle = tgt.color || '#ffd23f'; g.strokeStyle = '#111'; g.lineWidth = 2 * dpr; g.beginPath(); g.moveTo(x, y - 6 * dpr); g.lineTo(x + 5 * dpr, y); g.lineTo(x, y + 6 * dpr); g.lineTo(x - 5 * dpr, y); g.closePath(); g.fill(); g.stroke();
-    }
-    const ppx = full ? X(Interiors.cur && Interiors.back ? Interiors.back.x : P.pos.x) : R, ppy = full ? Y(Interiors.cur && Interiors.back ? Interiors.back.z : P.pos.z) : R;
-    g.translate(ppx, ppy); g.rotate(Math.PI - P.heading);
-    g.beginPath(); g.moveTo(0, -8 * dpr); g.lineTo(6 * dpr, 7 * dpr); g.lineTo(0, 3.5 * dpr); g.lineTo(-6 * dpr, 7 * dpr); g.closePath();
-    g.fillStyle = '#fff'; g.fill(); g.lineWidth = 2 * dpr; g.strokeStyle = '#111'; g.stroke();
-    g.restore();
-    if (!full) {
-      g.beginPath(); g.arc(R, R, R - 3 * dpr, 0, TAU); g.lineWidth = 5 * dpr; g.strokeStyle = '#0d0f12'; g.stroke();
-      g.fillStyle = '#fff'; g.font = `900 ${Math.round(11 * dpr)}px ${FONT_DISPLAY}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('N', R, 11 * dpr);
-    }
-  },
-  drawRadar(tgt) {
-    this.lastTgt = tgt;
-    if (Interiors.cur) { const g = this.rctx, S = this.radar.width; g.clearRect(0, 0, S, S); g.fillStyle = '#1b1f27'; g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 3, 0, TAU); g.fill(); g.fillStyle = '#cbd5e1'; g.font = `900 ${Math.round(S * 0.1)}px ${FONT_CN}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('室内', S / 2, S / 2); return; }
-    this.drawMap(this.rctx, this.radar.width, this.rdpr, false);
-  },
-  // ---- touch ----
-  initTouch() {
-    const zone = $('joyzone'), base = $('joy'), knob = $('joy-knob');
-    let id = null, cx = 0, cy = 0; const R = 56;
-    zone.addEventListener('pointerdown', (e) => {
-      if (id !== null) return;
-      id = e.pointerId; cx = e.clientX; cy = e.clientY;
-      base.style.left = cx + 'px'; base.style.top = cy + 'px'; base.classList.add('on'); knob.style.transform = 'translate(-50%,-50%)';
-      Input.joy.on = true; Input.joy.x = 0; Input.joy.y = 0; zone.setPointerCapture(e.pointerId); e.preventDefault();
-      if (Gym.active) Input.click = true;
-    });
-    zone.addEventListener('pointermove', (e) => {
-      if (e.pointerId !== id) return;
-      let dx = e.clientX - cx, dy = e.clientY - cy; const l = hyp(dx, dy);
-      if (l > R) { dx = (dx / l) * R; dy = (dy / l) * R; }
-      knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`; Input.joy.x = dx / R; Input.joy.y = dy / R;
-    });
-    const end = (e) => { if (e.pointerId !== id) return; id = null; Input.joy.on = false; Input.joy.x = Input.joy.y = 0; base.classList.remove('on'); };
-    zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
-    for (const b of document.querySelectorAll('#tbtns button')) {
-      const k = b.dataset.k;
-      b.addEventListener('pointerdown', (e) => { Input.down[k] = true; Input.hit[k] = true; if (k === 'KeyF') Input.hit.KeyE = true; b.classList.add('press'); b.setPointerCapture(e.pointerId); e.preventDefault(); if (Gym.active) Input.click = true; });
-      const up = () => { Input.down[k] = false; b.classList.remove('press'); };
-      b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
-    }
-  },
-  touchLabels() {
-    const P = Player, m = P.mode === 'xform' || P.mode === 'dead' ? this.touchMode || 'human' : P.mode;
-    const near = Interiors.nearAct ? 'A' : '', key = m + (P.tokens >= CAP ? 'F' : '') + near + (RPG.ult >= 100 ? 'U' : '');
-    if (key === this.touchKey) return;
-    this.touchKey = key; this.touchMode = m;
-    const L = Object.assign({}, TOUCH_LABELS[m] || TOUCH_LABELS.human);
-    if (Interiors.nearAct) L.KeyF = '交互';
-    if (!RPG.spec) L.KeyR = '';
-    for (const b of document.querySelectorAll('#tbtns button')) {
-      const t = L[b.dataset.k]; b.hidden = !t; if (t) b.textContent = t;
-      if (b.dataset.k === 'KeyT') b.classList.toggle('ready', (m === 'human' || m === 'car') && P.tokens >= CAP);
-      if (b.dataset.k === 'KeyR') b.classList.toggle('ready', RPG.ult >= 100);
-    }
-  },
+  // the radar (14a_map.js): turns with the camera, GPS route, blips
+  drawRadar(tgt) { this.lastTgt = tgt; Radar.draw(this.radar, this.rctx, this.rdpr, tgt); },
+  // ---- touch (the stick, look zone and buttons live in Touch, 14b_controls.js) ----
+  initTouch() { Touch.init(); },
+  touchLabels() { /* Touch.update runs from its own Hooks.update */ },
 };
 
 // objective light pillar

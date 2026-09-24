@@ -52,8 +52,8 @@ function roofTileTex() { // grey-scale 筒瓦 rows; the material colour tints it
 function plasterTex() { // light noise, tinted red for 宫墙 / white for 白塔
   const S = 128, c = mkCanvas(S, S), g = c.getContext('2d');
   g.fillStyle = '#e8e8e8'; g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(0,0,0,${rand(0.015, 0.05)})`; g.beginPath(); g.arc(rand(S), rand(S), rand(4, 18), 0, TAU); g.fill(); }
-  speckle(g, S, S, 1200, 0.05);
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(0,0,0,${rand(0.008, 0.024)})`; g.beginPath(); g.arc(rand(S), rand(S), rand(6, 22), 0, TAU); g.fill(); } // weathering, kept subtle: big red walls read as noise otherwise
+  speckle(g, S, S, 900, 0.03);
   g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(0, S - 10, S, 10); // grime at the foot
   return tex(c, true);
 }

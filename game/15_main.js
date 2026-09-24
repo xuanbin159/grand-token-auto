@@ -64,43 +64,133 @@ const Wanted = {
   },
 };
 
-const _camO = new V3(), _camL = new V3(), _camN = new V3();
+const _camO = new V3(), _camL = new V3(), _camN = new V3(), _camP = new V3(), _camQ = new V3(), _camH = new V3();
+// GTA-style third-person camera: orbits behind the hero at street level (mouse / right-thumb drag to look around,
+// vehicles swing back behind the car), pulls in when a wall gets in between; the old SA top-down view stays in the V cycle
 const Cam = {
-  target: new V3(), toCam: new V3(0, 0.83, 0.55), shakeA: 0, curH: 26, curD: 17, orbit: 0, lookY: 0,
+  target: new V3(), topT: new V3(), look: new V3(), toCam: new V3(0, 0.83, 0.55), shakeA: 0, orbit: 0, lookY: 0,
+  // yaw: the camera's ground-plane forward is (sin yaw, cos yaw) in (x, z) — π looks north, like the old fixed camera
+  yaw: Math.PI, pitch: 0, el: 0.3, dist: 7.4, curD: 7.4, pivY: 2.3, lift: 0.4, blend: 0, topH: 26, topD: 17, pm: '', swingT: 0,
+  // third person per mode: pivot height over the feet, distance, elevation (rad), look-point lift
+  RIG: { human: [2.2, 7.6, 0.3, 0.35], car: [2.0, 10.5, 0.25, 0.9], bike: [2.0, 7.4, 0.27, 0.5], truck: [3.4, 15.5, 0.26, 1.3], robot: [6.4, 17, 0.28, 1.2], xform: [5, 16, 0.3, 1], dead: [1.0, 9, 0.62, 0] },
+  // classic top-down [height, distance] per mode
   OFF: { human: [29, 19], car: [38, 24], robot: [45, 29], truck: [50, 31], xform: [30, 20], dead: [22, 14] },
-  shake(a) { this.shakeA = Math.min(2.5, Math.max(this.shakeA, a)); },
-  aspectK() { const a = innerWidth / innerHeight; return a < 1 ? 1 + (1 - a) * 0.75 : 1; },
-  // SA-style camera distance cycling (V / mouse wheel): close · normal · far
-  ZOOMS: [[0.64, 1.1, '近景'], [0.86, 1.04, '中景'], [1.12, 1.1, '远景']],
+  // V / mouse wheel: 近景 · 中景 · 远景 · 经典俯视
+  ZOOMS: [{ d: 0.66, p: -0.04, n: '近景' }, { d: 1, p: 0, n: '中景' }, { d: 1.6, p: 0.1, n: '远景' }, { top: true, n: '经典俯视' }],
   zoom: 1,
+  get top() { return !!(this.ZOOMS[this.zoom] || {}).top; },
+  shake(a) { this.shakeA = Math.min(2.5, Math.max(this.shakeA, a)); if (a >= 0.25) Input.buzz(10 + a * 30); },
+  aspectK() { const a = innerWidth / innerHeight; return a < 1 ? 1 + (1 - a) * 0.12 : 1; },
+  // portrait phones: the vertical FOV follows a minimum horizontal one (≈56°), so cross traffic and turns stay in view
+  fov() { const a = innerWidth / innerHeight; return a < 1 ? clamp((2 * Math.atan(Math.tan((28 * Math.PI) / 180) / a) * 180) / Math.PI, 46, 90) : 46; },
   cycle(dir = 1, wrap = true) {
-    const z = wrap ? (this.zoom + 1) % 3 : Math.max(0, Math.min(2, this.zoom + dir));
-    if (z === this.zoom) return; this.zoom = z;
-    Store.set('gta-sa-cam', this.zoom); UI.toast('镜头：' + this.ZOOMS[this.zoom][2], 1.2);
+    const n = this.ZOOMS.length, z = wrap ? (this.zoom + 1) % n : clamp(this.zoom + dir, 0, n - 1);
+    if (z === this.zoom) return;
+    const was = this.top; this.zoom = z;
+    if (was && !this.top) { this.pitch = 0; this.topT.copy(this.target); }
+    Store.set('gta-cam3', this.zoom); UI.toast('镜头：' + this.ZOOMS[this.zoom].n, 1.2);
   },
-  want() {
+  rig() {
+    const P = Player, z = this.ZOOMS[this.zoom] || this.ZOOMS[1];
+    let [pv, d, p, lf] = this.RIG[P.mode === 'car' && P.car && P.car.k && P.car.k.bike ? 'bike' : P.mode] || this.RIG.human;
+    if (P.mode === 'xform' && P.xf && P.xf.to === 'human' && P.xf.t > 0.4) [pv, d, p, lf] = this.RIG.human;
+    if (!z.top) { d *= z.d; p += z.p; }
+    if (Interiors.cur) { d = Math.min(d, 7); p += 0.16; }
+    if (Boss.cur && Boss.cur.kind === 'klaude') { d *= 1.4; p += 0.08; }
+    const sp = P.mode === 'car' || P.mode === 'truck' ? Math.abs(P.speed) : 0;
+    return [pv, d * (1 + clamp(sp / 70, 0, 0.3)) * this.aspectK(), p, lf];
+  },
+  wantTop() {
     const P = Player;
     let [h, d] = this.OFF[P.mode] || this.OFF.human;
-    const z = this.ZOOMS[this.zoom] || this.ZOOMS[1]; h *= z[0]; d *= z[1];
-    if (Interiors.cur) [h, d] = [17 * (0.8 + z[0] * 0.25), 12 * z[1]];
+    h *= 0.86; d *= 1.04;
+    if (Interiors.cur) [h, d] = [17 * 1.015, 12 * 1.04];
     if (Boss.cur && Boss.cur.kind === 'klaude') { h += 10; d += 6; }
-    const ak = this.aspectK(); return [h * ak, d * ak];
+    return [h, d];
   },
-  snap() { const [h, d] = this.want(); this.curH = h; this.curD = d; this.target.set(Player.pos.x, 0, Player.pos.z); this.lookY = 0; this.place(); },
+  // how far back the camera may sit before something solid is in the way (snap in, ease back out)
+  allow(D) {
+    const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw), ce = Math.cos(this.el), dx = -fx * ce, dy = Math.sin(this.el), dz = -fz * ce;
+    _camL.set(this.target.x, this.pivY, this.target.z);
+    if (Interiors.cur) {
+      // rooms: stay inside the four walls (the low front wall lets the camera back out a little)
+      const I = Interiors.built[Interiors.cur]; if (!I) return D;
+      const m = 0.7, x0 = I.b.x - I.w / 2 + m, x1 = I.b.x + I.w / 2 - m, z0 = I.b.z - I.d / 2 + m, z1 = I.b.z + I.d / 2 + 2.5;
+      let t = D;
+      if (dx > 1e-4) t = Math.min(t, (x1 - _camL.x) / dx); else if (dx < -1e-4) t = Math.min(t, (x0 - _camL.x) / dx);
+      if (dz > 1e-4) t = Math.min(t, (z1 - _camL.z) / dz); else if (dz < -1e-4) t = Math.min(t, (z0 - _camL.z) / dz);
+      return Math.max(1.2, t);
+    }
+    _camO.set(_camL.x + dx * D, _camL.y + dy * D, _camL.z + dz * D);
+    const t = rayWorld(_camL, _camO);
+    return t < 1 ? Math.max(1.1, t * D - 0.45) : D;
+  },
+  snap() {
+    const P = Player, [pv, D, p0, lf] = this.rig();
+    if (this.top) this.yaw = Math.PI; else if (P.mode !== 'dead') { this.yaw = P.heading; this.pitch = 0; }
+    this.el = clamp(p0 + this.pitch, -0.25, 1.3); this.dist = D; this.lift = lf;
+    this.target.set(P.pos.x, 0, P.pos.z); this.topT.copy(this.target);
+    this.pivY = (Interiors.cur ? 0 : groundH(P.pos.x, P.pos.z)) + pv;
+    [this.topH, this.topD] = this.wantTop(); this.lookY = 0;
+    this.blend = this.top ? 1 : 0; this.curD = this.top ? D : this.allow(D);
+    this.place();
+  },
   place() {
-    camera.position.set(this.target.x, this.curH, this.target.z + this.curD);
-    camera.lookAt(this.target.x, this.lookY, this.target.z);
-    this.toCam.set(0, this.curH - this.lookY, this.curD).normalize();
+    const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw), ce = Math.cos(this.el), se = Math.sin(this.el), d = this.curD;
+    _camL.set(this.target.x, this.pivY, this.target.z);
+    _camO.set(_camL.x - fx * ce * d, _camL.y + se * d, _camL.z - fz * ce * d);
+    _camL.y += this.lift;
+    if (this.blend > 0) {
+      const b = smooth(this.blend);
+      _camP.set(this.topT.x - fx * this.topD, this.topH, this.topT.z - fz * this.topD); _camQ.set(this.topT.x, this.lookY, this.topT.z);
+      _camO.lerp(_camP, b); _camL.lerp(_camQ, b);
+    }
+    const gy = (Interiors.cur ? 0 : groundH(_camO.x, _camO.z)) + 0.4; if (_camO.y < gy) _camO.y = gy;
+    camera.position.copy(_camO); camera.lookAt(_camL); this.look.copy(_camL);
+    this.toCam.copy(_camO).sub(_camL).normalize();
+    const nr = this.blend > 0.5 ? 1 : 0.3; if (camera.near !== nr) { camera.near = nr; camera.updateProjectionMatrix(); }
+    // pulled right in (a tight courtyard or 胡同): don't look out through the inside of the hero's own big head
+    const hd = Player.human && Player.human.head3d;
+    if (hd) { hd.getWorldPosition(_camH); hd.visible = _camO.distanceTo(_camH) > 1.45 * (hd.scale.x / 0.66); }
   },
   update(rdt) {
-    if (Cutscene.cam(rdt)) return;
-    const P = Player;
-    let [h, d] = this.want();
-    const lead = P.mode === 'car' || P.mode === 'truck' ? 0.42 : 0.12;
-    const tx = P.pos.x + clamp(P.vel.x * lead, -18, 18), tz = P.pos.z + clamp(P.vel.z * lead, -18, 18);
-    this.target.x = damp(this.target.x, tx, 5, rdt); this.target.z = damp(this.target.z, tz, 5, rdt);
-    this.curH = damp(this.curH, h, 2.4, rdt); this.curD = damp(this.curD, d, 2.4, rdt);
-    this.lookY = damp(this.lookY, 0, 3, rdt);
+    const L = Input.look;
+    if (Cutscene.cam(rdt)) { L.dx = L.dy = 0; return; }
+    const P = Player, top = this.top, veh = P.mode === 'car' || P.mode === 'truck';
+    // manual look: mouse drag / pointer lock, or the right-thumb drag on phones (the classic view stays north-up)
+    if (L.dx || L.dy) {
+      if (!top) { const s = IS_TOUCH ? 0.0085 : 0.0028; this.yaw = wrapA(this.yaw - L.dx * s); this.pitch = clamp(this.pitch + L.dy * s * 0.85, -0.5, 0.85); }
+      L.dx = L.dy = 0;
+    }
+    if (veh && this.pm !== P.mode) { this.swingT = 1.5; L.t = -1e9; } // just got in: swing round behind the car
+    this.pm = P.mode;
+    const idle = performance.now() - L.t > (veh ? 1300 : 2200);
+    if (top) this.yaw = dampA(this.yaw, Math.PI, 4, rdt);
+    else if (P.mode === 'dead') this.yaw += rdt * 0.22;
+    else if (veh) {
+      // chase cam: swing back behind the car once it moves (or the player steps on it) and nobody's looking around
+      const sp = Math.abs(P.speed), go = sp > 2.5 || kd('KeyW', 'ArrowUp') || (Input.joy.on && hyp(Input.joy.x, Input.joy.y) > 0.3);
+      if (this.swingT > 0) { this.swingT -= rdt; if (idle) this.yaw = dampA(this.yaw, P.heading, 3.2, rdt); }
+      else if (idle && go) this.yaw = dampA(this.yaw, P.heading, clamp(sp / 8, 1.1, 3.4), rdt);
+      if (idle) this.pitch = damp(this.pitch, 0, 1.2, rdt);
+    } else if (idle && (P.mode === 'human' || P.mode === 'robot')) {
+      // running (nearly) straight ahead swings the camera in behind; strafing or running at the camera doesn't
+      const vx = P.vel.x, vz = P.vel.z, v = hyp(vx, vz);
+      if (v > 3 && (vx * Math.sin(this.yaw) + vz * Math.cos(this.yaw)) / v > 0.88) this.yaw = dampA(this.yaw, Math.atan2(vx, vz), 1.1, rdt);
+    }
+    const [pv, D, p0, lf] = this.rig(), k = veh ? 9 : 16;
+    this.target.x = damp(this.target.x, P.pos.x, k, rdt); this.target.z = damp(this.target.z, P.pos.z, k, rdt); this.target.y = 0;
+    this.pivY = damp(this.pivY, (Interiors.cur ? 0 : groundH(P.pos.x, P.pos.z)) + pv + P.y * (P.mode === 'human' ? 0.5 : 0.3), 7, rdt);
+    this.el = damp(this.el, clamp(p0 + this.pitch, -0.25, 1.3), 10, rdt); this.lift = damp(this.lift, lf, 3, rdt);
+    this.dist = damp(this.dist, D, 3, rdt);
+    const bt = top ? 1 : 0; this.blend = Math.abs(this.blend - bt) < 0.003 ? bt : damp(this.blend, bt, 3.2, rdt);
+    if (this.blend < 1) { const a = this.allow(this.dist); this.curD = a < this.curD ? a : damp(this.curD, a, 2.2, rdt); }
+    if (this.blend > 0) {
+      const [h, d] = this.wantTop(), lead = veh ? 0.42 : 0.12;
+      this.topT.x = damp(this.topT.x, P.pos.x + clamp(P.vel.x * lead, -18, 18), 5, rdt); this.topT.z = damp(this.topT.z, P.pos.z + clamp(P.vel.z * lead, -18, 18), 5, rdt);
+      this.topH = damp(this.topH, h, 2.4, rdt); this.topD = damp(this.topD, d, 2.4, rdt);
+    } else { this.topT.copy(this.target); [this.topH, this.topD] = this.wantTop(); }
+    this.lookY = damp(this.lookY, 0, 3, rdt); this.yaw = wrapA(this.yaw);
     this.place();
     const X = P.xf;
     if (P.mode === 'xform' && X && X.cine) {
@@ -111,22 +201,21 @@ const Cam = {
       const w = t < 3.1 ? 1 : 1 - smooth(clamp((t - 3.1) / 0.5, 0, 1));
       _camO.set(P.pos.x + Math.sin(ang) * dist, groundH(P.pos.x, P.pos.z) + hh, P.pos.z + Math.cos(ang) * dist);
       _camL.set(P.pos.x, groundH(P.pos.x, P.pos.z) + ly, P.pos.z);
-      _camN.set(this.target.x, this.lookY, this.target.z);
+      _camN.copy(this.look);
       camera.position.lerp(_camO, w); _camN.lerp(_camL, w);
       camera.lookAt(_camN); this.toCam.copy(camera.position).sub(_camN).normalize();
+      // come out of it looking at the mech from the front-ish side the orbit ended on
+      if (w > 0.5) this.yaw = wrapA(Math.atan2(P.pos.x - camera.position.x, P.pos.z - camera.position.z));
     }
     if (this.shakeA > 0.002) {
-      const s = this.shakeA * 0.55;
+      const s = this.shakeA * (this.blend > 0.5 ? 0.55 : 0.3);
       camera.position.x += rand(-s, s); camera.position.y += rand(-s, s) * 0.5; camera.position.z += rand(-s, s);
       this.shakeA *= Math.exp(-7 * rdt);
     }
     this.sun(this.target.x, this.target.z);
   },
-  sun(x, z) {
-    const s = W.sun; if (!s) return;
-    const sx = Math.round(x / 4) * 4, sz = Math.round(z / 4) * 4, d = W.sunDir;
-    s.position.set(sx + d.x * 160, Math.max(40, d.y * 160), sz + d.z * 160); s.target.position.set(sx, 0, sz); s.target.updateMatrixWorld();
-  },
+  // sun shadows: two texel-snapped cascades fitted ahead of the camera (Render.fitShadow)
+  sun(x, z) { Render.fitShadow(x, z); },
   title(rdt) {
     this.orbit += rdt * 0.045;
     const r = 150, a = this.orbit;
@@ -140,20 +229,22 @@ const Cam = {
 
 // dithered cut-out whenever a building stands between the camera and the hero
 const Occl = {
-  _t: { x: 0, y: 0, z: 0 }, _b: { x: 0, y: 0, z: 0 },
+  _t: new V3(), _b: new V3(),
   update() {
     const P = Player;
     if (Interiors.cur || !G.started) { Render.updateCutout(false); return; }
     // outdoor cutscenes: fade whatever stands in the front half of the shot
     if (Cutscene.active) { if (Cutscene.shot && Cutscene.opts.camera !== false) Render.updateCutout(false, _cutLook.x, _cutLook.y, _cutLook.z, 0, 0.5); else Render.updateCutout(false); return; }
-    const ty = P.isMech() ? 7.5 : 2.2;
-    this._t.x = P.pos.x; this._t.y = ty; this._t.z = P.pos.z; this._b.x = P.pos.x; this._b.y = 0.6; this._b.z = P.pos.z;
+    const gh = groundH(P.pos.x, P.pos.z), ty = P.isMech() ? 7.5 : 2.2, c = camera.position;
+    this._t.set(P.pos.x, gh + ty, P.pos.z); this._b.set(P.pos.x, gh + 0.6, P.pos.z);
     let hit = false;
-    for (const s of solidsNear(P.pos.x, P.pos.z + 18, 40)) {
-      if (s.kind === 'monument' || s.kind === 'pillar') continue;
-      if (segAABB3(camera.position, this._t, s) || segAABB3(camera.position, this._b, s)) { hit = true; break; }
-    }
-    Render.updateCutout(hit, P.pos.x, ty * 0.6, P.pos.z, P.isMech() ? 200 : 125, [0.62, 0.36, 0][Cam.zoom] || 0);
+    forSolids((c.x + P.pos.x) / 2, (c.z + P.pos.z) / 2, hyp(c.x - P.pos.x, c.z - P.pos.z) / 2 + 2, (s) => {
+      if (s.kind === 'monument' || s.kind === 'pillar') return;
+      if (segAABB3(c, this._t, s) || segAABB3(c, this._b, s)) { hit = true; return false; }
+    });
+    // street-level views also fade out whatever is right in front of the lens (trees, lamp posts, signs)
+    const nearK = Cam.blend > 0.5 ? 0 : [0.5, 0.42, 0.3][Cam.zoom] || 0.4;
+    Render.updateCutout(hit, P.pos.x, gh + ty * 0.6, P.pos.z, P.isMech() ? 200 : 125, nearK);
   },
 };
 
@@ -164,7 +255,7 @@ function togglePause(force) {
   $('pause').hidden = !G.paused;
   if (G.paused) { Sfx.engine(false, 0); Sfx.siren(0); Sfx.beam(false); Sfx.hum(0); }
 }
-function toggleMute() { const m = Sfx.toggleMute(); $('btn-mute').textContent = m ? '静音中' : '声音'; $('p-mute').textContent = m ? '打开声音 (M)' : '静音 (M)'; }
+function toggleMute() { const m = Sfx.toggleMute(), k = IS_TOUCH ? '' : ' (M)'; $('btn-mute').textContent = m ? '静音中' : '声音'; $('p-mute').textContent = (m ? '打开声音' : '静音') + k; }
 onTyped = (s) => {
   if (!G.started) return;
   if (s.endsWith('HESOYAM')) {
@@ -180,7 +271,7 @@ onTyped = (s) => {
 let lastT = performance.now();
 const PERF = { n: 0, acc: 0, fps() { const f = this.n / Math.max(1e-3, this.acc); this.n = 0; this.acc = 0; return f; } };
 function worldTick(dt) {
-  if (!Interiors.cur) { Cars.update(dt); Peds.update(dt); Monorail.update(dt); }
+  if (!Interiors.cur) { guard('Cars.update', () => Cars.update(dt)); guard('Peds.update', () => Peds.update(dt)); Monorail.update(dt); }
   Tokens.update(dt); Coins.update(dt); FX.update(dt); Props.update(dt);
   for (const hq of W.hqs) hq.update(dt, G.started && !Interiors.cur ? hyp(hq.cx - Player.pos.x, hq.cz - Player.pos.z) : 999);
   if (W.monument) W.monument.rotation.y += dt * 0.8;
@@ -193,7 +284,7 @@ function frame(now, pumped) {
   rdt = clamp(rdt, 0.0005, 0.05);
   if (!G.started) {
     Cam.title(rdt); DayNight.update(rdt * 4); worldTick(rdt); Sky.update(now / 1000); Water.update(now / 1000);
-    Render.render(now / 1000);
+    if (!DEV.noRender) Render.render(now / 1000);
     Input.hit = Object.create(null); Input.click = false;
     return;
   }
@@ -227,34 +318,26 @@ function frame(now, pumped) {
   worldTick(dt);
   if (!Interiors.cur) Wanted.update(dt); else Sfx.siren(0);
   Enemies.update(dt); Projectiles.update(dt); Hazards.update(dt); Boss.update(dt); Actors.update(dt);
-  Story.update(dt); Story.updateTrainCrash(dt); Markers.update(dt); Interiors.update(dt);
-  if (W.homeSmoke && !Interiors.cur && Math.random() < dt * 6) { const s2 = W.special.home; FX.smoke(rand(s2.x0, s2.x1), 29, rand(s2.z0, s2.z1), 1, 5, 0.25); }
-  // freshly burnt buildings keep burning for a while: flames up the front and a flickering orange glow
-  for (const [key, id, top] of [['homeFireT', 'home', 26], ['dojoFireT', 'dojo', 17]]) {
-    if (!(W[key] > 0) || Interiors.cur) continue;
-    W[key] -= dt; const sb = W.special[id]; if (!sb || sb.x0 === undefined) continue;
-    const cx = (sb.x0 + sb.x1) / 2, near = dist2(cx, sb.z1, Player.pos.x, Player.pos.z) < 130 * 130;
-    if (!near) continue;
-    if (Math.random() < dt * 16) FX.fire(rand(sb.x0 + 1, sb.x1 - 1), rand(2, top), sb.z1 + 0.6, 1);
-    if (Math.random() < dt * 5) FX.fire(rand(sb.x0 + 1, sb.x1 - 1), top + 1, rand(sb.z0 + 1, sb.z1 - 1), 1);
-    FX.light(cx, 8, sb.z1 + 7, 2.4 + Math.random() * 1.1, 0xff6a1a);
-  }
+  guard('Story.update', () => { Story.update(dt); Story.updateTrainCrash(dt); }); Markers.update(dt); Interiors.update(dt);
+  Hooks.runUpdate(dt, rdt);
+  // burning home / dojo flames live in Story.fireFx (13_story.js); the ruined dojo keeps smouldering here
   if (Story.flags.dojoBurnt && !Interiors.cur && Math.random() < dt * 3) { const s3 = W.special.dojo; if (s3 && s3.x0 !== undefined && dist2((s3.x0 + s3.x1) / 2, (s3.z0 + s3.z1) / 2, Player.pos.x, Player.pos.z) < 160 * 160) FX.smoke(rand(s3.x0, s3.x1), 15, rand(s3.z0, s3.z1), 1, 4, 0.2); }
   Render.hallu = Math.max(Math.min(1, Player.poison) * (Story.flags.antidote || Buffs.has('banlan') ? 0.35 : 1), Buffs.has('drunk') ? 0.28 : 0);
   Cam.update(rdt); Occl.update(); Sky.update(G.time); Water.update(G.time);
-  UI.update(rdt);
-  Render.render(G.time);
+  guard('UI.update', () => UI.update(rdt));
+  if (!DEV.noRender) Render.render(G.time);
   Input.hit = Object.create(null); Input.click = false;
   PERF.n++; PERF.acc += rdt;
 }
 
 function onResize() {
   renderer.setSize(innerWidth, innerHeight);
-  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  camera.aspect = innerWidth / innerHeight; camera.fov = Cam.fov(); camera.updateProjectionMatrix();
   Render.resize(); FX.resize(); UI.resize();
 }
 function beginPlay(saveData) {
-  if (G.started) return;
+  if (G.started || G.starting) return; // G.started only flips after the loading screen: a second Enter / click must not queue another start
+  G.starting = true;
   Sfx.init();
   $('title').hidden = true;
   const ld = $('loading'); ld.hidden = false; $('ld-tip').textContent = pick(TIPS);
@@ -276,6 +359,15 @@ function beginPlay(saveData) {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.started && !G.paused && !Cutscene.active) togglePause(true); });
 
+// shader warm-up behind the title screen: everything hidden right now (rain / snow / sand, far districts, night lamps, rooms)
+// gets its program compiled here instead of stalling the first frame it shows up in
+function warmShaders() {
+  if (AutoQ.off && !DEV.warm) return; // SwiftShader (headless tests) compiles for seconds per program; real GPUs take ms
+  const hid = [], t = performance.now(), n0 = renderer.info.programs ? renderer.info.programs.length : 0;
+  scene.traverse((o) => { if (!o.visible) { o.visible = true; hid.push(o); } });
+  try { renderer.compile(scene, camera); } finally { for (const o of hid) o.visible = false; }
+  if (DEV.warm) console.log(`[warmup] ${hid.length} hidden objects, programs ${n0} → ${renderer.info.programs.length}, ${Math.round(performance.now() - t)} ms`);
+}
 async function boot() {
   if (!renderer) { $('boot-msg').textContent = '你的浏览器不支持 WebGL，这个游戏跑不起来。换个新一点的 Chrome / Safari 试试。'; return; }
   FACE_IMG.src = FACE_DATA;
@@ -285,24 +377,28 @@ async function boot() {
   buildAssets();
   buildWorld();
   Sky.init(); Water.init(); FX.init(); Pillar.init();
-  Tokens.init(); Tokens.seed(); Coins.init();
+  Tokens.init(); guard('Tokens.seed', () => Tokens.seed()); Coins.init();
   RPG.recalc();
   Player.init();
-  Cars.init(); Peds.init();
-  Interiors.init(); Story.init();
-  UI.init(); Render.init();
+  guard('Cars.init', () => Cars.init()); guard('Peds.init', () => Peds.init());
+  guard('Interiors.init', () => Interiors.init()); guard('Story.init', () => Story.init());
+  guard('UI.init', () => UI.init()); Render.init();
+  Hooks.runInit();
   DayNight.update(0);
   // title art
   HeroFace.titleArt();
   const tc = $('t-klaude'); tc.getContext('2d').drawImage(HEADS.klaudeEvil.image, 0, 0, tc.width, tc.height);
   const tx = $('t-kodex'); tx.getContext('2d').drawImage(HEADS.kodex.image, 0, 0, tx.width, tx.height);
   onResize();
+  guard('warmup', warmShaders);
   window.addEventListener('resize', onResize);
-  { const z = Store.get('gta-sa-cam'); if (z === 0 || z === 1 || z === 2) Cam.zoom = z; }
+  { const z = Store.get('gta-cam3'); if (Number.isInteger(z) && z >= 0 && z < Cam.ZOOMS.length) Cam.zoom = z; }
+  Mouse.init();
   let wheelT = 0;
   canvasEl.addEventListener('wheel', (e) => {
-    if (!G.started || G.paused || Cutscene.active || UI.panelOpen) return;
-    e.preventDefault(); const now = performance.now(); if (now - wheelT < 260) return; wheelT = now;
+    e.preventDefault();
+    if (!G.started || G.paused || Cutscene.active || UI.panelOpen || !e.deltaY) return;
+    const now = performance.now(); if (now - wheelT < 220) return; wheelT = now;
     Cam.cycle(e.deltaY > 0 ? 1 : -1, false);
   }, { passive: false });
   const save = Store.get(SAVE_KEY);
@@ -310,7 +406,7 @@ async function boot() {
   bn.disabled = false; bn.textContent = '新游戏';
   bn.addEventListener('click', () => { if (save) UI.confirm('开始新游戏会覆盖浏览器里的存档，确定吗？', () => { Store.del(SAVE_KEY); beginPlay(null); }); else beginPlay(null); });
   if (save && save.v === 2) { bc.hidden = false; bc.textContent = `继续游戏 · Lv.${save.rpg ? save.rpg.level : 1}`; bc.addEventListener('click', () => beginPlay(save)); }
-  window.addEventListener('keydown', (e) => { if (!G.started && e.code === 'Enter' && $('confirm').hidden && $('facepick').hidden) (save ? bc : bn).click(); });
+  window.addEventListener('keydown', (e) => { if (!G.started && !G.starting && !e.repeat && e.code === 'Enter' && $('confirm').hidden && $('facepick').hidden) (save ? bc : bn).click(); });
   $('t-face').addEventListener('click', () => UI.openFacePicker());
   $('boot-msg').hidden = true;
   rafId = requestAnimationFrame(frame);
@@ -318,6 +414,6 @@ async function boot() {
   let pumpT = 0;
   const pump = (on) => { clearInterval(pumpT); if (on) pumpT = setInterval(() => { if (document.hidden || performance.now() - lastT > 100) frame(performance.now(), true); }, 16); };
   const tick = (n = 1, ms = 1000 / 60) => { for (let i = 0; i < n; i++) frame(lastT + ms, true); };
-  window.GTA = { pump, tick, scene, camera, G, Player, W, Cars, Tokens, Enemies, Story, MISSIONS, Cam, PERF, Robot, UI, Input, Peds, FX, RPG, Interiors, Boss, Monorail, DayNight, Cutscene, Actors, Render, Coins, Buffs, Props, Markers, EQUIP, SHOPS, begin: beginPlay, renderer };
+  window.GTA = { DEV, Hooks, guard, Roads, Grid, MAPD, Landmarks, City, Signals, pump, tick, scene, camera, G, Player, W, Cars, Tokens, Enemies, Story, MISSIONS, Cam, PERF, Robot, UI, Input, Peds, FX, RPG, Interiors, Boss, Monorail, DayNight, Cutscene, Actors, Render, Coins, Buffs, Props, Markers, EQUIP, SHOPS, begin: beginPlay, warm: warmShaders, renderer, Touch, Mouse, AutoQ, Weather, Sky, Water, Head3D, HeroFace, HEADS };
 }
 boot();

@@ -20,26 +20,36 @@ function rayCircle(ox, oz, dx, dz, cx, cz, r) {
   if (d2 > r * r) return -1;
   return Math.max(0, t - Math.sqrt(r * r - d2));
 }
+// on foot: WASD / stick are camera-relative — "up" walks where the camera looks. Returns world [x, z, amount] (reused array)
+const _mv = [0, 0, 0], _exitV = new V3();
 function moveInput() {
   let x = (kd('KeyD', 'ArrowRight') ? 1 : 0) - (kd('KeyA', 'ArrowLeft') ? 1 : 0);
-  let z = (kd('KeyS', 'ArrowDown') ? 1 : 0) - (kd('KeyW', 'ArrowUp') ? 1 : 0);
-  if (Input.joy.on && !Input.lock) { x += Input.joy.x; z += Input.joy.y; }
-  const l = hyp(x, z);
-  if (l > 1) { x /= l; z /= l; }
-  return [x, z, Math.min(1, l)];
+  let y = (kd('KeyW', 'ArrowUp') ? 1 : 0) - (kd('KeyS', 'ArrowDown') ? 1 : 0);
+  if (Input.joy.on && !Input.lock) { x += Input.joy.x; y -= Input.joy.y; }
+  const l = hyp(x, y);
+  if (l > 1) { x /= l; y /= l; }
+  const fx = Math.sin(Cam.yaw), fz = Math.cos(Cam.yaw);
+  _mv[0] = fx * y - fz * x; _mv[1] = fz * y + fx * x; _mv[2] = Math.min(1, l);
+  return _mv;
 }
+// driving: keys stay tank-style (W gas, S brake / reverse, A/D steer). The stick means "drive toward that spot on screen":
+// up = along the camera, sideways = turn that way, pulled back (toward the car's tail) = brake and reverse.
+// The chase cam trails the car in turns, so "back" is read off the stick itself, not only the angle: no endless circling
+const _vin = { thr: 0, steer: 0, hand: false, boost: false };
 function vehicleInput(heading) {
   let thr = (kd('KeyW', 'ArrowUp') ? 1 : 0) - (kd('KeyS', 'ArrowDown') ? 1 : 0);
   let steer = (kd('KeyA', 'ArrowLeft') ? 1 : 0) - (kd('KeyD', 'ArrowRight') ? 1 : 0);
   if (Input.joy.on && !Input.lock) {
-    const m = Math.min(1, hyp(Input.joy.x, Input.joy.y));
-    if (m > 0.2) {
-      const want = Math.atan2(Input.joy.x, Input.joy.y), diff = angDiff(heading, want);
-      thr = Math.abs(diff) < 2.2 ? m : m * 0.6;
-      steer = clamp(diff * 2.4, -1, 1);
+    const jx = Input.joy.x, jy = Input.joy.y, m = Math.min(1, hyp(jx, jy));
+    if (m > 0.18) {
+      const fx = Math.sin(Cam.yaw), fz = Math.cos(Cam.yaw);
+      const want = Math.atan2(-fx * jy - fz * jx, -fz * jy + fx * jx), diff = angDiff(heading, want);
+      if (Math.abs(diff) > 1.6 && jy > 0.3 && jy > Math.abs(jx) * 0.75) { thr = -m; steer = clamp(-jx * 1.4, -1, 1); }
+      else { thr = m * (Math.abs(diff) < 1.6 ? 1 : 0.55); steer = clamp(diff * 2.2, -1, 1); }
     }
   }
-  return { thr, steer, hand: kd('Space'), boost: kd('ShiftLeft', 'ShiftRight') };
+  _vin.thr = thr; _vin.steer = steer; _vin.hand = kd('Space'); _vin.boost = kd('ShiftLeft', 'ShiftRight');
+  return _vin;
 }
 
 const Combat = {
@@ -100,7 +110,7 @@ const Combat = {
       RPG.charge(dealt);
       if (mech && RPG.m.brawlerHeal) P.addTokens(5000, true);
       G.hitstop(def.heavy ? 0.085 : mech ? 0.05 : 0.03);
-      Cam.shake(mech ? (def.heavy ? 0.9 : 0.5) : 0.12);
+      Cam.shake(mech ? (def.heavy ? 0.9 : 0.5) : 0.12); Input.buzz(mech ? 24 : 14);
       if (mech) (def.kind === 'kick' ? Sfx.kick() : Sfx.punch()); else Sfx.smallHit();
       FX.ring(cx, cz, 0.5, mech ? 4.5 : 1.4, 0.25, 0xffe0a0, 0.8, mech ? 3 : 1.2);
     } else Sfx.whoosh();
@@ -333,7 +343,7 @@ const Player = {
     const spd = busy ? 2 : sprint ? 12.5 * RPG.m.sprint : 7.2 * RPG.m.speed;
     this.vel.x = damp(this.vel.x, mx * spd, 12, dt); this.vel.z = damp(this.vel.z, mz * spd, 12, dt);
     this.pos.x += this.vel.x * dt; this.pos.z += this.vel.z * dt;
-    collideWorld(this.pos, 0.6); this.pushOutCars(0.6);
+    this.pushOutCars(0.6); collideWorld(this.pos, 0.6); // walls win: a parked car never shoves you into a house
     if (ml > 0.1 && !busy) this.heading = dampA(this.heading, Math.atan2(mx, mz), 14, dt);
     if (kp('Space') && this.onGround) { this.vy = 7.5 * Math.sqrt(RPG.m.jump); this.onGround = false; Sfx.jump(); }
     this.gravity(dt, 24);
@@ -343,7 +353,8 @@ const Player = {
   },
   carPrm(c) {
     const m = RPG.m, k = c.k;
-    return { maxSpd: k.maxSpd * (1 + (m.grip - 1) * 0.5), accel: k.accel, brake: k.brake, maxRev: k.maxRev, steer: k.steer * m.grip, grip: k.grip * m.grip };
+    const wg = Weather.grip(); // wet / snowy roads: the tyres let go sooner (1 when dry)
+    return { maxSpd: k.maxSpd * (1 + (m.grip - 1) * 0.5), accel: k.accel * (0.6 + 0.4 * wg), brake: k.brake * wg, maxRev: k.maxRev, steer: k.steer * m.grip, grip: k.grip * m.grip * wg };
   },
   updCar(dt) {
     const c = this.car;
@@ -380,6 +391,7 @@ const Player = {
     collideWorld(this.pos, 2.5);
     this.shoveCars();
     if (ml > 0.1 && (!busy || this.beam)) this.heading = dampA(this.heading, Math.atan2(mx, mz), this.beam ? 3 : 10, dt);
+    else if (this.beam && !Cam.top) this.heading = dampA(this.heading, Cam.yaw, 4, dt); // standing still: the beam goes where you look
     const sp = hyp(this.vel.x, this.vel.z);
     if (this.onGround && sp > 1) {
       this.ph += dt * sp * 0.55;
@@ -600,24 +612,32 @@ const Player = {
   },
   // ---------------- cars ----------------
   tryEnter() {
-    const c = Cars.nearestDrivable(this.pos.x, this.pos.z, 4.8);
+    const c = Cars.enterable(this.pos.x, this.pos.z); // nearest car, or a 共享单车
     if (!c) { UI.hint('边儿上没车可开'); return; }
     if (c.hasDriver) { c.ejectDriver(true); G.crime(c.kind === 'legal' ? 0.6 : 0.22); G.stats.stolen++; }
     c.state = 'player'; c.vel.set(Math.sin(c.heading) * c.speed, 0, Math.cos(c.heading) * c.speed);
     this.car = c; this.mode = 'car'; this.atk = null; this.queued = null;
     this.human.root.visible = false; Sfx.door(); UI.radio(); UI.carName(c.name);
+    Cars.onEnter(c);
   },
   exitCar() {
     const c = this.car;
     this.car = null; this.mode = 'human';
     if (c && !c.removed) {
       if (c.state === 'player') { c.state = 'parked'; c.age = 0; }
-      const lx = Math.cos(c.heading), lz = -Math.sin(c.heading);
-      this.pos.set(c.pos.x + lx * 2.3, 0, c.pos.z + lz * 2.3);
+      // step out of whichever door is clear (a car parked against a wall lets you out the other side, then front / back)
+      const lx = Math.cos(c.heading), lz = -Math.sin(c.heading), fx = -lz, fz = lx, t = _exitV;
+      let ok = false;
+      for (const [dx, dz, d] of [[lx, lz, 2.3], [-lx, -lz, 2.3], [-fx, -fz, 3.8], [fx, fz, 3.8], [lx, lz, 3.4], [-lx, -lz, 3.4]]) {
+        t.set(c.pos.x + dx * d, 0, c.pos.z + dz * d);
+        if (!collideCircle(t, 0.65) && Grid.at(t.x, t.z) !== GK.BLD) { ok = true; break; }
+      }
+      if (ok) this.pos.copy(t); else this.pos.set(c.pos.x + lx * 2.3, 0, c.pos.z + lz * 2.3);
     }
     collideWorld(this.pos, 0.6);
     this.vel.set(0, 0, 0); this.human.root.visible = true; this.human.root.scale.setScalar(1);
     Sfx.door(); Sfx.engine(false, 0);
+    Cars.onExit(c);
   },
   bailOut(exploded) {
     if (!this.car) return;

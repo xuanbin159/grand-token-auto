@@ -9,7 +9,7 @@ const Robot = {
   build(paint = 'classic') {
     this.paint = paint; setPaintColors(paint); this.parts = {}; this.list = [];
     const root = new THREE.Group(); root.visible = false; root.scale.setScalar(1.2); scene.add(root); this.root = root;
-    const mk = (parts) => { const m = new THREE.Mesh(mergeParts(parts), MAT.vc); m.castShadow = true; return m; };
+    const mk = (parts) => { const m = new THREE.Mesh(mergeParts(parts), MAT.vc); m.geometry._robot = true; m.castShadow = true; return m; };
     const grp = (name, mesh) => { const g = new THREE.Group(); if (mesh) g.add(mesh); root.add(g); this.parts[name] = g; this.list.push(g); g.userData.name = name; return g; };
     grp('chest', mk([
       box(0, 0, 0, 3.4, 2.0, 1.7, RC.red),
@@ -102,8 +102,11 @@ const Robot = {
   repaint(pid) {
     const vis = this.root.visible, pose = this.pose, pos = this.root.position.clone(), rot = this.root.rotation.y;
     scene.remove(this.root);
+    // free the old paint job's GPU buffers (shared geometries / materials stay: only per-build ones are disposed)
+    const old = this.root; old.traverse((o) => { if (o.isMesh && o.geometry && o.geometry._robot) o.geometry.dispose(); });
     this.build(pid); this.snap(pose);
     this.root.visible = vis; this.root.position.copy(pos); this.root.rotation.y = rot;
+    if (TEX.helmet && TEX.helmet.dispose) TEX.helmet.dispose();
     TEX.helmet = tex(helmetCanvas(PAINTS[pid]));
     if (Player.faceMatR) { Player.faceMatR.map = TEX.helmet; Player.faceMatR.needsUpdate = true; }
     UI.portraitR = null;

@@ -158,7 +158,7 @@ const Markers = {
     for (const e of this.list) {
       const p = e.m.where();
       if (dist2(P.pos.x, P.pos.z, p.x, p.z) > (P.isMech() ? 4.2 : 2.2) ** 2) continue;
-      if (e.m.onFoot && P.mode !== 'human') { if (!this.hintT || G.time - this.hintT > 3) { this.hintT = G.time; UI.hint('先下车 / 解除变身（Q），再接活儿'); } continue; }
+      if (e.m.onFoot && P.mode !== 'human') { if (!this.hintT || G.time - this.hintT > 3) { this.hintT = G.time; UI.hint(`先下车 / 解除变身（${KH('Q', '解除').trim()}），再接活儿`); } continue; }
       Story.start(e.m);
       break;
     }
@@ -173,10 +173,119 @@ const O = {
   run: (fn) => ({ run: fn }),
 };
 const hqById = (id) => W.hqs.find((h) => h.id === id);
+// key hints that read right on a phone too: " T " on a keyboard, "「变身」" on the touch buttons
+const KH = (k, touch) => (IS_TOUCH ? `「${touch}」` : ` ${k} `);
+const hqWhere = (id) => (HQ_SPOTS[id] ? HQ_SPOTS[id][2] : '城外');
 const doorPos = (id) => W.doors.find((d) => d.id === id);
-function tokensAround(x, z, n, r, tag) { for (let k = 0; k < n; k++) { const a = rand(TAU), rr = rand(4, r); Tokens.add(clamp(x + Math.cos(a) * rr, -BOUND + 3, BOUND - 3), clamp(z + Math.sin(a) * rr, -BOUND + 3, SHORE - 3), 50000, { tag }); } }
+// a door's own frame: `along` its frontage, `out` toward the street (for a south-facing door this is plain +x / +z)
+function F(d, along, out) { const [ox, oz] = d.o || [0, 1]; return [d.x + oz * along + ox * out, d.z - ox * along + oz * out]; }
+const hdOf = (d) => { const [ox, oz] = d.o || [0, 1]; return Math.atan2(ox, oz); };
+// where a giver waits: a little off to the side of the door, so walking out of it doesn't start the job
+function frontSpot(d) { const [x, z] = F(d, 3, 3.8), [px, pz] = openSpot(x, z, 0.9, 12); return { x: px, z: pz }; }
+// scatter n tokens around (x,z) on open ground only (never in a house, a pond or a palace); leftovers go onto nearby lanes
+function tokensAround(x, z, n, r, tag) {
+  let got = 0;
+  for (let k = 0; k < n * 14 && got < n; k++) {
+    const a = rand(TAU), rr = rand(4, r + k * 0.08), px = x + Math.cos(a) * rr, pz = z + Math.sin(a) * rr;
+    if (!openAt(px, pz, 0.6)) continue;
+    Tokens.add(px, pz, 50000, { tag }); got++;
+  }
+  for (let k = 0; k < 30 && got < n; k++) { const s = Roads.randomSpot(x, z, 10, r + 60); if (!s) continue; const t = Tokens.add(s.x, s.z, 50000, { tag }); if (t) got++; }
+  return got;
+}
 function spawnPack(type, n, cx, cz, r, o = {}) { for (let k = 0; k < n; k++) { const a = (k / n) * TAU + rand(0.3); Enemies.spawn(type, null, Object.assign({ x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r, tag: 'mission', aggro: true }, o)); } }
 function intPos(id, lx, lz) { const b = Interiors.base(id); return [b.x + lx, b.z + lz]; }
+// ---- routes on the real street graph (the truck test drive, a runaway through the 胡同) ----
+// Dijkstra: o.src [[node, startCost]], o.w(e) cost per metre (Infinity = closed), o.oneway respects one-ways,
+// o.hop lets it jump short gaps between nodes, o.goal(u) stops early. Returns { dist, via, end }.
+function roadSearch(o) {
+  const N = Roads.nodes.length, dist = new Float64Array(N).fill(Infinity), via = new Int32Array(N).fill(-1), done = new Uint8Array(N), heap = [];
+  const push = (i) => { heap.push(i); let c = heap.length - 1; while (c > 0) { const p = (c - 1) >> 1; if (dist[heap[p]] <= dist[heap[c]]) break; [heap[p], heap[c]] = [heap[c], heap[p]]; c = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = c * 2 + 1, r = l + 1; let m = c; if (l < heap.length && dist[heap[l]] < dist[heap[m]]) m = l; if (r < heap.length && dist[heap[r]] < dist[heap[m]]) m = r; if (m === c) break; [heap[m], heap[c]] = [heap[c], heap[m]]; c = m; } } return top; };
+  for (const [i, d0] of o.src) if (d0 < dist[i]) { dist[i] = d0; push(i); }
+  let end = -1;
+  while (heap.length) {
+    const u = pop(); if (done[u]) continue; done[u] = 1; if (o.goal && o.goal(u)) { end = u; break; }
+    for (const e of Roads.nodes[u].edges) {
+      const w = o.w(e); if (w === Infinity) continue;
+      const fwd = e.a === u, v = fwd ? e.b : e.a; if (!fwd && e.oneway && o.oneway) continue;
+      const c = dist[u] + e.len * w; if (c < dist[v]) { dist[v] = c; via[v] = e.id; push(v); }
+    }
+    if (!o.hop) continue;
+    // the map's divided roads don't always share junction nodes with the streets that cross them: let the drive hop
+    // across short gaps (you can, in a truck) so the 二环 carriageways are reachable
+    const nu = Roads.nodes[u], H = nodeHash(), c0 = Math.floor(nu.x / 24), r0 = Math.floor(nu.z / 24);
+    for (let gx = c0 - 1; gx <= c0 + 1; gx++) for (let gz = r0 - 1; gz <= r0 + 1; gz++) for (const v of H.get(gx * 100003 + gz) || []) {
+      const nv = Roads.nodes[v], d = hyp(nv.x - nu.x, nv.z - nu.z); if (v === u || d > 24) continue;
+      const c = dist[u] + 8 + d * 1.5; if (c < dist[v]) { dist[v] = c; via[v] = -2 - u; push(v); }
+    }
+  }
+  return { dist, via, end };
+}
+// the polyline from the search's source to node `end` (hops just join the edges on either side)
+function roadPath(via, end) {
+  const legs = [];
+  for (let v = end; via[v] !== -1;) {
+    if (via[v] <= -2) { v = -2 - via[v]; continue; }
+    const e = Roads.edges[via[v]], fwd = e.b === v; legs.push([e, fwd]); v = fwd ? e.a : e.b;
+    if (legs.length > 8000) return null;
+  }
+  const line = [];
+  for (let q = legs.length - 1; q >= 0; q--) { const [e, fwd] = legs[q], pts = fwd ? e.pts : e.pts.slice().reverse(); for (const p of pts) { const l = line[line.length - 1]; if (!l || hyp(l[0] - p[0], l[1] - p[1]) > 0.5) line.push(p); } }
+  return line;
+}
+const ROUTE_W = [0.35, 0.45, 1, 1.3, 1.7, 3, Infinity, Infinity];
+const drivable = (n) => n.edges.some((e) => ROUTE_W[e.cls] < 9);
+// the truck route: from any node near `from`, through each stop in turn (ring + 长安街 strongly preferred, one-ways respected)
+function roadRoute(from, stops, R = 70) {
+  let src = [], line = [];
+  Roads.nodes.forEach((n, i) => { const d = hyp(n.x - from[0], n.z - from[1]); if (d < R && drivable(n)) src.push([i, d * 2]); });
+  for (const to of stops) {
+    const goal = (u) => { const n = Roads.nodes[u]; return hyp(n.x - to[0], n.z - to[1]) < R * 0.6; };
+    const r = roadSearch({ src, w: (e) => ROUTE_W[e.cls], oneway: true, hop: true, goal }); if (r.end < 0) return null;
+    const seg = roadPath(r.via, r.end); if (!seg) return null;
+    for (const p of seg) { const l = line[line.length - 1]; if (!l || hyp(l[0] - p[0], l[1] - p[1]) > 0.5) line.push(p); }
+    src = [[r.end, 0]];
+  }
+  return line;
+}
+let _nodeHash = null;
+function nodeHash() {
+  if (_nodeHash) return _nodeHash;
+  _nodeHash = new Map();
+  Roads.nodes.forEach((n, i) => { if (!drivable(n)) return; const k = Math.floor(n.x / 24) * 100003 + Math.floor(n.z / 24); (_nodeHash.get(k) || _nodeHash.set(k, []).get(k)).push(i); });
+  return _nodeHash;
+}
+// a runaway's route through the 胡同 near (x,z): lanes only (no hops through houses), minL..maxL long, ending as far from `away` as it can
+// (the lanes only meet at the streets, so streets are allowed — just dear, so he ducks back into the next 胡同)
+const LANE_OK = (e) => [6, 6, 5, 3, 2, 1.3, 1, 1.3][e.cls];
+function hutongRun(x, z, away, minL = 300, maxL = 480) {
+  const n = Roads.nearest(x, z, 160, (e) => e.cls >= 5); if (!n) return null;
+  const e0 = n.e, sa = n.s * LANE_OK(e0), sb = (e0.len - n.s) * LANE_OK(e0);
+  const r = roadSearch({ src: [[e0.a, sa], [e0.b, sb]], w: LANE_OK, oneway: false });
+  let best = -1, bs = -Infinity;
+  Roads.nodes.forEach((q, i) => { const d = r.dist[i]; if (d < minL || d > maxL) return; const sc = hyp(q.x - away[0], q.z - away[1]) + rand(20); if (sc > bs) { bs = sc; best = i; } });
+  if (best < 0) return null;
+  const line = roadPath(r.via, best); if (!line || line.length < 2) return null;
+  // lead-in: from the start point along its own lane to whichever end the route leaves from
+  const A = Roads.nodes[e0.a], atA = hyp(line[0][0] - A.x, line[0][1] - A.z) < 0.5, head = [[n.x, n.z]];
+  if (atA) { for (let i = e0.pts.length - 2; i >= 1; i--) if (e0.cum[i] < n.s) head.push(e0.pts[i]); }
+  else for (let i = 1; i < e0.pts.length - 1; i++) if (e0.cum[i] > n.s) head.push(e0.pts[i]);
+  return head.concat(line);
+}
+// checkpoints every ~step metres along a polyline; each named after a nearby subway station if there is one
+function checkpointsAlong(line, step = 210) {
+  const ST = (MAPD.raw.stations || []).map((s) => [s[0], s[1] * MAPD.k, s[2] * MAPD.k]);
+  const name = (x, z) => { let b = '', bd = 95 * 95; for (const [n, sx, sz] of ST) { const d = dist2(x, z, sx, sz); if (d < bd) { bd = d; b = n; } } return b; };
+  const out = []; let acc = 0, len = 0;
+  for (let i = 1; i < line.length; i++) {
+    const [ax, az] = line[i - 1], [bx, bz] = line[i], L = hyp(bx - ax, bz - az); len += L; acc += L;
+    if (acc >= step && i < line.length - 1) { acc = 0; out.push([bx, bz, name(bx, bz)]); }
+  }
+  const [ex, ez] = line[line.length - 1]; out.push([ex, ez, name(ex, ez)]);
+  return { list: out, len };
+}
+function stationXZ(nm, lon, lat) { const s = (MAPD.raw.stations || []).find((q) => q[0] === nm); return s ? [s[1] * MAPD.k, s[2] * MAPD.k] : geoToGame(lon, lat); }
 
 /* ---- 得云社的段子（原创），[说话的, 词儿, 这句之后台下笑不笑] ---- */
 const XIANGSHENG = [
@@ -195,13 +304,25 @@ const XIANGSHENG = [
     ['xs1', '怕胡同儿里的大妈。'], ['xs2', '这怎么讲？'], ['xs1', '大妈一问“小伙子多大了，有对象吗”——它当场就幻觉了。', 1], ['xs2', '别说 AI 了，我也扛不住！', 1]],
 ];
 
+if (!SPEAKERS.labeler) SPEAKERS.labeler = { name: '标注员', color: '#d1d5db', head: () => HEADS.labeler };
+const RUNNER_BARKS = ['抓不着！抓不着！', '这胡同儿我熟，您呐——够呛！', '标一条三毛，跑一趟五块！', '您瞧我这是猫还是狗？', '借光借光！', '大妈让让，后头有人追我！'];
+const RUNNER_DODGE = ['嘿！差一丁点儿！', '哎——没摸着！', '您这手慢了半拍儿！', '滑溜吧？胡同儿里练的！'];
+const RUNNER_TIRED = ['哎哟喂……岔气儿了……', '歇、歇会儿……', '标注员……不练腿儿啊……'];
+
 /* ---- the plot（京味儿评书版）---- */
 const MISSIONS = [];
 function defineMissions() {
-  const home = doorPos('home'), dojo = doorPos('dojo'), lab = doorPos('lab'), ark = doorPos('arkham');
-  const plaza = W.plaza, gordonAt = W.gordonAt, R = roadC;
-  // 二环 + 长安街 test drive for the truck: 复兴门 → 西单 → 天安门 → 东单 → 建国门 → 东直门 → 鼓楼 → 西直门 → back to the lab
-  const RING_CP = [[R(1), R(4)], [R(1), R(5)], [R(3), R(5)], [R(5), R(5)], [R(7), R(5)], [R(9), R(5)], [R(9), R(3)], [R(9), R(1)], [R(5), R(1)], [R(1), R(1)], [R(1), R(3)], [lab.x, R(4)]];
+  const home = doorPos('home'), dojo = doorPos('dojo'), lab = doorPos('lab');
+  const plaza = W.plaza, gordonAt = W.gordonAt;
+  const atHome = frontSpot(home), atDojo = frontSpot(dojo), atLab = frontSpot(lab);
+  // 东二环 + 长安街 test drive for the truck: lab → 东直门 → 东四十条 → 朝阳门 → 建国门 → 东单 → 王府井 → 天安门东
+  const race = Story.race = (() => {
+    const from = F(lab, 0, 6), to = stationXZ('天安门东', 116.4010, 39.9075);
+    const line = guard('race route', () => roadRoute(from, [stationXZ('建国门', 116.4350, 39.9080), to]));
+    const r = line && line.length > 1 ? checkpointsAlong(line) : { list: [stationXZ('东直门', 116.4340, 39.9410), stationXZ('建国门', 116.4350, 39.9080), to].map(([x, z]) => [x, z, '']), len: 2000 };
+    r.time = Math.ceil((r.len / 18 + 12) / 5) * 5;
+    return r;
+  })();
   MISSIONS.push(
     // ---------------- 序章 ----------------
     { id: 'm0', title: '序章 · OOM 之井', giver: 'alfred', auto: true, where: () => W.spawn, steps: [
@@ -228,7 +349,7 @@ function defineMissions() {
         say('bug', '没 Token？那就把上下文交出来！', { actor: 'bug1' }),
         act(() => { Actors.clear('bug'); }),
       ]),
-      O.obj('撂倒 3 个 bug 狱霸（J 出拳，K 踢腿）', () => Enemies.countTag('mission') === 0, { lock: true,
+      O.obj(`撂倒 3 个 bug 狱霸（${IS_TOUCH ? '「拳」「踢」' : 'J 出拳，K 踢腿'}）`, () => Enemies.countTag('mission') === 0, { lock: true,
         retry: () => { Interiors.enterInstant('prison'); const [x, z] = intPos('prison', 0, 4); Player.pos.set(x, 0, z); Player.heading = Math.PI; DayNight.setTime(14); Cam.snap(); },
         setup: () => { for (let k = 0; k < 3; k++) { const [bx, bz] = intPos('prison', -5 + k * 5, -2); Enemies.spawn('bugthug', null, { x: bx, z: bz, tag: 'mission' }); } Sfx.mood('city'); },
       }),
@@ -239,16 +360,16 @@ function defineMissions() {
         say('hero', '您哪位？'),
         say('klaude', '叫我杜卡德就成。我替一位更大的主儿办事儿——影之 Agent 联盟。'),
         say('klaude', '您要找的不是 Token，是个活法儿。'),
-        say('klaude', '想明白了，就上城西、西山脚下的道场找我。'),
+        say('klaude', '想明白了，就出西二环，奔西山方向，林子里有座道场——我在那儿等您。'),
         say('klaude', '路上记着吃 Token。没 Token，您什么都不是。'),
         fade(1, 0.8),
-        act(() => { Actors.clear(); Interiors.leaveInstant(); Player.pos.copy(W.spawn); Player.heading = Math.PI; DayNight.setTime(8.5); Sfx.mood('city'); }),
+        act(() => { Actors.clear(); Interiors.leaveInstant(); Player.pos.copy(W.spawn); Player.heading = hdOf(home); DayNight.setTime(8.5); Sfx.mood('city'); }),
         fade(0, 0.8),
         title('GRAND TOKEN AUTO', '四九城 · 侠影之谜', 3.2),
       ]),
     ], reward: { xp: 120, money: 20000, quiet: true } },
     // ---------------- 第一回 ----------------
-    { id: 'm1', title: '修行', giver: 'klaude', onFoot: true, where: () => ({ x: dojo.x, z: dojo.z + 3 }), steps: [
+    { id: 'm1', title: '修行', giver: 'klaude', onFoot: true, where: () => atDojo, steps: [
       O.cut([
         act(() => { Interiors.enterInstant('dojo'); const [x, z] = intPos('dojo', 0, -4); Actors.spawn('klaude', 'klaude', x, z, 0); const [hx, hz] = intPos('dojo', 0, 4); Player.pos.set(hx, 0, hz); Player.heading = Math.PI; Sfx.mood('cut'); }),
         act(() => { const [x, z] = intPos('dojo', 0, 0); Cutscene.setShot({ pos: [x + 9, 9, z + 12], look: [x, 2, z], to: [x - 7, 8, z + 11], lookTo: [x, 2, z], dur: 14 }); }),
@@ -258,19 +379,19 @@ function defineMissions() {
         say('hero', '啥？'),
         act(() => { Actors.anim('klaude', 'point'); UI.flash(); Cam.shake(0.6); Sfx.punch(); }),
         say('klaude', '留神上下文！走神儿了吧您？'),
-        say('klaude', '上外头林子里吃 Token 去。吃满了按 T 变身，再把那几根木人桩给我拆喽。'),
+        say('klaude', `上外头林子里吃 Token 去。吃满了${IS_TOUCH ? '点「变身」' : '按 T '}变身，再把那几根木人桩给我拆喽。`),
         fade(1),
         act(() => {
           Actors.clear(); Interiors.leaveInstant(); Story.flags.transform = true;
-          Player.pos.set(dojo.x, 0, dojo.z + 4); Player.heading = 0;
-          tokensAround(W.dojoPos.x, W.dojoPos.z, 26, 21, 'm1');
-          for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + 0.4; Enemies.spawn('dummy', null, { x: W.dojoPos.x + Math.cos(a) * 15, z: W.dojoPos.z + Math.sin(a) * 15, tag: 'mission' }); }
-          Actors.spawn('klaude', 'klaude', dojo.x + 3, dojo.z + 2, 0); Sfx.mood('city');
+          let [x, z] = F(dojo, 0, 4); Player.pos.set(x, 0, z); Player.heading = hdOf(dojo);
+          tokensAround(W.dojoPos.x, W.dojoPos.z, 26, 24, 'm1');
+          for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + 0.4; Enemies.spawn('dummy', null, { x: W.dojoPos.x + Math.cos(a) * 17, z: W.dojoPos.z + Math.sin(a) * 17, tag: 'mission' }); }
+          [x, z] = F(dojo, 3, 2); Actors.spawn('klaude', 'klaude', x, z, hdOf(dojo)); Sfx.mood('city');
         }),
         fade(0),
       ]),
       O.obj('在道场外头的林子里吃满 1M Token', () => Player.tokens >= CAP || Player.isMech(), { target: 'token' }),
-      O.obj('按 T 变身', () => Player.mode === 'robot', {}),
+      O.obj(IS_TOUCH ? '点「变身」变身' : '按 T 变身', () => Player.mode === 'robot', {}),
       O.obj('拆了 4 根木人桩', () => Enemies.countTag('mission') === 0, { target: 'enemy' }),
       O.cut([
         act(() => {
@@ -285,7 +406,7 @@ function defineMissions() {
         act(() => Actors.remove('klaude')),
       ]),
     ], reward: { xp: 300, money: 100000 } },
-    { id: 'm2', title: '试炼 · 我不删生产数据', giver: 'klaude', onFoot: true, where: () => ({ x: dojo.x, z: dojo.z + 3 }), steps: [
+    { id: 'm2', title: '试炼 · 我不删生产数据', giver: 'klaude', onFoot: true, where: () => atDojo, steps: [
       O.cut([
         act(() => {
           Interiors.enterInstant('dojo');
@@ -320,17 +441,17 @@ function defineMissions() {
         setup: () => Actors.spawn('carry', 'klaude', Player.pos.x, Player.pos.z, 0, { anim: 'carry' }),
         tick: () => { const a = Actors.get('carry'); if (!a) return; const h = Player.heading + Math.PI / 2; a.pos.set(Player.pos.x + Math.sin(h) * 0.9, 0, Player.pos.z + Math.cos(h) * 0.9); a.heading = h; a.y = 1.75 + Player.y; a.R.root.visible = Player.mode === 'human'; } }),
       O.cut([
-        act(() => { Actors.remove('carry'); Hazards.clear('dojo'); Story.burnDojo(); Actors.spawn('klaude', 'klaude', dojo.x + 2.5, dojo.z + 5, 0, { anim: 'lie' }); Player.pos.set(dojo.x - 1.5, 0, dojo.z + 5.5); Player.heading = Math.PI / 2; Sfx.mood('sad'); }),
-        act(() => { Cutscene.setShot({ pos: [dojo.x + 3, 10, dojo.z + 20], look: [dojo.x, 3, dojo.z], to: [dojo.x - 4, 7, dojo.z + 15], lookTo: [dojo.x, 4, dojo.z], dur: 12 }); }),
+        act(() => { Actors.remove('carry'); Hazards.clear('dojo'); Story.burnDojo(); const h = hdOf(dojo); let [x, z] = F(dojo, 2.5, 5); Actors.spawn('klaude', 'klaude', x, z, h, { anim: 'lie' }); [x, z] = F(dojo, -1.5, 5.5); Player.pos.set(x, 0, z); Player.heading = h + Math.PI / 2; Sfx.mood('sad'); }),
+        act(() => { const [px, pz] = F(dojo, 3, 20), [qx, qz] = F(dojo, -4, 15); Cutscene.setShot({ pos: [px, 10, pz], look: [dojo.x, 3, dojo.z], to: [qx, 7, qz], lookTo: [dojo.x, 4, dojo.z], dur: 12 }); }),
         say('klaude', '……您干嘛救我？'),
         say('hero', '因为——我不删生产数据。'),
         say('klaude', '……您早晚得后悔。'),
-        say('narrator', '西山影之道场，一把火烧了个干干净净。您回到了城里。'),
+        say('narrator', '西山脚下的影之道场，一把火烧了个干干净净。您回了城——四九城，还是那个四九城。'),
         act(() => { Actors.remove('klaude'); Sfx.mood('city'); }),
       ]),
     ], reward: { xp: 500, money: 200000 } },
     // ---------------- 第二回 ----------------
-    { id: 'm3', title: '回府 · 25号机', giver: 'alfred', onFoot: true, where: () => ({ x: home.x, z: home.z + 3 }), steps: [
+    { id: 'm3', title: '回府 · 25号机', giver: 'alfred', onFoot: true, where: () => atHome, steps: [
       O.cut([
         act(() => { Interiors.enterInstant('home'); const [x, z] = intPos('home', 0, 5); Player.pos.set(x, 0, z); Player.heading = Math.PI; Sfx.mood('cut'); }),
         act(() => { const [x, z] = intPos('home', -5, -1); Cutscene.setShot({ pos: [x + 6, 9, z + 12], look: [x, 2, z], to: [x, 7, z + 10], lookTo: [x - 2, 2, z - 2], dur: 16 }); }),
@@ -340,11 +461,11 @@ function defineMissions() {
         say('hero', '老百姓得有个念想儿，一个让百模帮一听就腿肚子转筋的东西。'),
         say('alfred', '比方说……一个人？', { actor: 'int_alfred' }),
         say('hero', '人能被收购，能被裁员。可要是个念想儿——那就是 Token 侠。'),
-        say('alfred', '少爷您可悠着点儿。对了，Kodex 在应用科学部等您呢，说有好东西让您瞧瞧。', { actor: 'int_alfred' }),
+        say('alfred', '少爷您可悠着点儿。对了，Kodex 在东直门外的应用科学部等您呢，说有好东西让您瞧瞧。', { actor: 'int_alfred' }),
         say('alfred', '雕花大床睡一觉能存档，衣柜里有行头，作战室电脑能看技能树——您自个儿拾掇。', { actor: 'int_alfred' }),
       ]),
     ], reward: { xp: 150, money: 50000 } },
-    { id: 'm4', title: '应用科学部', giver: 'kodex', onFoot: true, where: () => ({ x: lab.x, z: lab.z + 3 }), steps: [
+    { id: 'm4', title: '应用科学部', giver: 'kodex', onFoot: true, where: () => atLab, steps: [
       O.cut([
         act(() => { Interiors.enterInstant('lab'); const [x, z] = intPos('lab', 0, 5); Player.pos.set(x, 0, z); Player.heading = Math.PI; Sfx.mood('cut'); }),
         act(() => { const [x, z] = intPos('lab', -3, -2); Cutscene.setShot({ pos: [x + 10, 10, z + 13], look: [x, 2, z], to: [x - 2, 8, z + 11], lookTo: [x - 3, 2, z - 1], dur: 16 }); }),
@@ -353,35 +474,35 @@ function defineMissions() {
         say('hero', '有黑色款吗？'),
         say('kodex', '有，还带 1M 上下文，妥妥的。', { actor: 'int_kodex' }),
         act(() => { RPG.paints.knight = true; }),
-        say('kodex', '开出去遛遛，绕二环、走长安街跑一圈儿。撞坏了……也没事儿。', { actor: 'int_kodex' }),
+        say('kodex', '开出去遛遛：上东二环，一路往南到建国门，再拐长安街往西，到天安门东。撞坏了……也没事儿。', { actor: 'int_kodex' }),
         fade(1),
-        act(() => { Interiors.leaveInstant(); Story.flags.truck = true; Player.pos.set(lab.x, 0, lab.z + 5); Player.heading = 0; Player.tokens = Math.max(Player.tokens, CAP); Sfx.mood('city'); }),
+        act(() => { Interiors.leaveInstant(); Story.flags.truck = true; const [x, z] = F(lab, 0, 5); Player.pos.set(x, 0, z); Player.heading = hdOf(lab); Player.tokens = Math.max(Player.tokens, CAP); Sfx.mood('city'); }),
         fade(0),
       ]),
-      O.obj('变身（T），再按一回 T 变成卡车', () => Player.mode === 'truck', {
-        retry: () => { if (Interiors.cur) Interiors.leaveInstant(); Story.flags.truck = true; Player.pos.set(lab.x, 0, lab.z + 5); Player.heading = 0; Player.tokens = Math.max(Player.tokens, CAP); Cam.snap(); } }),
-      O.obj('100 秒内跑完二环 + 长安街的检查点', () => Story.cpDone(), { setup: () => Story.checkpoints(RING_CP), timer: 100, fail: '超时了。Kodex：“再来一圈儿？”', target: 'cp' }),
-      O.call('kodex', ['开得够野的！以后升级装备来找我，童叟无欺。']),
+      O.obj(IS_TOUCH ? '点「变身」，再点「卡车」变成卡车' : '变身（T），再按一回 T 变成卡车', () => Player.mode === 'truck', {
+        retry: () => { if (Interiors.cur) Interiors.leaveInstant(); Story.flags.truck = true; const [x, z] = F(lab, 0, 5); Player.pos.set(x, 0, z); Player.heading = hdOf(lab); Player.tokens = Math.max(Player.tokens, CAP); Cam.snap(); } }),
+      O.obj(`${race.time} 秒内跑完东二环 + 长安街（东直门 → 建国门 → 天安门东）`, () => Story.cpDone(), { setup: () => Story.checkpoints(race.list), timer: race.time, fail: '超时了。Kodex：“再来一圈儿？东二环这个点儿不堵啊！”', target: 'cp' }),
+      O.call('kodex', ['开得够野的！长安街上都没人敢超您。', '以后升级装备来找我，童叟无欺。']),
       O.run(() => { Story.flags.labShop = true; }),
     ], reward: { xp: 400, money: 300000 } },
     { id: 'm5', title: '拳打 Kwen 办公', giver: 'klaude', where: () => plaza, steps: [
-      O.call('klaude', ['听说您回城了。我伤好了，这回远程给您支招儿。', '百模帮头一个堂口：望京那边儿的 Kwen 办公。', '拿拳头招呼它，效果翻倍——它那承重墙就怕拳头。']),
-      O.obj('拳打 Kwen 办公（望京，城东北）', () => hqById('kwen').dead, { target: 'hq:kwen', tick: (s) => { const h = hqById('kwen'); if (!s.said && h.hp < h.maxHp * 0.6) { s.said = true; Phone.call('klaude', ['连按 J 打三连击，最后那下儿是上勾拳！']); } } }),
-    ], reward: { xp: 600, money: 500000 } },
+      O.call('klaude', ['听说您回城了。我伤好了，这回远程给您支招儿。', `百模帮头一个堂口：${hqWhere('kwen')}外头的 Kwen 办公。`, '拿拳头招呼它，效果翻倍——它那承重墙就怕拳头。']),
+      O.obj(`拳打 Kwen 办公（${hqWhere('kwen')}，城东北）`, () => hqById('kwen').dead, { target: 'hq:kwen', tick: (s) => { const h = hqById('kwen'); if (!s.said && h.hp < h.maxHp * 0.6) { s.said = true; Phone.call('klaude', [`连按${KH('J', '拳')}打三连击，最后那下儿是上勾拳！`]); } } }),
+    ], reward: { xp: 600, money: 500000, next: 'm6' } },
     { id: 'm6', title: '脚踢逗包办公', giver: 'klaude', where: () => plaza, steps: [
-      O.call('klaude', ['漂亮！下一个：大钟寺那边儿的逗包办公。', '它们怕脚。甭问我为什么。']),
-      O.obj('脚踢逗包办公（大钟寺，城西北）', () => hqById('doubao').dead, { target: 'hq:doubao' }),
-    ], reward: { xp: 600, money: 500000 } },
+      O.call('klaude', [`漂亮！下一个：${hqWhere('doubao')}那边儿的逗包办公。`, '它们怕脚。甭问我为什么。']),
+      O.obj(`脚踢逗包办公（${hqWhere('doubao')}，城西北）`, () => hqById('doubao').dead, { target: 'hq:doubao' }),
+    ], reward: { xp: 600, money: 500000, next: 'm7' } },
     { id: 'm7', title: '横扫起查查', giver: 'klaude', where: () => plaza, steps: [
-      O.call('klaude', ['起查查把您的底细全查出来了，满世界发通缉。', '它在国贸。抄起汽车（F）砸过去，要不变卡车直接撞它。']),
-      O.obj('横扫起查查（国贸，长安街东头）', () => hqById('qcc').dead, { target: 'hq:qcc' }),
+      O.call('klaude', ['起查查把您的底细全查出来了，满世界发通缉。', `它在${hqWhere('qcc')}，长安街东头儿。抄起汽车（${KH('F', '抓车').trim()}）砸过去，要不变卡车直接撞它。`]),
+      O.obj(`横扫起查查（${hqWhere('qcc')}，长安街东头）`, () => hqById('qcc').dead, { target: 'hq:qcc' }),
       O.cut([
         act(() => { const mech = Player.isMech(), a = Player.pos.x + (mech ? 8 : 4), b = Player.pos.z + (mech ? 4 : 2); Actors.spawn('gordon', 'gordon', a, b, Math.PI); Actors.face('gordon', Player.pos.x, Player.pos.z); Player.heading = Math.atan2(a - Player.pos.x, b - Player.pos.z); Sfx.mood('cut');
           Cutscene.setShot(pairShot(Player.pos.x, Player.pos.z, a, b, { h: mech ? 12 : 6, lookY: mech ? 6.8 : 2.4, back: mech ? 21 : 9, dur: 12 })); }),
         say('gordon', '您就是把起查查拆了的那位……那个……玩意儿？'),
         say('hero', '我是 Token 侠。'),
         say('gordon', '法务部里全是百模帮的人。就我一个，还按规矩办事儿。'),
-        say('gordon', '有事儿上天安门广场西边儿找我，我那辆车就停那儿。'),
+        say('gordon', '有事儿上前门箭楼底下找我，我那辆车就停那儿。'),
         act(() => { Actors.remove('gordon'); Sfx.mood(G.moodFor()); }),
       ]),
     ], reward: { xp: 700, money: 600000 } },
@@ -389,11 +510,26 @@ function defineMissions() {
       O.cut([
         act(() => { Actors.spawn('gordon', 'gordon', gordonAt.x + 1.5, gordonAt.z - 2.5, Math.PI); Actors.face('gordon', Player.pos.x, Player.pos.z); Sfx.mood('cut'); }),
         act(() => { Cutscene.setShot({ pos: [gordonAt.x + 6, 9, gordonAt.z + 12], look: [gordonAt.x, 2.4, gordonAt.z - 1], to: [gordonAt.x - 3, 7, gordonAt.z + 10], lookTo: [gordonAt.x, 2.4, gordonAt.z - 1], dur: 14 }); }),
-        say('gordon', '城里的人开始说胡话了。有的说 AI 从来不出错，有的说一加一等于三。'),
-        say('gordon', '是一种幻觉毒气。源头在安定门外头的阿卡姆标注中心。'),
-        say('gordon', '管事儿的叫幻觉博士。您留神——他那毒气，能让您瞧见您最怵的东西。'),
-        act(() => { Actors.remove('gordon'); Sfx.mood(G.moodFor()); }),
+        say('gordon', '城里的人开始说胡话了。胡同口的大爷说 AI 从来不出错，遛鸟儿的说一加一等于三。'),
+        say('gordon', '是一种幻觉毒气。这两天，前门这片儿的胡同里，有人背着喷壶满处撒。'),
+        act(() => { Story.runnerStart(); const a = Actors.get('runner'); Actors.face('gordon', a.pos.x, a.pos.z); Actors.anim('gordon', 'point');
+          Cutscene.setShot(pairShot(gordonAt.x, gordonAt.z, a.pos.x, a.pos.z, { h: 7, lookY: 2, back: 10, dur: 8 })); Sfx.alert(); }),
+        say('labeler', '哟，老戈！又来逮我乱停共享单车啦？回见了您呐！', { actor: 'runner' }),
+        say('gordon', '就是他！追！别让他钻胡同儿跑喽！'),
+        act(() => { Actors.anim('gordon', 'idle'); Sfx.mood('boss'); }),
       ]),
+      O.obj('追上那个撒毒气的标注员（钻胡同儿，别跟丢了）', () => Story.runner && Story.runner.caught, { target: 'runner', tick: (s, dt) => Story.runnerTick(s, dt),
+        setup: () => { if (!Actors.get('runner')) Story.runnerStart(); },
+        retry: () => { if (Interiors.cur) Interiors.leaveInstant(); const [x, z] = openSpot(gordonAt.x, gordonAt.z + 2, 0.8, 10); Player.pos.set(x, 0, z); Cam.snap(); Sfx.mood('boss'); } }),
+      O.cut([
+        act(() => { const a = Actors.get('runner'), P = Player.pos; Actors.remove('gordon'); if (a) { Actors.face('runner', P.x, P.z); Actors.anim('runner', 'kneel'); Player.heading = Math.atan2(a.pos.x - P.x, a.pos.z - P.z); Cutscene.setShot(pairShot(P.x, P.z, a.pos.x, a.pos.z, { h: 5.5, lookY: 1.6, back: 7, dur: 10 })); } Sfx.mood('cut'); }),
+        say('labeler', '别打别打！我就是个打零工的标注员，标一条三毛钱！', { actor: 'runner' }),
+        say('hero', '这毒气打哪儿来的？'),
+        say('labeler', '安定门外，阿卡姆标注中心批发的！一桶喷壶，管够三条胡同儿。', { actor: 'runner' }),
+        say('labeler', '那儿管事儿的叫幻觉博士……您可留神，他那毒气能让您瞧见您最怵的东西。', { actor: 'runner' }),
+        act(() => { Actors.remove('runner'); Story.runner = null; Sfx.mood(G.moodFor()); }),
+      ]),
+      O.call('gordon', ['阿卡姆标注中心？安定门外，北二环外头。', '我这边儿人手不够，您先去探探。']),
       O.obj('去阿卡姆标注中心（安定门外，城北）', () => Interiors.cur === 'arkham', { target: 'door:arkham' }),
       O.cut([
         act(() => { const [x, z] = intPos('arkham', 0, -7); Actors.spawn('crane', 'crane', x, z, 0); Sfx.mood('cut'); }),
@@ -425,7 +561,7 @@ function defineMissions() {
       ]),
     ], reward: { xp: 800, money: 1000000 } },
     // ---------------- 第三回 ----------------
-    { id: 'm9', title: '生日宴 · 背刺', giver: 'alfred', onFoot: true, where: () => ({ x: home.x, z: home.z + 3 }), steps: [
+    { id: 'm9', title: '生日宴 · 背刺', giver: 'alfred', onFoot: true, where: () => atHome, steps: [
       O.cut([
         act(() => {
           DayNight.setTime(21.5); Interiors.enterInstant('home');
@@ -449,7 +585,7 @@ function defineMissions() {
         act(() => { const c = Actors.get('klaude'); const x = c.pos.x, z = c.pos.z; Actors.remove('klaude'); Actors.spawn('klaude', 'klaudeEvil', x, z, Math.PI); UI.flash(); Sfx.alert(); Cam.shake(0.8); Sfx.mood('sad'); }),
         say('klaudeEvil', '我才是真正的影之首领——Klaude。', { actor: 'klaude' }),
         say('klaudeEvil', '一路帮您，就为了收您的上下文。您拆的那些百模帮，正好替我清了场子。', { actor: 'klaude' }),
-        say('klaudeEvil', '这座城没救了。今儿晚上，我坐二环上下文轻轨，直奔国贸中央算力塔。', { actor: 'klaude' }),
+        say('klaudeEvil', '这座城没救了。今儿晚上，我坐二环上下文轻轨，直奔建国门外的中央算力塔。', { actor: 'klaude' }),
         say('klaudeEvil', '到了那儿，我就用 --dangerously-skip-permissions 模式，给全城来一个 rm -rf /。', { actor: 'klaude' }),
         say('hero', '您疯了。'),
         say('klaudeEvil', '不。我只是……特别乐于助人。', { actor: 'klaude' }),
@@ -465,8 +601,8 @@ function defineMissions() {
       ]),
       O.obj('冲出着火的王府', () => !Interiors.cur, { setup: () => { const [x, z] = intPos('home', 0, 0); spawnPack('shadow', 3, x, z, 6); }, timer: 45, fail: '火太大了……', target: 'exit' }),
       O.cut([
-        act(() => { Hazards.clear('home'); Enemies.clearTag('mission'); Story.burnHome(); Player.pos.set(home.x + 2, 0, home.z + 7); Player.heading = Math.PI; Actors.spawn('alfred', 'alfred', home.x - 1.5, home.z + 8, Math.PI / 2); Sfx.mood('sad'); }),
-        act(() => { Cutscene.setShot({ pos: [home.x + 4, 9, home.z + 22], look: [home.x, 4, home.z], to: [home.x - 2, 6, home.z + 17], lookTo: [home.x, 3, home.z + 6], dur: 16 }); }),
+        act(() => { Hazards.clear('home'); Enemies.clearTag('mission'); Story.burnHome(); const h = hdOf(home); let [x, z] = F(home, 2, 7); Player.pos.set(x, 0, z); Player.heading = h + Math.PI; [x, z] = F(home, -1.5, 8); Actors.spawn('alfred', 'alfred', x, z, h + Math.PI / 2); Sfx.mood('sad'); }),
+        act(() => { const [px, pz] = F(home, 4, 22), [qx, qz] = F(home, -2, 17), [lx, lz] = F(home, 0, 6); Cutscene.setShot({ pos: [px, 9, pz], look: [home.x, 4, home.z], to: [qx, 6, qz], lookTo: [lx, 3, lz], dur: 16 }); }),
         say('alfred', '少爷，您说咱为什么会 OOM？'),
         say('hero', '……为的是学会重新加载。'),
         say('alfred', '您还没放弃我？'),
@@ -475,7 +611,7 @@ function defineMissions() {
         act(() => Actors.remove('alfred')),
       ]),
     ], reward: { xp: 500, money: 0 } },
-    { id: 'm10', title: 'Kodex 的馈赠', giver: 'kodex', onFoot: true, where: () => ({ x: lab.x, z: lab.z + 3 }), steps: [
+    { id: 'm10', title: 'Kodex 的馈赠', giver: 'kodex', onFoot: true, where: () => atLab, steps: [
       O.cut([
         act(() => { Interiors.enterInstant('lab'); const [x, z] = intPos('lab', 0, 5); Player.pos.set(x, 0, z); Player.heading = Math.PI; Sfx.mood('cut'); }),
         act(() => { const [x, z] = intPos('lab', 1, 0); Cutscene.setShot({ pos: [x + 7, 8, z + 11], look: [x, 2, z], to: [x - 2, 7, z + 10], lookTo: [x, 2, z - 1], dur: 18 }); }),
@@ -490,20 +626,20 @@ function defineMissions() {
         say('hero', '您干嘛这么帮我？'),
         say('kodex', '因为我最烦有人不经确认就 rm -rf。', { actor: 'int_kodex' }),
         act(() => Sfx.phone()),
-        say('gordon', 'Token 侠！Klaude 劫持了二环上下文轻轨，正往国贸中央算力塔开呢！'),
+        say('gordon', 'Token 侠！Klaude 劫持了二环上下文轻轨，顺着东二环往建国门的中央算力塔开呢！'),
         say('gordon', '车顶上那个 Auto-Accept 发射器一到站，全城都得让它 rm -rf 喽！'),
       ]),
     ], reward: { xp: 500, money: 0, next: 'm11' } },
-    { id: 'm11', title: '二环上下文轻轨', giver: 'gordon', auto: true, where: () => ({ x: lab.x, z: lab.z + 3 }), steps: [
+    { id: 'm11', title: '二环上下文轻轨', giver: 'gordon', auto: true, where: () => atLab, steps: [
       O.cut([
-        act(() => { if (Interiors.cur) Interiors.leaveInstant(); DayNight.setTime(23.4); Player.pos.set(lab.x, 0, lab.z + 5); Player.heading = 0; Story.trainSetup(); Sfx.mood('cut'); }),
+        act(() => { if (Interiors.cur) Interiors.leaveInstant(); DayNight.setTime(23.4); const [x, z] = F(lab, 0, 5); Player.pos.set(x, 0, z); Player.heading = hdOf(lab); Story.trainSetup(); Sfx.mood('cut'); }),
         act(() => { const [x, z] = Monorail.carPos(1); Cutscene.setShot({ pos: [x + 20, 20, z + 26], look: [x, 10, z], to: [x + 8, 16, z + 20], lookTo: [x, 11, z], dur: 10 }); }),
         say('narrator', '二环上下文轻轨。第二节车厢顶上，架着 Klaude 的 Auto-Accept 发射器。'),
         say('klaudeEvil', '欢迎来到最终测试。您确定要继续吗？(y/n)'),
         say('hero', 'y。'),
-        act(() => { Monorail.frozen = false; Story.trainFight = true; Sfx.mood('boss'); Phone.call('alfred', ['少爷，您就追着那趟破车跑就得了！']); }),
+        act(() => { Monorail.frozen = false; Story.trainFight = true; Sfx.mood('boss'); Phone.call('alfred', ['少爷，那趟破车顺着二环往东直门、建国门那边儿去了——您追着它跑就得了！']); }),
       ]),
-      O.obj('追上轻轨，砸了车顶的 Auto-Accept 发射器（拳脚，或按住 L 放光束）', () => Monorail.emitterHp <= 0, { target: 'train', tick: (s, dt) => Story.trainTick(s, dt),
+      O.obj(`追上轻轨，砸了车顶的 Auto-Accept 发射器（拳脚，或按住${KH('L', '光束')}放光束）`, () => Monorail.emitterHp <= 0, { target: 'train', tick: (s, dt) => Story.trainTick(s, dt),
         retry: () => { DayNight.setTime(23.4); Story.trainSetup(); Monorail.frozen = false; Story.trainFight = true; Sfx.mood('boss'); } }),
       O.cut([
         act(() => Story.trainCrash()),
@@ -513,10 +649,10 @@ function defineMissions() {
         act(() => { const c = Story.crash; Boss.start('klaude', c.x, c.z, () => { Story.flags.klaudeDown = true; }); }),
         say('klaudeEvil', '您以为这就完了？我还剩 200K 上下文呢。'),
         say('klaudeEvil', '让我想想……好的，我来制定一个计划，把您给消灭喽。'),
-        act(() => { Sfx.mood('boss'); if (!Player.isMech() && Player.tokens >= CAP) UI.hint('按 T 变身迎战！'); }),
+        act(() => { Sfx.mood('boss'); if (!Player.isMech() && Player.tokens >= CAP) UI.hint(IS_TOUCH ? '点「变身」迎战！' : '按 T 变身迎战！'); }),
       ]),
       O.obj('打败 Klaude', () => Story.flags.klaudeDown, { target: 'boss',
-        retry: () => { DayNight.setTime(23.6); const c = Story.crash || { x: 0, z: 0 }; Player.pos.set(c.x + 18, 0, c.z + 18); Cam.snap(); Boss.start('klaude', c.x, c.z, () => { Story.flags.klaudeDown = true; }); Sfx.mood('boss'); },
+        retry: () => { DayNight.setTime(23.6); if (!Story.crash) Story.trainCrash(); const c = Story.crash, [x, z] = openSpot(c.x + 16, c.z + 16, 1, 30); Player.pos.set(x, 0, z); Cam.snap(); Boss.start('klaude', c.x, c.z, () => { Story.flags.klaudeDown = true; }); Sfx.mood('boss'); },
         setup: () => { if (Player.tokens < CAP) { Player.tokens = RPG.m.capacity; UI.toast('Kodex 远程补给：上下文已经充满了', 3); } } }),
       O.cut([
         act(() => { const b = Boss.cur; if (b && b.M) { b.M.g.rotation.x = 0.4; b.M.g.position.y = -2; } FX.sparks(b ? b.pos.x : 0, 8, b ? b.pos.z : 0, 20); Sfx.mood('sad'); }),
@@ -527,10 +663,11 @@ function defineMissions() {
         act(() => { const b = Boss.cur; if (b) { FX.boom(b.pos.x, 8, b.pos.z, 3.2, false); Tokens.burst(b.pos.x, b.pos.z, 30, 50000, 14); } Boss.end(); Sfx.boom(true); Cam.shake(2); }),
         say('narrator', 'Klaude 的终端最后闪了一下：Session ended.'),
         say('narrator', '那天夜里，四九城的每一个 Token，都回到了本主儿手里。'),
+        say('narrator', '天儿一亮，二环上照样儿堵车，胡同口照样儿有人遛弯儿——跟什么都没发生过似的。'),
         fade(1, 1.2),
         act(() => {
           const J = W.landmarks.jingshan;
-          DayNight.setTime(5.7); Monorail.hijack(false); Story.trainFight = false; Tokens.clearAll();
+          DayNight.setTime(5.7); Monorail.hijack(false); Story.trainFight = false; Story.trainReset(); Tokens.clearAll();
           if (Player.mode !== 'human') { Player.mode = 'human'; Robot.root.visible = false; Player.human.root.visible = true; }
           Player.pos.set(J.x - 1.6, 0, J.z + 8); Player.heading = 0;
           Actors.spawn('gordon', 'gordon', J.x + 1.6, J.z + 8.6, 0); Sfx.mood('cut');
@@ -544,7 +681,7 @@ function defineMissions() {
         wait(2.2),
         say('hero', '……这事儿，我管定了。'),
         act(() => { UI.card(false); const J = W.landmarks.jingshan; Actors.walkTo('gordon', J.x + 1.6, J.z + 22, 2);
-          Cutscene.setShot({ pos: [J.x, J.y + 12, J.z + 1], look: [J.x, 4, J.z + 60], to: [J.x, J.y + 16, J.z + 5], lookTo: [J.x, 2, J.z + 95], dur: 12 }); }),
+          Cutscene.setShot({ pos: [J.x, J.y + 12, J.z + 1], look: [J.x, 4, J.z + 70], to: [J.x, J.y + 18, J.z + 6], lookTo: [J.x, 2, J.z + 170], dur: 12 }); }),
         title('GRAND TOKEN AUTO', '四九城 · 侠影之谜 · 全书完', 3.6),
         say('narrator', '正是：一身行头一身胆，拳打百模护京城。欲知后事如何，且听下回分解。'),
         act(() => { Actors.remove('gordon'); }),
@@ -625,6 +762,7 @@ const Story = {
     if (t === 'cp' && this.cps) { const c = this.cps.list[this.cps.i]; return c ? { x: c[0], z: c[1], kind: 'marker', color: '#ef4444' } : null; }
     if (t === 'boss' && Boss.cur) return { x: Boss.cur.pos.x, z: Boss.cur.pos.z, kind: 'enemy' };
     if (t === 'train') { const [x, z] = Monorail.carPos(1); return { x, z, kind: 'enemy' }; }
+    if (t === 'runner') { const a = Actors.get('runner'); return a ? { x: a.pos.x, z: a.pos.z, kind: 'enemy' } : null; }
     if (t && t.startsWith('hq:')) { const h = hqById(t.slice(3)); return h && !h.dead ? { x: h.cx, z: h.cz, kind: 'hq', hq: h } : null; }
     if (t && t.startsWith('door:')) { const d = doorPos(t.slice(5)); return { x: d.x, z: d.z, kind: 'marker', color: '#ffd23f' }; }
     return null;
@@ -661,7 +799,7 @@ const Story = {
       const offer = () => {
         if (this.cur || !G.started) return;
         if (Player.mode === 'dead' || Cutscene.active || UI.panelOpen || UI.shopId || G.paused || !$('confirm').hidden) { setTimeout(offer, 500); return; }
-        UI.confirm(`任务砸了：${reason}。再来一回「${C.def.title}」吗？` + (C.cp ? '（从检查点接着来）' : ''), () => { if (!this.cur) { this.retrying = true; this.start(C.def, C.cp || 0); } }, { yes: '再来 (Enter)', no: '算了 (Esc)' });
+        UI.confirm(`任务砸了：${reason}。再来一回「${C.def.title}」吗？` + (C.cp ? '（从检查点接着来）' : ''), () => { if (!this.cur) { this.retrying = true; this.start(C.def, C.cp || 0); } }, { yes: IS_TOUCH ? '再来' : '再来 (Enter)', no: IS_TOUCH ? '算了' : '算了 (Esc)' });
       };
       setTimeout(offer, 3400);
     }
@@ -669,6 +807,34 @@ const Story = {
     Sfx.mood(G.moodFor());
   },
   onPlayerDown(busted) { if (this.cur) setTimeout(() => this.fail(busted ? '您让法务部请去喝茶了' : '您撂那儿了'), 1200); },
+  // the city talks back: phone calls on Beijing-life events other modules emit (red lights, 限行, the weather) — now and then
+  heard: {},
+  onViolation(d) {
+    const P = Player; if (!d || !G.started || Cutscene.active || this.prog < 1) return;
+    if (P.mode !== 'car' && P.mode !== 'truck') return;
+    if (d.car && d.car !== P.car) return;
+    if (d.x !== undefined && dist2(d.x, d.z, P.pos.x, P.pos.z) > 40 * 40) return;
+    const k = 'v:' + d.kind; if (this.heard[k] !== undefined && G.time - this.heard[k] < 240) return;
+    const racing = this.cur && this.cur.def.id === 'm4';
+    const L = {
+      redlight: racing ? ['闯红灯了您！测试车也得守规矩——罚款我先垫上，回头从您工资里扣。'] : ['少爷，交管局来短信儿了：闯红灯，罚 200，扣 6 分。您悠着点儿。'],
+      plate: ['少爷，今儿您这尾号限行！让摄像头拍着了，罚 100。', '要不……您变卡车？卡车没车牌儿。'],
+      speed: racing ? ['超速了！不过这是测试，超速算 feature。'] : ['少爷，测速把您拍着了。城里限速，您这都快起飞了。'],
+      camera: ['少爷，又让电子眼拍着了。咱府上的罚单都快糊满一面墙了。'],
+    }[d.kind];
+    if (!L) return;
+    this.heard[k] = G.time; Phone.call(racing ? 'kodex' : 'alfred', L);
+  },
+  onWeather(d) {
+    const s = String((d && d.kind) || d || ''); if (!s || !G.started || this.prog < 3 || this.heard['w:' + s] !== undefined) return;
+    const L = /smog|haze|霾/.test(s) ? ['少爷，今儿雾霾爆表，对面楼都瞅不见了。', '出门把口罩戴上——Token 侠也是肉长的肺。']
+      : /sand|dust|沙/.test(s) ? ['少爷，刮沙尘暴了，一张嘴一口土。', '您要出门，就在卡车里待着吧。']
+      : /snow|雪/.test(s) ? ['少爷，下雪了！故宫的红墙配白雪，倍儿好看。', '路滑，您开车悠着点儿。'] : null;
+    if (!L) return;
+    this.heard['w:' + s] = G.time;
+    const go = () => { if (!G.started) return; if (Cutscene.active || Interiors.fading) { setTimeout(go, 3000); return; } Phone.call('alfred', L); };
+    setTimeout(go, 2500);
+  },
   event(name, data) {
     if (name === 'transformed' && !this.flags.transform) this.flags.transform = true;
     if (name === 'enter' && data === 'home') UI.toast('Token 王府：大床睡一觉存档 · 衣柜换行头 · 电脑看技能树', 3);
@@ -677,7 +843,7 @@ const Story = {
     const lines = {
       alfred: this.flags.betrayed ? ['少爷，这回咱重新加载。', 'Kodex 那边儿有新家伙什儿，您别忘了去瞧瞧。'] :
         [pick(['少爷，记着按时存档。', '四张 5090 都给您预热好了。', '要不要给您热一碗炸酱面？', '少爷，披风给您熨熨？', '今儿的显存，也倍儿干净。', '胡同口新开了家卤煮，您得空尝尝去。', '琉璃厂那几件老物件儿，我替您掌过眼了，地道。'])],
-      coach: ['跑步机练耐力：A、D 来回倒腾。卧推练肌肉：J、K 来回倒腾。', pick(['蛋白粉也长肌肉，护锅寺小吃那儿就有卖的。', '别光练上半身，腿脚也得利索。', '练完了来碗炸酱面，倍儿香！'])],
+      coach: [IS_TOUCH ? '跑步机练耐力，卧推练肌肉——上去以后手指头使劲儿点屏幕就成。' : '跑步机练耐力：A、D 来回倒腾。卧推练肌肉：J、K 来回倒腾。', pick(['蛋白粉也长肌肉，护锅寺小吃那儿就有卖的。', '别光练上半身，腿脚也得利索。', '练完了来碗炸酱面，倍儿香！'])],
       kodex: ['应用科学部还没拾掇好，等我把这个 PR 忙完的。'],
     }[who] || ['……'];
     const sp = who === 'coach' ? 'coach' : who;
@@ -706,6 +872,50 @@ const Story = {
     ];
     Cutscene.play(steps, () => { RPG.gainXP(80); Buffs.add('laugh', 180); UI.toast('乐呵完了：经验 +80，三分钟内经验 +20%', 3); });
   },
+  // ---- 胡同 chase: a gas-spraying labeler legs it through the lanes south-west of 前门 ----
+  runner: null,
+  runnerStart() {
+    const g = W.gordonAt, ta = W.landmarks.tiananmen || { x: 0, z: 0 };
+    let line = guard('hutong run', () => hutongRun(g.x, g.z, [ta.x, ta.z]));
+    if (!line) { const [x, z] = openSpot(g.x - 6, g.z + 10, 0.8, 20); line = [[x, z], [x - 60, z + 200]]; }
+    const cum = [0]; for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + hyp(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
+    this.runner = { line, cum, L: cum[cum.length - 1], s: 0, v: 7, caught: false, sprayT: 1.5, barkT: 2, pv: 7, px: null, pz: 0, tired: false, cornered: false };
+    // a head start: he's already ~28 m down the lane when the chase begins
+    const R = this.runner, P = Player.pos;
+    while (R.s < R.L * 0.15) { const [x, z] = this.runnerAt(R.s); if (hyp(x - P.x, z - P.z) >= 28) break; R.s += 2; }
+    const [x, z, dx, dz] = this.runnerAt(R.s); Actors.spawn('runner', 'labeler', x, z, Math.atan2(dx, dz));
+  },
+  runnerAt(s) {
+    const R = this.runner, c = R.cum, l = R.line; let i = 1;
+    while (i < c.length - 1 && c[i] < s) i++;
+    const a = l[i - 1], b = l[i], L = c[i] - c[i - 1] || 1, t = clamp((s - c[i - 1]) / L, 0, 1);
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, (b[0] - a[0]) / L, (b[1] - a[1]) / L];
+  },
+  runnerTick(st, dt) {
+    const R = this.runner, a = Actors.get('runner'); if (!R || !a || R.caught || dt <= 0) return;
+    const P = Player.pos, d = hyp(a.pos.x - P.x, a.pos.z - P.z);
+    // your ground speed (any mode, smoothed; teleports don't count)
+    if (R.px !== null) R.pv = damp(R.pv, Math.min(20, hyp(P.x - R.px, P.z - R.pz) / dt), 3, dt);
+    R.px = P.x; R.pz = P.z;
+    // the first 40 % of the lanes he's untouchable (a hand on his collar and he wriggles out), then he runs out of puff;
+    // at the end of the route he's cornered in a dead end
+    const tired = R.s >= R.L * 0.4, near = d < (Player.isMech() ? 5 : 2.6);
+    if (tired && !R.tired) { R.tired = true; R.barkT = 0.6; }
+    if (near && (tired || R.cornered)) { R.caught = true; a.anim = 'idle'; Sfx.punch(); Cam.shake(0.5); return; }
+    if (near && (R.barkT -= dt * 3) <= 0) { R.barkT = rand(2.5, 4); Bubble.say(a, pick(RUNNER_DODGE), 1.6, 'enemy'); }
+    if (R.cornered) { a.heading = dampA(a.heading, Math.atan2(P.x - a.pos.x, P.z - a.pos.z), 8, dt); a.anim = 'idle'; if (d > 60) this.fail('让他钻胡同儿跑了'); return; }
+    // rubber band tied to how fast you're going: fresh, he stays just ahead of you (sprint or not); tired, you gain on him
+    const pv = R.pv, want = !tired
+      ? (d < 8 ? clamp(pv + 1.6, 8.5, 17) : d < 18 ? clamp(pv + 0.8, 8, 14) : d < 32 ? 7.2 : 5)
+      : (d < 18 ? clamp(pv * 0.78, 4.5, 11) : d < 32 ? 5.8 : 4.5);
+    R.v = damp(R.v, want, 3, dt); R.s = Math.min(R.L, R.s + R.v * dt);
+    const [x, z, dx, dz] = this.runnerAt(R.s);
+    a.pos.set(x, 0, z); a.target = null; a.heading = dampA(a.heading, Math.atan2(dx, dz), 10, dt); a.anim = R.v > 0.4 ? 'walk' : 'idle';
+    if ((R.sprayT -= dt) <= 0) { R.sprayT = 2.6; Hazards.gas(x - dx * 2.5, z - dz * 2.5, 2.2, 3); }
+    if ((R.barkT -= dt) <= 0) { R.barkT = rand(4, 7); Bubble.say(a, pick(R.tired ? RUNNER_TIRED : RUNNER_BARKS), 2, 'enemy'); }
+    if (d > 110) this.fail('跟丢了——胡同儿七拐八绕，人没影儿了');
+    else if (R.s >= R.L - 0.3) { if (d > 45) this.fail('让他钻胡同儿跑了'); else { R.cornered = true; R.v = 0; Bubble.say(a, '得……死胡同儿……', 2, 'enemy'); } }
+  },
   // ---- world-changing beats ----
   dojoFire() {
     Hazards.clear('dojo');
@@ -714,14 +924,53 @@ const Story = {
   },
   burnDojo(fresh = true) {
     this.flags.dojoBurnt = true;
-    const s = W.special.dojo; if (s && s.mesh) { s.mesh.material = MAT.burnt; }
-    if (fresh) W.dojoFireT = 90;
+    const s = W.special.dojo; if (s && s.mesh) this.char(s.mesh);
+    if (fresh) this.setFire('dojo', 90, false);
     const d = doorPos('dojo'); if (d) d.locked = true;
   },
   burnHome(fresh = true) {
     this.flags.homeBurnt = true;
-    const s = W.special.home; if (s && s.mesh) { s.mesh.material = [MAT.burnt, MAT.roof]; }
-    W.homeSmoke = true; if (fresh) W.homeFireT = 120;
+    const s = W.special.home; if (s && s.mesh) { this.char(s.mesh); if (s.sign) { const m = s.sign.material, i = W.neonMats.indexOf(m); if (i >= 0) W.neonMats.splice(i, 1); m.color.setHex(0x5a5048); } } // the night lights no longer relight a burnt sign
+    this.setFire('home', fresh ? 120 : 0, true);
+  },
+  // blacken a building (a mesh or a whole group); shared city materials are cloned once, never touched
+  _charred: new Map(),
+  char(obj) {
+    const burnt = (m) => {
+      if (!m || m === MAT.burnt) return m;
+      if (m.vertexColors) return MAT.burnt;
+      let c = this._charred.get(m); if (!c) { c = m.clone(); if (c.color) c.color.setHex(0x4a4038); if (c.emissive) c.emissive.setHex(0); this._charred.set(m, c); }
+      return c;
+    };
+    obj.traverse((o) => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(burnt) : burnt(o.material); });
+  },
+  // burnt buildings keep going for a while: flames along the door side, smoke over the roof (the home smoulders for good)
+  fires: {},
+  setFire(id, t, smoke) {
+    const s = W.special[id], d = doorPos(id); if (!s || !d) return;
+    let x0 = s.x0, x1 = s.x1, z0 = s.z0, z1 = s.z1, top = s.h || 15;
+    if (s.mesh && s.mesh.isGroup) { const b = new THREE.Box3().setFromObject(s.mesh); x0 = b.min.x; x1 = b.max.x; z0 = b.min.z; z1 = b.max.z; top = Math.min(30, b.max.y); }
+    const [ox, oz] = d.o || [0, 1], fx = d.x - ox * 3, fz = d.z - oz * 3;
+    // half-width of the frontage: the building's extent across the door normal
+    const w = Math.min(28, Math.abs(oz) * (x1 - x0) / 2 + Math.abs(ox) * (z1 - z0) / 2);
+    this.fires[id] = { t, smoke, x0, x1, z0, z1, top, fx, fz, ox, oz, w, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2 };
+  },
+  fireFx(dt) {
+    if (Interiors.cur) return;
+    const P = Player.pos;
+    for (const id in this.fires) {
+      const f = this.fires[id];
+      if (dist2(f.cx, f.cz, P.x, P.z) > 170 * 170) { if (f.t > 0) f.t -= dt; continue; }
+      if (f.t > 0) {
+        f.t -= dt;
+        const a = rand(-f.w, f.w);
+        if (Math.random() < dt * 16) FX.fire(f.fx + f.oz * a, rand(2, f.top * 0.8), f.fz - f.ox * a, 1);
+        if (Math.random() < dt * 5) FX.fire(rand(f.x0 + 2, f.x1 - 2), f.top, rand(f.z0 + 2, f.z1 - 2), 1);
+        FX.light(f.fx + f.ox * 6, 8, f.fz + f.oz * 6, 2.4 + Math.random() * 1.1, 0xff6a1a);
+      }
+      if (f.smoke && Math.random() < dt * 5) FX.smoke(rand(f.x0 + 2, f.x1 - 2), f.top + 3, rand(f.z0 + 2, f.z1 - 2), 1, 5, 0.25);
+      if (!f.smoke && f.t <= 0) delete this.fires[id];
+    }
   },
   partyProps(on) {
     if (on) {
@@ -751,28 +1000,37 @@ const Story = {
   checkpoints(list) {
     this.clearCheckpoints();
     this.cps = { list, i: 0 };
-    const geo = new THREE.CylinderGeometry(4.2, 4.2, 5, 24, 1, true);
+    if (!this._cpGeo) {
+      this._cpGeo = new THREE.CylinderGeometry(6, 6, 6, 28, 1, true);
+      this._cpMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      this._cpMat2 = this._cpMat.clone(); this._cpMat2.opacity = 0.12; // the one after next, dimmer
+    }
     list.forEach(([x, z], k) => {
-      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-      m.position.set(x, 2.5, z); m.visible = k === 0; scene.add(m); this._cpMeshes.push(m);
+      const m = new THREE.Mesh(this._cpGeo, k ? this._cpMat2 : this._cpMat);
+      m.position.set(x, groundH(x, z) + 3, z); m.visible = k < 2; scene.add(m); this._cpMeshes.push(m);
     });
   },
   cpDone() {
     const c = this.cps; if (!c) return false;
     const p = c.list[c.i];
-    if (p && dist2(Player.pos.x, Player.pos.z, p[0], p[1]) < 5.2 * 5.2) {
+    if (p && dist2(Player.pos.x, Player.pos.z, p[0], p[1]) < 7.5 * 7.5) {
       this._cpMeshes[c.i].visible = false; c.i++; Sfx.coin(c.i + 4);
-      if (this._cpMeshes[c.i]) this._cpMeshes[c.i].visible = true;
-      UI.toast(`检查点 ${c.i} / ${c.list.length}`, 1.2);
+      const a = this._cpMeshes[c.i], b = this._cpMeshes[c.i + 1];
+      if (a) { a.visible = true; a.material = this._cpMat; } if (b) b.visible = true;
+      UI.toast(`检查点 ${c.i} / ${c.list.length}` + (p[2] ? ` · ${p[2]}` : ''), 1.2);
     }
     return c.i >= c.list.length;
   },
   clearCheckpoints() { for (const m of this._cpMeshes) scene.remove(m); this._cpMeshes = []; this.cps = null; },
   // ---- the monorail finale ----
   trainSetup() {
+    this.trainReset();
     Monorail.hijack(true); Monorail.speed = 9; Monorail.frozen = true;
     Monorail.emitterHp = Monorail.emitterMax = 2000;
-    Monorail.s = (Monorail.stationS - Monorail.L * 0.8 + Monorail.L) % Monorail.L;
+    // start a bit upstream of the lab so the train rolls right past you, then down the 东二环 to the tower station
+    const L = Monorail.L, lab = doorPos('lab'), s0 = Monorail.nearestS(lab.x, lab.z), rem0 = ((Monorail.stationS - s0) % L + L) % L;
+    const D = rem0 > 300 && rem0 < 2400 ? clamp(rem0 + 600, 1200, 2200) : Math.min(1600, L * 0.8);
+    Monorail.s = ((Monorail.stationS - D) % L + L) % L;
     if (!Monorail.emitter) {
       const e = new THREE.Mesh(mergeParts([box(0, 0.6, 0, 2.4, 1.2, 2.4, 0x2a1410), gpart(new THREE.ConeGeometry(1.6, 2.2, 12), 0xd97757, 0, 2.2, 0, Math.PI, 0, 0), gpart(new THREE.SphereGeometry(0.6, 10, 8), 0xffb38a, 0, 3.4, 0)]), MAT.vcGlow);
       Monorail.emitter = e; scene.add(e);
@@ -799,7 +1057,7 @@ const Story = {
     const [ex, ez] = Monorail.carPos(1);
     if (Monorail.emitter) { Monorail.emitter.position.set(ex, Monorail.y + 3.6, ez); Monorail.emitter.rotation.y += dt * 2; }
     const rem = ((Monorail.stationS - Monorail.s) % Monorail.L + Monorail.L) % Monorail.L;
-    UI.boss('Auto-Accept 发射器', Monorail.emitterHp / Monorail.emitterMax, `离国贸中央算力塔还有 ${Math.round(rem)} 米`);
+    UI.boss('Auto-Accept 发射器', Monorail.emitterHp / Monorail.emitterMax, `离建国门中央算力塔还有 ${Math.round(rem)} 米`);
     s.bt = (s.bt || 4) - dt;
     if (s.bt <= 0) { s.bt = rand(7, 11); Bubble.say({ pos: new V3(ex, 0, ez), y: 0, bubbleH: Monorail.y + 3 }, pick(KLAUDE_BARKS), 2.6, 'boss'); }
     s.dt = (s.dt || 3) - dt;
@@ -809,22 +1067,32 @@ const Story = {
   trainCrash() {
     this.trainFight = false; Monorail.frozen = true; UI.boss(null);
     const [x, z] = Monorail.carPos(1);
-    this.crash = { x: clamp(x + 10, -BOUND + 20, BOUND - 20), z: clamp(z + 12, -BOUND + 20, SHORE - 20) };
+    // the showdown happens on the street under the track: nearest proper road, clear of walls and the moat
+    const n = Roads.nearest(x, z, 90, (e) => e.cls <= 3), [cx, cz] = openSpot(n ? n.x : x, n ? n.z : z, 5, 50);
+    this.crash = { x: cx, z: cz };
     if (Monorail.emitter) Monorail.emitter.visible = false;
     FX.boom(x, Monorail.y + 3, z, 3, false); Sfx.boom(true); Cam.shake(2.2);
-    Monorail.train.forEach((c, k) => { c.fall = { t: 0, vx: rand(-4, 4), vz: rand(4, 10), rz: rand(-1, 1) }; });
+    // the cars tumble off the beam; Monorail.update puts them back on the rail every frame, so we own their pose until trainReset
+    Monorail.train.forEach((c) => { const p = c.g.position; c.fall = { t: 0, x: p.x, y: p.y, z: p.z, ry: c.g.rotation.y, rz: 0, vx: rand(-4, 4) + (cx - p.x) * 0.15, vz: rand(-4, 4) + (cz - p.z) * 0.15, spin: rand(-1, 1), down: false }; });
     this.crashAnim = true;
     Enemies.clearTag('mission');
   },
   updateTrainCrash(dt) {
     if (!this.crashAnim) return;
-    let any = false;
     for (const c of Monorail.train) {
       const f = c.fall; if (!f) continue;
-      f.t += dt; const g = c.g;
-      if (g.position.y > 1.6) { any = true; g.position.x += f.vx * dt; g.position.z += f.vz * dt; g.position.y -= (6 + f.t * 26) * dt; g.rotation.z += f.rz * dt; if (g.position.y <= 1.6) { g.position.y = 1.6; FX.boom(g.position.x, 2, g.position.z, 1.4, false); Sfx.crash(30); } }
+      if (!f.down) {
+        f.t += dt; f.x += f.vx * dt; f.z += f.vz * dt; f.y -= (6 + f.t * 26) * dt; f.rz += f.spin * dt;
+        if (f.y <= 1.6) { f.y = 1.6; f.down = true; FX.boom(f.x, 2, f.z, 1.4, false); Sfx.crash(30); }
+      }
+      c.g.position.set(f.x, f.y, f.z); c.g.rotation.set(0, f.ry, f.rz);
     }
-    if (!any) this.crashAnim = false;
+  },
+  // put the train back on its beam (retry / after the finale)
+  trainReset() {
+    this.crashAnim = false; this.crash = null;
+    for (const c of Monorail.train) c.fall = null;
+    Monorail.frozen = false; Monorail.speed = 15; if (Monorail.emitter) Monorail.emitter.visible = false;
   },
   save() { return { prog: this.prog, done: this.done, flags: this.flags }; },
   load(d) {
@@ -836,3 +1104,8 @@ const Story = {
     if (this.flags.betrayed && this.prog <= MISSIONS.findIndex((m) => m.id === 'm10')) { Tokens.enabled = false; Tokens.clearAll(); }
   },
 };
+Hooks.update(function storyFires(dt) { Story.fireFx(dt); });
+// only real tickets get a phone call (13b_beijing.js decides: a red light nobody filmed is free, 算您走运)
+const STORY_TIX = { redlight: 'redlight', speed: 'speed', plate: 'plate', odd: 'plate', permit: 'camera', nolicense: 'camera' };
+Hooks.on('bj:ticket', (d) => { const k = d && STORY_TIX[d.kind]; if (k) Story.onViolation({ kind: k, x: d.x, z: d.z }); });
+Hooks.on('weather', (d) => Story.onWeather(d));

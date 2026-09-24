@@ -205,7 +205,7 @@ const RPG = {
     if (lv) {
       this.recalc(); Player.hp = this.m.maxHp; Player.rhp = this.m.maxArmor;
       UI.levelUp(this.level); Sfx.levelUp();
-      if (this.level === 5 && !this.spec) UI.toast('专精解锁了！按 Tab 打开角色面板挑一个', 5);
+      if (this.level === 5 && !this.spec) UI.toast(`专精解锁了！${IS_TOUCH ? '点「角色」' : '按 Tab '}打开角色面板挑一个`, 5);
     }
   },
   rank(id) { return this.skills[id] || 0; },

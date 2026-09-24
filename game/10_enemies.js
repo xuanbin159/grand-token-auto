@@ -65,6 +65,43 @@ function labelMat(text, bg) {
   return LABEL_MAT.get(key);
 }
 const gh0 = (x, z) => (Interiors.cur ? 0 : groundH(x, z));
+// ---- where can something stand outdoors: on the map, not water / a building lot / a landmark, clear of every solid ----
+function solidHas(s, x, z, r) {
+  if (x < s.x0 - r || x > s.x1 + r || z < s.z0 - r || z > s.z1 + r) return false;
+  if (!s.obb) return true;
+  const dx = x - s.cx, dz = z - s.cz;
+  return Math.abs(dx * s.ux + dz * s.uz) < s.hx + r && Math.abs(-dx * s.uz + dz * s.ux) < s.hz + r;
+}
+const isIndoorXZ = (x) => x > IBASE - 300; // interiors live far east of the map
+function openAt(x, z, r = 0.8, grid = true) {
+  const B = W.bounds; if (x < B.x0 + r + 1 || x > B.x1 - r - 1 || z < B.z0 + r + 1 || z > B.z1 - r - 1) return false;
+  const k = Grid.at(x, z); if (k === GK.WATER || (grid && (k === GK.BLD || k === GK.RESV))) return false;
+  let hit = false; forSolids(x, z, r + 1, (s) => { if (solidHas(s, x, z, r)) { hit = true; return false; } });
+  return !hit;
+}
+// nearest open spot to (x,z), searched in rings; indoor coordinates pass straight through
+function openSpot(x, z, r = 0.8, maxR = 40, out = [0, 0]) {
+  out[0] = x; out[1] = z;
+  if (isIndoorXZ(x) || openAt(x, z, r)) return out;
+  for (let d = 1.5; d <= maxR; d += 1.5) {
+    const n = Math.max(6, Math.round((TAU * d) / 2)), a0 = rand(TAU);
+    for (let k = 0; k < n; k++) { const a = a0 + (k / n) * TAU, px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d; if (openAt(px, pz, r)) { out[0] = px; out[1] = pz; return out; } }
+  }
+  const B = W.bounds; out[0] = clamp(x, B.x0 + 4, B.x1 - 4); out[1] = clamp(z, B.z0 + 4, B.z1 - 4);
+  return out;
+}
+// an HQ's forecourt: the open side nearest a street (the south canopy side if it's usable)
+function hqYard(h) {
+  if (h._yard) return h._yard;
+  let best = null, bd = Infinity;
+  for (const [ox, oz, bias] of [[0, 1, -8], [1, 0, 0], [-1, 0, 0], [0, -1, 0]]) {
+    const x = h.cx + ox * 21, z = h.cz + oz * 21;
+    const [px, pz] = openSpot(x, z, 1.2, 14), n = Roads.nearest(px, pz, 60);
+    const d = (n ? n.d : 60) + hyp(px - x, pz - z) * 2 + bias + (openAt(px, pz, 1.2) ? 0 : 500);
+    if (d < bd) { bd = d; best = { x: px, z: pz }; }
+  }
+  return (h._yard = best);
+}
 
 class Enemy {
   constructor(type, hq, o = {}) {
@@ -82,7 +119,9 @@ class Enemy {
     }
     const lbl = o.label || T.label || (hq ? (type === 'gang' ? hq.short + '帮' : hq.short) : null);
     if (lbl) { this.label = new THREE.Sprite(labelMat(lbl, T.bg || (hq ? hq.c1 : '#333'))); this.label.scale.set(3.4, 0.96, 1); this.label.renderOrder = 6; scene.add(this.label); }
-    const sx = o.x ?? (hq ? hq.cx + rand(-7, 7) : 0), sz = o.z ?? (hq ? hq.cz + 21.5 : 0);
+    let sx = o.x, sz = o.z;
+    if (sx === undefined || sz === undefined) { const y = hq ? hqYard(hq) : Player.pos; sx = y.x + rand(-7, 7); sz = y.z + rand(-3, 3); }
+    if (!o.raw) [sx, sz] = openSpot(sx, sz, T.r * 0.8, 30);
     this.pos = new V3(sx, 0, sz); this.vel = new V3();
     this.y = type === 'qbot' || type === 'drone' ? 3.2 : type === 'cha' ? 6 : 0; this.vy = 0;
     this.hp = T.hp * (o.hpMul || 1); this.maxHp = this.hp; this.r = T.r; this.bubbleH = T.bubbleH;
@@ -136,7 +175,7 @@ class Enemy {
     const T = this.T;
     if (this.stun <= 0 && !T.static) {
       if (!engaged) {
-        const hx = (this.hq ? this.hq.cx : this.home.x) - this.pos.x, hz = (this.hq ? this.hq.cz + 20 : this.home.z) - this.pos.z, hd = hyp(hx, hz);
+        const hm = this.hq ? hqYard(this.hq) : this.home, hx = hm.x - this.pos.x, hz = hm.z - this.pos.z, hd = hyp(hx, hz);
         if (hd > 6) { mvx = (hx / hd) * 3.5; mvz = (hz / hd) * 3.5; anim = 'walk'; }
         else if (this.type === 'gang') { this.ang += dt * 0.4; mvx = Math.cos(this.ang) * 1.2; mvz = Math.sin(this.ang) * 1.2; anim = 'walk'; }
       } else if (this.type === 'bun') {
@@ -185,7 +224,7 @@ class Enemy {
     } else {
       const base = this.type === 'cha' ? 6 : 3.2;
       this.y = damp(this.y, base + Math.sin(this.ph * 2.2) * 0.4, 4, dt);
-      if (!Interiors.cur) { this.pos.x = clamp(this.pos.x, -BOUND, BOUND); this.pos.z = clamp(this.pos.z, -BOUND, SHORE); }
+      if (!Interiors.cur) { const B = W.bounds; this.pos.x = clamp(this.pos.x, B.x0 + 2, B.x1 - 2); this.pos.z = clamp(this.pos.z, B.z0 + 2, B.z1 - 2); }
       else collideWorld(this.pos, this.r);
     }
     if (this.hq && d > 170 && !this.tag) { this.remove(); return; }
@@ -229,7 +268,7 @@ const Enemies = {
         if (h.dead) continue;
         const d = hyp(h.cx - P.x, h.cz - P.z);
         const n = this.list.filter((e) => e.hq === h && e.type === 'gang').length;
-        if (d < 90 && d > 30 && n < 3) this.spawn('gang', h, { x: h.cx + rand(-24, 24), z: h.cz + pick([-26, 26]), aggro: false });
+        if (d < 90 && d > 30 && n < 3) { const a = rand(TAU); this.spawn('gang', h, { x: h.cx + Math.cos(a) * 26, z: h.cz + Math.sin(a) * 26, aggro: false }); }
       }
     }
   },
@@ -237,6 +276,7 @@ const Enemies = {
   clearNear(x, z, r) { for (const e of this.list) if (!e.dead && dist2(e.pos.x, e.pos.z, x, z) < r * r) e.remove(); },
   clearTag(tag) { for (const e of this.list) if (!e.dead && (!tag || e.tag === tag)) e.remove(); },
   countTag(tag) { let n = 0; for (const e of this.list) if (!e.dead && e.tag === tag) n++; return n; },
+  yard: (h) => hqYard(h), open: (x, z, r) => openSpot(x, z, r),
 };
 
 /* ---- projectiles ---- */

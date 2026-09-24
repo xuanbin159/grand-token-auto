@@ -30,28 +30,37 @@ function weighted(opts) {
 }
 const fmtTok = (n) => { n = Math.max(0, Math.round(n)); return n >= 995000 ? (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M' : Math.round(n / 1000) + 'K'; };
 const fmtMoney = (n) => '¥' + Math.max(0, Math.round(n)).toLocaleString('en-US');
+// dev switches for headless tests: GTA.DEV.noRender = true simulates without drawing
+const DEV = { noRender: false };
+// ---- module hooks + event bus: new modules register here instead of editing the main loop ----
+// Hooks.init(fn) runs once after the world, player, cars, peds, story and UI exist; Hooks.update(fn(dt, rdt)) every playing frame;
+// Hooks.on('violation', fn) / Hooks.emit('violation', data) to talk across modules without hard references.
+const Hooks = {
+  _i: [], _u: [], _ev: Object.create(null),
+  init(fn) { this._i.push(fn); }, update(fn) { this._u.push(fn); },
+  on(name, fn) { (this._ev[name] || (this._ev[name] = [])).push(fn); },
+  emit(name, data) { const l = this._ev[name]; if (l) for (const fn of l) guard('ev:' + name, () => fn(data)); },
+  runInit() { for (const fn of this._i) guard('init:' + (fn.name || '?'), fn); },
+  runUpdate(dt, rdt) { for (const fn of this._u) guard('upd:' + (fn.name || '?'), () => fn(dt, rdt)); },
+};
+// run fn, log the first error per name instead of killing the frame / boot
+function guard(name, fn) { try { return fn(); } catch (e) { if (!guard.seen[name]) { guard.seen[name] = 1; console.error('[' + name + '] ' + (e && e.stack || e)); } } }
+guard.seen = Object.create(null);
 const fmtMoneySA = (n) => '¥' + String(Math.max(0, Math.min(99999999, Math.round(n)))).padStart(8, '0');
 
 const IS_TOUCH = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
 const LOWQ = IS_TOUCH || Math.min(screen.width, screen.height) < 600;
 
-// ---- city layout: 老北京 on a 10 x 10 grid. roads 1 and 9 are the 二环 (the old city wall line),
-// the 8 x 8 blocks inside are the old city, the ring of blocks outside is 海淀 / 朝阳 / 丰台 ----
-const NB = 10, BLK = 44, RW = 14, PITCH = BLK + RW, HALF = (NB * PITCH) / 2;
-const CITY = HALF + RW / 2;
-const BOUND = CITY + 10;          // all four sides end at a wall
-const SHORE = BOUND;              // (no sea in Beijing — kept as the south limit)
-const RING_LO = 1, RING_HI = NB - 1;
-const LANE = 3.3;
+// ---- world scale: the real Beijing map (see 04_world.js: W.bounds, Roads, Grid); ~1 unit = 1 m ----
 const CAP = 1000000;              // tokens needed to transform
-const roadC = (i) => -HALF + i * PITCH;
 const UP = new V3(0, 1, 0);
 
 // ---- renderer ----
 const canvasEl = document.getElementById('gta-canvas');
 let renderer = null;
 try {
-  renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: LOWQ, powerPreference: 'high-performance' });
+  // MSAA always: the low tier drops the post chain (and its FXAA), and the med / high post chain renders into its own target anyway
+  renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOWQ ? 1.5 : 1.5));
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
@@ -62,21 +71,84 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 1, 1100);
 
 // ---- input ----
-const Input = { down: Object.create(null), hit: Object.create(null), joy: { x: 0, y: 0, on: false }, typed: '', lock: false, click: false };
+// look: mouse / touch-drag camera deltas in px, consumed by Cam each frame (t = last manual look, performance.now() ms)
+const Input = {
+  down: Object.create(null), hit: Object.create(null), joy: { x: 0, y: 0, on: false }, typed: '', lock: false, click: false,
+  look: { dx: 0, dy: 0, t: -1e9 }, mouse: { lx: 0, ly: 0, drag: false, id: null, btn: -1 }, buzzT: 0,
+  // drop every held key / stick (focus loss, overlays, pointer-lock changes): nothing stays stuck
+  clear() { for (const k in this.down) this.down[k] = false; this.joy.on = false; this.joy.x = this.joy.y = 0; this.look.dx = this.look.dy = 0; Touch && Touch.release && Touch.release(); },
+  addLook(dx, dy) { this.look.dx += dx; this.look.dy += dy; this.look.t = performance.now(); },
+  // short haptic tick on phones (hits, crashes); throttled so a brawl doesn't turn into one long buzz
+  buzz(ms = 12) { if (!IS_TOUCH || !navigator.vibrate || Input.noBuzz) return; const n = performance.now(); if (n - this.buzzT < 90) return; this.buzzT = n; try { navigator.vibrate(Math.round(clamp(ms, 5, 80))); } catch (e) { /* not allowed yet */ } },
+  get locked() { return document.pointerLockElement === canvasEl; },
+};
 let onTyped = null;
 const GAME_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
   'KeyJ', 'KeyK', 'KeyL', 'KeyF', 'KeyT', 'KeyE', 'KeyQ', 'KeyR', 'ShiftLeft', 'ShiftRight', 'KeyM', 'KeyP', 'Escape', 'KeyH', 'Enter', 'Tab', 'KeyC', 'KeyV']);
 window.addEventListener('keydown', (e) => {
-  if (GAME_KEYS.has(e.code) && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))) e.preventDefault();
-  if (e.repeat) return;
+  const typing = e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+  if (GAME_KEYS.has(e.code) && !typing) e.preventDefault();
+  if (e.repeat || typing) return;
+  // macOS swallows keyup for anything pressed together with ⌘ — treat ⌘ as "let go of everything"
+  if (e.metaKey || e.key === 'Meta') { Input.clear(); return; }
   Input.down[e.code] = true; Input.hit[e.code] = true;
   if (e.key && e.key.length === 1 && /[a-z]/i.test(e.key)) {
     Input.typed = (Input.typed + e.key.toUpperCase()).slice(-12);
     if (onTyped) onTyped(Input.typed);
   }
 }, { passive: false });
-window.addEventListener('keyup', (e) => { Input.down[e.code] = false; });
-window.addEventListener('blur', () => { for (const k in Input.down) Input.down[k] = false; });
+window.addEventListener('keyup', (e) => { Input.down[e.code] = false; if (e.key === 'Meta') Input.clear(); });
+window.addEventListener('blur', () => Input.clear());
+document.addEventListener('visibilitychange', () => { if (document.hidden) Input.clear(); });
+// ---- mouse: drag = look around; a click grabs the pointer (pointer lock) for free mouse look, Esc lets go.
+// While locked: left button = 拳 (J), right button = 踢 (K) on foot / in the mech. ----
+const Mouse = {
+  playing() { return G.started && !G.paused && !G.over && !UI.panelOpen && !UI.shopId && $('confirm').hidden && $('facepick').hidden; },
+  lock() {
+    if (Input.locked || !canvasEl.requestPointerLock || IS_TOUCH || Mouse.noLock) return;
+    try { const p = canvasEl.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* not allowed here */ }
+  },
+  unlock() { if (Input.locked) try { document.exitPointerLock(); } catch (e) { /* ignore */ } },
+  press(k, on) { if (on) { Input.down[k] = true; Input.hit[k] = true; } else Input.down[k] = false; },
+  // locked buttons follow e.buttons: a second button pressed / released while one is held only fires pointermove
+  // (chorded buttons), so down / up events alone would leave 拳 or 踢 stuck
+  bits: 0,
+  syncBtns(e) {
+    const P = Player, foot = (P.mode === 'human' || P.mode === 'robot') && !Input.lock && this.playing();
+    const b = foot ? e.buttons & 3 : 0, was = this.bits; this.bits = b;
+    if ((b ^ was) & 1) this.press('KeyJ', !!(b & 1));
+    if ((b ^ was) & 2) this.press('KeyK', !!(b & 2));
+  },
+  init() {
+    const M = Input.mouse;
+    canvasEl.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvasEl.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse') return; // touch has its own zones (Touch)
+      if (Input.locked) { this.syncBtns(e); M.btn = e.button; return; }
+      M.id = e.pointerId; M.lx = e.clientX; M.ly = e.clientY; M.sx = e.clientX; M.sy = e.clientY; M.drag = false; M.btn = e.button;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      if (Input.locked) { if (e.buttons !== this.bits) this.syncBtns(e); if (this.playing()) Input.addLook(e.movementX || 0, e.movementY || 0); return; }
+      if (M.id === null || e.pointerId !== M.id || !e.buttons) return;
+      if (!M.drag && hyp(e.clientX - M.sx, e.clientY - M.sy) > 5) M.drag = true;
+      if (M.drag && this.playing()) Input.addLook(e.clientX - M.lx, e.clientY - M.ly);
+      M.lx = e.clientX; M.ly = e.clientY;
+    });
+    window.addEventListener('pointerup', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      if (Input.locked) { this.syncBtns(e); return; }
+      if (M.id === null || e.pointerId !== M.id) return;
+      const click = !M.drag && e.target === canvasEl; M.id = null; M.drag = false;
+      // a plain left click on the 3D view (not a drag) captures the mouse for GTA-style look
+      if (click && e.button === 0 && this.playing() && !Cutscene.active) this.lock();
+    });
+    document.addEventListener('pointerlockchange', () => { if (this.bits) { this.bits = 0; this.press('KeyJ', false); this.press('KeyK', false); } if (Input.locked && !this.told) { this.told = true; UI.toast('鼠标转视角 · 左键拳 右键踢 · Esc 松开鼠标', 2.6); } });
+    document.addEventListener('pointerlockerror', () => {});
+    // menus, pause and dialogs need the cursor back
+    setInterval(() => { if (Input.locked && !this.playing()) this.unlock(); }, 150);
+  },
+};
 // gameplay queries respect Input.lock (cutscenes, menus); raw ones don't
 const kd = (...c) => !Input.lock && c.some((k) => Input.down[k]);
 const kp = (...c) => !Input.lock && c.some((k) => Input.hit[k]);

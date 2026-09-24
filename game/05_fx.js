@@ -19,8 +19,8 @@ class SoftSystem {
       uniforms: { map: { value: TEX.soft }, scale: { value: 600 } },
       vertexShader: 'attribute vec4 pcolor; attribute float psize; uniform float scale; varying vec4 vC;' +
         'void main(){ vC = pcolor; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = min(psize * scale / -mv.z, 900.0); gl_Position = projectionMatrix * mv; }',
-      fragmentShader: 'uniform sampler2D map; varying vec4 vC;' +
-        'void main(){ vec4 t = texture2D(map, gl_PointCoord); float a = t.a * vC.a; if (a < 0.004) discard; gl_FragColor = vec4(vC.rgb, a); }',
+      fragmentShader: '#include <common>\nuniform sampler2D map; varying vec4 vC;\n' +
+        'void main(){ vec4 t = texture2D(map, gl_PointCoord); float a = t.a * vC.a; if (a < 0.004) discard; gl_FragColor = vec4(gtaLin(vC.rgb), a);\n#include <tonemapping_fragment>\n#include <encodings_fragment>\n}',
       transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
     });
     this.points = new THREE.Points(g, this.mat);
@@ -134,8 +134,9 @@ const FX = {
     this.beamOuter = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.beamInner = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ color: 0xfff6d0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.beam.add(this.beamOuter, this.beamInner); this.beam.visible = false; scene.add(this.beam);
+    Weather.init();
   },
-  resize() { this.smokeSys.resize(innerHeight); this.glowSys.resize(innerHeight); },
+  resize() { this.smokeSys.resize(innerHeight); this.glowSys.resize(innerHeight); Weather.resize(); },
   update(dt) {
     this.smokeSys.update(dt); this.glowSys.update(dt); Debris.update(dt);
     for (const r of this.rings) {
@@ -152,7 +153,7 @@ const FX = {
     r.m.visible = true; r.t = 0; r.life = life; r.r0 = r0; r.r1 = r1; r.a = a;
     r.m.position.set(x, y, z); r.m.material.color.set(color);
   },
-  light(x, y, z, i = 4, color = 0xffa040) { this.flash.position.set(x, y, z); this.flash.color.set(color); this.flashI = Math.max(this.flashI, i); this.flash.intensity = this.flashI; },
+  light(x, y, z, i = 4, color = 0xffa040) { this.flash.position.set(x, y, z); toLin(this.flash.color.set(color)); this.flashI = Math.max(this.flashI, i); this.flash.intensity = this.flashI; },
   sparkle(x, y, z, n) { for (let k = 0; k < n; k++) this.glowSys.spawn(x, y, z, rand(-3, 3), rand(3, 8), rand(-3, 3), rand(0.5, 1.1), -0.4, 1, 0.85, 0.3, 1, rand(0.35, 0.7), 1.5, 4); },
   sparks(x, y, z, n, col = [1, 0.7, 0.25]) { for (let k = 0; k < n; k++) this.glowSys.spawn(x, y, z, rand(-10, 10), rand(2, 12), rand(-10, 10), rand(0.35, 0.7), -0.3, col[0], col[1], col[2], 1, rand(0.25, 0.55), 2.5, 22); },
   smoke(x, y, z, n, size = 4, dark = 0.3) {
@@ -210,6 +211,143 @@ const FX = {
     this.beam.lookAt(x1, y1, z1);
     const w = rand(0.85, 1.15);
     this.beamOuter.scale.set(1.25 * w, 1.25 * w, L); this.beamInner.scale.set(0.45 * w, 0.45 * w, L);
+  },
+};
+
+/* ---------------- weather: 晴 · 雾霾 · 沙尘 · 雪 · 雨 ----------------
+   Weather.set(kind) / Weather.cur; kinds blend in over ~15 s. It bends DayNight's sample (fog, sun, sky, grade),
+   wets the roads (Ground.U.uWet), piles snow on anything facing up, and runs GPU-animated particles around the camera.
+   Weather.grip() → tyre grip multiplier for vehicles; Hooks.emit('weather', {kind, name, season, grip}) on every change. */
+const WX = {
+  clear: { name: '晴' },
+  smog: { name: '雾霾', fn: 3, ff: 150, day: '#968c7a', night: '#3c3226', zen: 0.8, haze: 0.9, sun: 0.28, vis: 0.4, hemi: 1.18, sat: 0.72, tint: [1.04, 1.0, 0.88], cl: 0.1, ex: 1.06, hh: 0.12,
+    msg: '雾霾橙色预警：PM2.5 爆表，出门把口罩戴好喽' },
+  sand: { name: '沙尘', fn: 2, ff: 105, day: '#b98c56', night: '#3a2a1a', zen: 0.9, haze: 0.95, sun: 0.25, vis: 0.3, hemi: 1.15, sat: 0.82, tint: [1.12, 0.98, 0.78], cl: 0, ex: 1.05, hh: 0.2, parts: 'sand',
+    msg: '沙尘暴来了：内蒙古的沙子进京报到，眯着点儿眼' },
+  snow: { name: '雪', fn: 8, ff: 240, day: '#c3cad4', night: '#343644', zen: 0.7, haze: 0.6, sun: 0.1, vis: 0.05, hemi: 1.4, sat: 0.86, tint: [0.97, 1.0, 1.05], cl: 0.95, ex: 1.08, hh: 0.4, parts: 'snow', grip: 0.62,
+    msg: '下雪了：北京一下雪就成了北平。路面打滑，开车悠着点儿' },
+  rain: { name: '雨', fn: 10, ff: 300, day: '#7c8691', night: '#22252d', zen: 0.8, haze: 0.55, sun: 0.07, vis: 0, hemi: 1.12, sat: 0.9, tint: [0.97, 1.0, 1.04], cl: 1.0, ex: 1.12, hh: 0.4, parts: 'rain', grip: 0.8,
+    msg: '下雨了：二环看海预警，路面湿滑，别在立交桥上漂移' },
+};
+const SEASONS = [
+  ['春', [['clear', 45], ['sand', 25], ['smog', 15], ['rain', 15]]],
+  ['夏', [['clear', 55], ['rain', 40], ['smog', 5]]],
+  ['秋', [['clear', 70], ['smog', 20], ['rain', 10]]],
+  ['冬', [['clear', 35], ['smog', 30], ['snow', 35]]],
+];
+const Weather = {
+  cur: 'clear', str: { clear: 1, smog: 0, sand: 0, snow: 0, rain: 0 }, wet: 0, snowC: 0, day: 0, rollT: 240, lastClock: -1, sys: {},
+  _c: new THREE.Color(), _d: new THREE.Color(), _g: new THREE.Color(0.55, 0.58, 0.62), _f: new V3(), scale: 600,
+  get season() { return SEASONS[Math.floor(this.day / 3) % 4][0]; },
+  get name() { return WX[this.cur].name; },
+  // tyre grip for vehicles: 1 dry, less on wet roads and snow
+  grip() { return Math.min(1, 1 - (1 - 0.8) * this.wet, 1 - (1 - 0.62) * clamp(this.snowC * 1.5, 0, 1)); },
+  set(kind, instant) {
+    if (!WX[kind]) return;
+    const was = this.cur; this.cur = kind;
+    if (instant) for (const k in this.str) this.str[k] = k === kind ? 1 : 0;
+    if (kind !== was) {
+      if (G.started && typeof UI !== 'undefined' && UI.toast) UI.toast(WX[kind].msg || '天儿放晴了：今儿个是"APEC 蓝"', 3.4);
+      Hooks.emit('weather', { kind, name: WX[kind].name, season: this.season, grip: this.grip() });
+    }
+  },
+  pick() { return weighted(SEASONS[Math.floor(this.day / 3) % 4][1]); },
+  // game-time schedule: a new roll every few game hours, a new day every midnight, a new season every 3 days
+  update(dt) {
+    const c = DayNight.clock;
+    if (this.lastClock >= 0 && c < this.lastClock - 600) this.day++;
+    this.lastClock = c;
+    if (Cutscene.active) return;
+    this.rollT -= dt * DayNight.speed;
+    if (this.rollT <= 0) { this.rollT = rand(150, 320); this.set(this.pick()); }
+  },
+  // called from DayNight.update: blend strengths, then bend the time-of-day sample in place
+  mod(p, dt) {
+    const K = clamp(dt / 15, 0, 1);
+    for (const k in this.str) this.str[k] = k === this.cur ? Math.min(1, this.str[k] + K) : Math.max(0, this.str[k] - K);
+    const s = this.str;
+    this.wet = clamp(this.wet + (s.rain > 0.5 ? dt / 25 : -dt / 140), 0, 1);
+    this.snowC = clamp(this.snowC + (s.snow > 0.5 ? dt / 60 : -dt / 160), 0, 1);
+    if (typeof Ground !== 'undefined' && Ground.U) Ground.U.uWet.value = this.wet;
+    GTA_U.wx.x = DayNight.indoor ? 0 : this.snowC; GTA_U.wx.z = DayNight.indoor ? 0 : this.wet * 0.3;
+    GTA_U.fog.y = 0.5;
+    this.animate(dt);
+    if (DayNight.indoor) return;
+    const dayK = clamp((p.si + p.hi * 0.6) / 1.6, 0, 1);
+    for (const k in WX) {
+      const w = s[k], X = WX[k]; if (k === 'clear' || w < 0.001) continue;
+      const c = this._c.set(X.night).lerp(this._d.set(X.day), dayK); toLin(c);
+      p.fn = lerp(p.fn, X.fn, w); p.ff = lerp(p.ff, X.ff, w);
+      p.fogC.lerp(c, w); p.hazeC.lerp(c, w); p.hor.lerp(c, w * 0.8); p.zen.lerp(c, w * X.zen);
+      p.hs.lerp(this._g, w * 0.5);
+      p.haze = Math.max(p.haze, X.haze * w);
+      p.si *= lerp(1, X.sun, w); p.mi *= lerp(1, X.sun, w); p.hi *= lerp(1, X.hemi, w); p.sunVis *= lerp(1, X.vis, w);
+      p.sat *= lerp(1, X.sat, w); p.ex *= lerp(1, X.ex, w); p.cl = lerp(p.cl, X.cl, w);
+      for (let j = 0; j < 3; j++) p.tint[j] *= lerp(1, X.tint[j], w);
+      GTA_U.fog.y = lerp(GTA_U.fog.y, X.hh, w);
+    }
+  },
+  // ---- particles: static random lattice, positions computed on the GPU (no per-frame CPU work) ----
+  init() {
+    const mk = (n, lines, vs, fs, U, blend) => {
+      const pos = new Float32Array(n * (lines ? 2 : 1) * 3), g = new THREE.BufferGeometry();
+      const end = lines ? new Float32Array(n * 2) : null;
+      for (let i = 0; i < n; i++) {
+        const x = Math.random(), y = Math.random(), z = Math.random();
+        if (lines) { pos.set([x, y, z, x, y, z], i * 6); end[i * 2 + 1] = 1; } else pos.set([x, y, z], i * 3);
+      }
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); if (end) g.setAttribute('aEnd', new THREE.BufferAttribute(end, 1));
+      const u = Object.assign({ uC: { value: new V3() }, uT: { value: 0 }, uA: { value: 0 }, uCol: { value: new THREE.Color() }, uScale: { value: 600 } }, U);
+      const m = new THREE.ShaderMaterial({ uniforms: u, vertexShader: vs, fragmentShader: fs, transparent: true, depthWrite: false, blending: blend || THREE.NormalBlending });
+      const o = lines ? new THREE.LineSegments(g, m) : new THREE.Points(g, m);
+      o.frustumCulled = false; o.renderOrder = 6; o.visible = false; scene.add(o);
+      return { o, u, n, per: lines ? 2 : 1 };
+    };
+    // wrap a [0,1) lattice coordinate into a box of size B centred on c, drifting by v·t
+    const wrap = 'float wr(float p, float c, float B, float v){ return c - B * 0.5 + fract(p - (c - B * 0.5) / B + v * uT / B) * B; }\n' +
+      'float edge(vec3 w){ vec2 q = abs(w.xz - uC.xz) / (uBox.xz * 0.5); return 1.0 - smoothstep(0.7, 1.0, max(q.x, q.y)); }\n';
+    const head = 'uniform vec3 uC, uBox; uniform float uT, uA, uScale; uniform vec2 uWind; uniform float uFall; varying float vA;\n' + wrap;
+    const tail = '\n#include <tonemapping_fragment>\n#include <encodings_fragment>\n}';
+    this.sys.rain = mk(5200, true,
+      head + 'attribute float aEnd; void main(){ vec3 p = position;\n' +
+      '  vec3 w = vec3(wr(p.x, uC.x, uBox.x, uWind.x), wr(p.y, uC.y, uBox.y, -uFall), wr(p.z, uC.z, uBox.z, uWind.y));\n' +
+      '  vec3 v = normalize(vec3(uWind.x, -uFall, uWind.y)); w += v * aEnd * (0.7 + p.x * 0.6);\n' +
+      '  vA = uA * edge(w) * (0.35 + 0.65 * aEnd); gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0); }',
+      '#include <common>\nuniform vec3 uCol; varying float vA; void main(){ gl_FragColor = vec4(uCol, vA * 0.42);' + tail,
+      { uBox: { value: new V3(60, 34, 60) }, uWind: { value: new THREE.Vector2(1.5, 0.8) }, uFall: { value: 17 } });
+    this.sys.snow = mk(4200, false,
+      head + 'void main(){ vec3 p = position;\n' +
+      '  vec3 w = vec3(wr(p.x, uC.x, uBox.x, uWind.x), wr(p.y, uC.y, uBox.y, -uFall), wr(p.z, uC.z, uBox.z, uWind.y));\n' +
+      '  w.x += sin(uT * 1.1 + p.y * 37.0) * 0.6; w.z += cos(uT * 0.9 + p.x * 29.0) * 0.5;\n' +
+      '  vec4 mv = viewMatrix * vec4(w, 1.0); gl_PointSize = clamp((0.05 + p.z * 0.05) * uScale / -mv.z, 1.0, 24.0);\n' +
+      '  vA = uA * edge(w) * smoothstep(0.5, 3.0, -mv.z); gl_Position = projectionMatrix * mv; }',
+      '#include <common>\nuniform vec3 uCol; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.15, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(uCol, a);' + tail,
+      { uBox: { value: new V3(50, 30, 50) }, uWind: { value: new THREE.Vector2(0.8, 0.3) }, uFall: { value: 1.4 } });
+    this.sys.sand = mk(1800, false,
+      head + 'void main(){ vec3 p = position;\n' +
+      '  vec3 w = vec3(wr(p.x, uC.x, uBox.x, uWind.x * (0.7 + p.y * 0.6)), wr(p.y, uC.y, uBox.y, -0.4), wr(p.z, uC.z, uBox.z, uWind.y));\n' +
+      '  w.y += sin(uT * 2.0 + p.x * 50.0) * 0.8;\n' +
+      '  vec4 mv = viewMatrix * vec4(w, 1.0); gl_PointSize = clamp((0.25 + p.z * 0.6) * uScale / -mv.z, 1.0, 90.0);\n' +
+      '  vA = uA * edge(w) * smoothstep(0.5, 4.0, -mv.z) * (0.25 + 0.35 * p.x); gl_Position = projectionMatrix * mv; }',
+      '#include <common>\nuniform vec3 uCol; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(uCol, a);' + tail,
+      { uBox: { value: new V3(60, 16, 60) }, uWind: { value: new THREE.Vector2(15, 4) }, uFall: { value: 0 } });
+    Hooks.update(function weather(dt) { Weather.update(dt); });
+    this.resize();
+  },
+  resize() { this.scale = (innerHeight * renderer.getPixelRatio()) / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); for (const k in this.sys) this.sys[k].u.uScale.value = this.scale; },
+  animate(dt) {
+    const f = camera.getWorldDirection(this._f), cp = camera.position, parts = Render.Q ? Render.Q.parts : 1;
+    const lum = clamp(W.hemi.intensity * 0.9 + W.sun.intensity * 0.35, 0.08, 1.2);
+    for (const k in this.sys) {
+      const S = this.sys[k], a = DayNight.indoor ? 0 : this.str[k];
+      S.o.visible = a > 0.01; if (!S.o.visible) continue;
+      S.u.uA.value = a; S.u.uT.value = (S.u.uT.value + dt) % 1000;
+      S.u.uC.value.set(cp.x + f.x * 14, (k === 'sand' ? groundH(cp.x, cp.z) + 6 : cp.y + 4), cp.z + f.z * 14);
+      if (k === 'rain') S.u.uCol.value.setRGB(0.55, 0.6, 0.68).multiplyScalar(lum);
+      else if (k === 'snow') S.u.uCol.value.setRGB(0.85, 0.88, 0.95).multiplyScalar(lum);
+      else S.u.uCol.value.setRGB(0.42, 0.26, 0.11).multiplyScalar(lum);
+      S.o.geometry.setDrawRange(0, Math.round(S.n * parts) * S.per);
+    }
   },
 };
 

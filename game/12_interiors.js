@@ -74,7 +74,17 @@ const Interiors = {
     this.arrowGeo = cone;
     this.arrowMat = new THREE.MeshBasicMaterial({ color: 0xffd23f });
     this.ringGeo = new THREE.RingGeometry(1.2, 1.6, 32).rotateX(-Math.PI / 2);
-    for (const d of W.doors) d.mesh = this.doorMarker(d.x, groundH(d.x, d.z), d.z);
+    for (const d of W.doors) {
+      if (!INTERIORS[d.interior]) { console.warn('door without interior: ' + d.id); d.locked = true; continue; }
+      if (!d.o) d.o = [0, 1];
+      d.mesh = this.doorMarker(d.x, groundH(d.x, d.z), d.z);
+    }
+  },
+  // the spot just outside a door (along its outward normal o), pushed clear of walls; h faces the street
+  outside(d, out = 2.8) {
+    const [ox, oz] = d.o || [0, 1], p = new V3(d.x + ox * out, 0, d.z + oz * out);
+    collideCircle(p, 0.7);
+    return { x: p.x, z: p.z, h: Math.atan2(ox, oz), door: d.id };
   },
   doorMarker(x, y, z) {
     const g = new THREE.Group();
@@ -263,24 +273,33 @@ const Interiors = {
   // walk-in door check (city doors + interior exit)
   update(dt) {
     const P = Player;
-    for (const d of W.doors) if (d.mesh) { d.mesh.userData.arrow.position.y = 2.2 + Math.sin(G.time * 3) * 0.3; d.mesh.userData.arrow.rotation.y += dt * 2; d.mesh.visible = !this.cur && !d.locked; }
+    // the bobbing arrow hides while the camera is right on top of it (it would fill the screen and swallow the hero)
+    const cx = camera.position.x, cz = camera.position.z;
+    for (const d of W.doors) if (d.mesh) { const a = d.mesh.userData.arrow; a.position.y = 2.2 + Math.sin(G.time * 3) * 0.3; a.rotation.y += dt * 2; a.visible = dist2(cx, cz, d.x, d.z) > 3.5 * 3.5; d.mesh.visible = !this.cur && !d.locked; }
     if (this.garageCd > 0) this.garageCd -= dt;
     if (Cutscene.active || this.fading || P.mode === 'dead') { this.nearAct = null; return; }
     if (this.cur) {
       const I = this.built[this.cur];
-      I.exit.userData.arrow.position.y = 2.2 + Math.sin(G.time * 3) * 0.3; I.exit.userData.arrow.rotation.y += dt * 2;
+      const ea = I.exit.userData.arrow;
+      ea.position.y = 2.2 + Math.sin(G.time * 3) * 0.3; ea.rotation.y += dt * 2;
+      ea.visible = dist2(cx, cz, I.exit.position.x, I.exit.position.z) > 4.5 * 4.5; // you spawn facing in, so the camera starts right behind it
       // a mission can lock you in (fights, the fire escape needs the door) — but only while that mission runs
       const lk = Story.cur && Story.lockExit, locked = !!I.def.noExit || !!(lk && (lk === '*' || lk === this.cur));
       I.exit.visible = !locked;
-      if (dist2(P.pos.x, P.pos.z, I.exit.position.x, I.exit.position.z) < 1.4 * 1.4 && !locked) this.exit();
+      // the way out only arms once you've stepped into the room (holding "back" through the door mustn't bounce you out)
+      const de = dist2(P.pos.x, P.pos.z, I.exit.position.x, I.exit.position.z);
+      if (!this.exitArmed && de > 2.5 * 2.5) this.exitArmed = true;
+      if (this.exitArmed && de < 1.4 * 1.4 && !locked) this.exit();
       let best = null, bd = Infinity;
       for (const a of I.acts) { const dd = dist2(P.pos.x, P.pos.z, a.x, a.z); if (dd < a.r * a.r && dd < bd) { bd = dd; best = a; } }
       this.nearAct = best;
     } else {
       this.nearAct = null;
+      // a door you just came out of stays quiet until you've stepped away from it
+      if (this.rearm && dist2(P.pos.x, P.pos.z, this.rearm.x, this.rearm.z) > 3.2 * 3.2) this.rearm = null;
       if (P.mode !== 'human') return;
       for (const d of W.doors) {
-        if (d.locked || dist2(P.pos.x, P.pos.z, d.x, d.z) > 1.5 * 1.5) continue;
+        if (d.locked || d === this.rearm || dist2(P.pos.x, P.pos.z, d.x, d.z) > 1.5 * 1.5) continue;
         const why = Story.doorBlocked(d.interior);
         if (why) { if (!this.blockMsgT || G.time - this.blockMsgT > 3) { this.blockMsgT = G.time; UI.hint(why); } continue; }
         this.enter(d.interior, d);
@@ -297,10 +316,17 @@ const Interiors = {
   },
   enterInstant(id, door) {
     const I = this.build(id);
-    if (!this.cur) this.back = door ? { x: door.x, z: door.z + 2.2, h: 0 } : { x: Player.pos.x, z: Player.pos.z, h: Player.heading };
+    if (!this.cur) {
+      // story steps enter without a door (checkpoint retries start at home): leave by this room's own door, the nearest
+      // one if it has several; only doorless rooms (the prison, the well) send you back to where you stood
+      const P = Player.pos;
+      let dr = door || null, bd = Infinity;
+      if (!dr) for (const d of W.doors) if (d.interior === id) { const dd = dist2(d.x, d.z, P.x, P.z); if (dd < bd) { bd = dd; dr = d; } }
+      this.back = dr ? this.outside(dr) : { x: P.x, z: P.z, h: Player.heading };
+    }
     if (Player.mode === 'car') Player.exitCar();
     this.cur = id; DayNight.indoor = true;
-    Player.pos.set(I.b.x, 0, I.b.z + I.d / 2 - 2.6); Player.vel.set(0, 0, 0); Player.heading = Math.PI;
+    Player.pos.set(I.b.x, 0, I.b.z + I.d / 2 - 3); Player.vel.set(0, 0, 0); Player.heading = Math.PI; this.exitArmed = false;
     Cam.snap();
     I.npcs.forEach((n) => { if (!Actors.get('int_' + n.key)) Actors.spawn('int_' + n.key, n.kind, I.b.x + n.x, I.b.z + n.z, n.h); });
     this.lights.forEach((l, k) => { l.position.set(I.b.x + (k ? I.w / 4 : -I.w / 4), 4.6, I.b.z); l.color.set(I.def.light); l.intensity = 0.9; });
@@ -320,7 +346,8 @@ const Interiors = {
     this.cur = null; DayNight.indoor = false;
     this.lights.forEach((l) => { l.intensity = 0; });
     const bk = this.back || { x: W.respawn.x, z: W.respawn.z, h: 0 };
-    Player.pos.set(bk.x, 0, bk.z); Player.vel.set(0, 0, 0); Player.heading = 0;
+    Player.pos.set(bk.x, 0, bk.z); Player.vel.set(0, 0, 0); Player.heading = bk.h || 0;
+    this.rearm = bk.door ? W.doors.find((d) => d.id === bk.door) : null; this.back = null;
     Cam.snap(); UI.lastDist = '';
     Story.event('exit', id);
   },
@@ -357,13 +384,15 @@ const Gym = {
     this.active = { kind, t: 8, n: 0, last: null, keys };
     Input.lock = true;
     UI.gym(true, kind, 0, 8);
+    $('gym').style.pointerEvents = 'none'; // 快速连点屏幕: taps on the card must fall through to the touch zones
   },
   press(k) { const A = this.active; if (!A) return; if (k !== A.last) { A.n++; A.last = k; Sfx.click(); } },
   update(dt) {
     const A = this.active; if (!A) return;
     A.t -= dt;
-    for (const k of A.keys) if (Input.hit[k]) this.press(k);
+    // a tap (screen, or a touch button — which also sets its key) is one rep; otherwise alternate the two keys
     if (Input.hit.Space || Input.click) this.press(A.last === 'tapA' ? 'tapB' : 'tapA');
+    else for (const k of A.keys) if (Input.hit[k]) this.press(k);
     UI.gym(true, A.kind, A.n, A.t);
     if (A.t <= 0) {
       const gain = Math.min(45, Math.round(A.n * 0.7));
