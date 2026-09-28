@@ -1,0 +1,14 @@
+# Mesh2Motion human animation library (CC0, includes Quaternius UAL1+UAL2 Standard), pixiv ChatVRM idle (MIT)
+anims/human-base-animations.glb	https://raw.githubusercontent.com/Mesh2Motion/mesh2motion-app/main/static/animations/human-base-animations.glb
+anims/human-addon-animations.glb	https://raw.githubusercontent.com/Mesh2Motion/mesh2motion-app/main/static/animations/human-addon-animations.glb
+anims/human-mocap-animations.glb	https://raw.githubusercontent.com/Mesh2Motion/mesh2motion-app/main/static/animations/human-mocap-animations.glb
+anims/idle_loop.vrma	https://raw.githubusercontent.com/pixiv/ChatVRM/main/public/idle_loop.vrma
+anims/cmu/cmu-mocap-index-text.txt	https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/cmu-mocap-index-text.txt
+# CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu), BVH via una-dinosauria/cmu-mocap mirror
+anims/cmu/12_04.bvh	https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/data/012/12_04.bvh
+anims/cmu/135_04.bvh	https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/data/135/135_04.bvh
+anims/cmu/87_01.bvh	https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/data/087/87_01.bvh
+anims/cmu/88_06.bvh	https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/data/088/88_06.bvh
+anims/cmu/90_05.bvh	https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/data/090/90_05.bvh
+anims/cmu/18_15.bvh	https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/data/018/18_15.bvh
+anims/cmu/13_17.bvh	https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/data/013/13_17.bvh

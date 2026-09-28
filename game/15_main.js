@@ -71,8 +71,9 @@ const Cam = {
   target: new V3(), topT: new V3(), look: new V3(), toCam: new V3(0, 0.83, 0.55), shakeA: 0, orbit: 0, lookY: 0,
   // yaw: the camera's ground-plane forward is (sin yaw, cos yaw) in (x, z) — π looks north, like the old fixed camera
   yaw: Math.PI, pitch: 0, el: 0.3, dist: 7.4, curD: 7.4, pivY: 2.3, lift: 0.4, blend: 0, topH: 26, topD: 17, pm: '', swingT: 0,
-  // third person per mode: pivot height over the feet, distance, elevation (rad), look-point lift
-  RIG: { human: [2.2, 7.6, 0.3, 0.35], car: [2.0, 10.5, 0.25, 0.9], bike: [2.0, 7.4, 0.27, 0.5], truck: [3.4, 15.5, 0.26, 1.3], robot: [6.4, 17, 0.28, 1.2], xform: [5, 16, 0.3, 1], dead: [1.0, 9, 0.62, 0] },
+  // third person per mode: pivot height over the feet, distance, elevation (rad), look-point lift. On foot it's framed for the
+  // ~1.9 m anime hero (中景: head to toe in about half the frame height, like 剑灵's follow camera)
+  RIG: { human: [1.45, 5.2, 0.3, 0.12], car: [2.0, 10.5, 0.25, 0.9], bike: [1.5, 5.8, 0.27, 0.18], truck: [3.4, 15.5, 0.26, 1.3], robot: [6.4, 17, 0.28, 1.2], xform: [5, 16, 0.3, 1], dead: [0.6, 6.5, 0.62, 0] },
   // classic top-down [height, distance] per mode
   OFF: { human: [29, 19], car: [38, 24], robot: [45, 29], truck: [50, 31], xform: [30, 20], dead: [22, 14] },
   // V / mouse wheel: 近景 · 中景 · 远景 · 经典俯视
@@ -95,7 +96,7 @@ const Cam = {
     let [pv, d, p, lf] = this.RIG[P.mode === 'car' && P.car && P.car.k && P.car.k.bike ? 'bike' : P.mode] || this.RIG.human;
     if (P.mode === 'xform' && P.xf && P.xf.to === 'human' && P.xf.t > 0.4) [pv, d, p, lf] = this.RIG.human;
     if (!z.top) { d *= z.d; p += z.p; }
-    if (Interiors.cur) { d = Math.min(d, 7); p += 0.16; }
+    if (Interiors.cur) d = Math.min(d, 7); // (under the rooms' ceilings: no extra lift)
     if (Boss.cur && Boss.cur.kind === 'klaude') { d *= 1.4; p += 0.08; }
     const sp = P.mode === 'car' || P.mode === 'truck' ? Math.abs(P.speed) : 0;
     return [pv, d * (1 + clamp(sp / 70, 0, 0.3)) * this.aspectK(), p, lf];
@@ -269,7 +270,7 @@ onTyped = (s) => {
 
 /* ---- main loop ---- */
 let lastT = performance.now();
-const PERF = { n: 0, acc: 0, fps() { const f = this.n / Math.max(1e-3, this.acc); this.n = 0; this.acc = 0; return f; } };
+const PERF = { n: 0, acc: 0, cpu: 0, fps() { const f = this.n / Math.max(1e-3, this.acc); this.n = 0; this.acc = 0; return f; } };
 function worldTick(dt) {
   if (!Interiors.cur) { guard('Cars.update', () => Cars.update(dt)); guard('Peds.update', () => Peds.update(dt)); Monorail.update(dt); }
   Tokens.update(dt); Coins.update(dt); FX.update(dt); Props.update(dt);
@@ -280,11 +281,13 @@ let rafId = 0;
 function frame(now, pumped) {
   if (!pumped) rafId = 0;
   if (!rafId) rafId = requestAnimationFrame(frame);
+  const f0 = performance.now();
   let rdt = (now - lastT) / 1000; lastT = now;
   rdt = clamp(rdt, 0.0005, 0.05);
   if (!G.started) {
     Cam.title(rdt); DayNight.update(rdt * 4); worldTick(rdt); Sky.update(now / 1000); Water.update(now / 1000);
-    if (!DEV.noRender) Render.render(now / 1000);
+    // the title's fly-over only once its shaders are compiled (a cold first frame would freeze the page for seconds)
+    if (!DEV.noRender && Warm.live && !G.starting) Render.render(now / 1000);
     Input.hit = Object.create(null); Input.click = false;
     return;
   }
@@ -327,7 +330,7 @@ function frame(now, pumped) {
   guard('UI.update', () => UI.update(rdt));
   if (!DEV.noRender) Render.render(G.time);
   Input.hit = Object.create(null); Input.click = false;
-  PERF.n++; PERF.acc += rdt;
+  PERF.n++; PERF.acc += rdt; PERF.cpu = performance.now() - f0;
 }
 
 function onResize() {
@@ -337,14 +340,24 @@ function onResize() {
 }
 function beginPlay(saveData) {
   if (G.started || G.starting) return; // G.started only flips after the loading screen: a second Enter / click must not queue another start
-  G.starting = true;
+  G.starting = true; Boot.mark('begin');
   Sfx.init();
   $('title').hidden = true;
   const ld = $('loading'); ld.hidden = false; $('ld-tip').textContent = pick(TIPS);
-  const bar = $('ld-fill'); bar.style.transition = 'none'; bar.style.width = '0%'; void bar.offsetWidth; bar.style.transition = 'width 1.5s ease-out'; bar.style.width = '100%';
-  setTimeout(() => {
-    ld.hidden = true;
-    G.started = true; UI.showHud();
+  const bar = $('ld-fill'); bar.style.transition = 'width .25s ease-out'; bar.style.width = '8%';
+  // what the start needs, new or saved game alike: the opening's shaders (priority 0: the hero, the first rooms or the street a
+  // saved game wakes up in; capped: anything left compiles as it shows up, behind the loading screen's last frames) and the models
+  // of whoever the current mission puts on stage (they stream first). The rest of the city compiles and streams in behind play.
+  const t0 = performance.now(), m0 = saveData ? MISSIONS[(saveData.story && saveData.story.prog) || 0] : null;
+  const cast = [...new Set(missionCast(m0).flatMap((k) => [CAST_VRM[k].body, CAST_VRM[k].hair]).filter(Boolean).map((k) => 'vrm:' + k))].filter((k) => Assets.reqs.has(k));
+  for (const k of cast) Assets.bump(k);
+  if (saveData) Warm.bumpNear(W.respawn.x, W.respawn.z, 180);
+  const go = () => {
+    if (!HeroFace._pOk) guard('portraits', () => HeroFace.portraitsNow());
+    G.started = true; UI.showHud(); Boot.mark('playing'); Warm.stats.atGo = renderer.info.programs.length;
+    // the first frames draw behind the loading screen: whatever the opening view still needs compiles there, not on screen
+    let n = 0; const reveal = () => { if (++n < 3) return requestAnimationFrame(reveal); ld.hidden = true; canvasEl.classList.add('live'); Boot.done(); Warm.stats.atReveal = renderer.info.programs.length; };
+    requestAnimationFrame(reveal);
     if (saveData) {
       G.load(saveData);
       Cam.snap(); Markers.sync();
@@ -355,41 +368,238 @@ function beginPlay(saveData) {
       Story.start(MISSIONS[0]);
     }
     Sfx.mood(G.moodFor());
-  }, 1650);
+  };
+  let pre = false;
+  const wait = () => {
+    // first, behind the painted loading screen (not in the click handler): what the title didn't get round to — the post
+    // chain's frame and the map canvases (the radar needs them); the GPU keeps compiling the start set meanwhile
+    if (!pre) { pre = true; guard('warm.post', () => Warm.postFrame()); if (!MapGfx.lv) guard('MapGfx.build', () => { MapGfx.ready(); MapLabels.build(); }); return setTimeout(wait, 30); }
+    const el = performance.now() - t0, castIn = cast.every((k) => !Assets.pending(k)), warm = (!Warm.busy(0) && (!HeroFace._pw || HeroFace._pwOk)) || el > 6000;
+    bar.style.width = Math.round(8 + 92 * Math.min(1, 0.7 * Warm.frac() + 0.3 * (cast.length ? cast.filter((k) => !Assets.pending(k)).length / cast.length : 1))) + '%';
+    if ((warm && castIn) || el > 15000) setTimeout(go, 120); else setTimeout(wait, 60);
+  };
+  requestAnimationFrame(() => setTimeout(wait, 0));
+}
+// who a mission puts on stage (givers, speakers, spawned actors): their CAST_VRM kinds, read off its steps
+function missionCast(m) {
+  const out = new Set(), seen = new Set();
+  const walk = (v, d) => {
+    if (v == null || d > 7) return;
+    if (typeof v === 'string') { if (CAST_VRM[v]) out.add(v); return; }
+    if (typeof v === 'function') { const src = String(v); for (const k in CAST_VRM) if (src.includes("'" + k + "'") || src.includes('"' + k + '"')) out.add(k); return; } // (the minified build prints "…")
+    if (typeof v !== 'object' || seen.has(v) || v.isObject3D) return;
+    seen.add(v); for (const k in v) walk(v[k], d + 1);
+  };
+  if (m) walk(m, 0);
+  return [...out];
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.started && !G.paused && !Cutscene.active) togglePause(true); });
 
-// shader warm-up behind the title screen: everything hidden right now (rain / snow / sand, far districts, night lamps, rooms)
-// gets its program compiled here instead of stalling the first frame it shows up in
+/* ---------------- shader warm-up: every program the frame will use, compiled before it's needed, without freezing the page ----------------
+   A cold program costs 20-80 ms on a real GPU (the first visit: ~100 of them). They're compiled a batch at a time with
+   KHR_parallel_shader_compile (compile + poll, the page stays live), exactly as the frame renders them (the post chain's linear
+   target, the sky environment, the scene's lights); each batch is then drawn once into a 1-pixel scissor of that target, where
+   the driver finishes its pipeline. One representative per material × object kind. Warm.add(root, prio) queues more (late
+   streamed models); Warm.adopt(fn) builds objects off-scene until their shaders are ready. */
+const _warmS = new THREE.Sphere();
+const Warm = {
+  q: [], seen: new Set(), n: 0, ok: 0, running: false, live: false, done: false, drawing: false, _after: [], stats: { wait: 0, draw: 0, batches: 0, progs: 0 },
+  frac() { return this.n ? this.ok / this.n : 1; },
+  // anything of this priority or sooner still to compile?
+  busy(p) { return this.q.some((it) => it.prio <= p) || !!(this.cur && this.cur.some((it) => it.prio <= p)); },
+  // fn once the warm-up has finished (as a Jobs slice); afterStart: once the opening's set (priority 0) is warm
+  after(fn) { if (this.done) Jobs.add(fn); else this._after.push(fn); },
+  afterStart(fn) { if (this._started0 || this.skip()) Jobs.add(fn); else (this._afterS || (this._afterS = [])).push(fn); },
+  // software GL (headless tests): every compile takes seconds, a warm-up would only slow the tests down
+  skip() { return !renderer || (Render.soft && !DEV.warm); },
+  sig(o) {
+    const g = o.geometry, a = g ? Object.keys(g.attributes).join() : '', m = [].concat(o.material).map((x) => x.uuid).join('+');
+    return m + '|' + (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '') + (o.isPoints ? 'P' : o.isLine ? 'L' : o.isSprite ? 'Z' : '') + (o.receiveShadow ? 'r' : '') + '|' + a + (g && g.morphAttributes.position ? 'M' : '');
+  },
+  // every drawable under root (default: the whole scene) not seen yet, at this priority (lower = sooner). room: it's only ever
+  // seen indoors, under the rooms' studio environment (another PMREM size than the sky's: other programs for PBR materials)
+  add(root = scene, prio = 5, room = false) {
+    if (this.skip()) { this.done = this._started0 = true; if (!this.live) this.goLive(); for (const fn of this._after.splice(0).concat((this._afterS || []).splice(0))) Jobs.add(fn); return this; }
+    const tops = root === scene ? scene.children.filter((c) => !c.userData.room) : [root]; // (the rooms are queued on their own)
+    for (const top of tops) top.traverse((o) => {
+      if (!o.material || !(o.isMesh || o.isPoints || o.isLine || o.isSprite)) return;
+      const s = (room ? 'R' : '') + this.sig(o); if (this.seen.has(s)) return; this.seen.add(s);
+      let t = o; while (t.parent && t.parent !== scene) t = t.parent;
+      // things drawn wherever you are (sky, particles, screen-wide effects) right after the start set
+      this.q.push({ o, top: t, room, prio: o.frustumCulled === false || o.isPoints || o.isSprite ? Math.min(prio, 1) : prio }); this.n++;
+    });
+    this.done = false; this.run();
+    return this;
+  },
+  // build fn()'s new scene objects off-scene, add them once their programs are ready (streamed props / skies: no hitch)
+  adopt(fn) {
+    if (this.skip()) return fn();
+    const n0 = scene.children.length; fn();
+    const add = scene.children.slice(n0); if (!add.length) return;
+    const grp = new THREE.Group(); for (const o of add) scene.remove(o); for (const o of add) grp.add(o);
+    // (then only the new objects are looked at for anything left to warm, not the whole scene)
+    this.compile(grp).then(() => { for (const o of add) { grp.remove(o); scene.add(o); } for (const o of add) this.add(o, 3); }, () => { for (const o of add) scene.add(o); });
+  },
+  // queued items within r of (x, z) to the front (a saved game wakes up on the street at W.respawn, not in the well)
+  bumpNear(x, z, r) {
+    for (const it of this.q) {
+      if (it.prio <= 0) continue;
+      const o = it.o; let s = null;
+      if (o.isInstancedMesh || o.isBatchedMesh) { if (!o.boundingSphere) o.computeBoundingSphere(); s = o.boundingSphere; }
+      else if (o.geometry) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); s = o.geometry.boundingSphere; }
+      if (!s) continue;
+      _warmS.copy(s).applyMatrix4(o.matrixWorld);
+      if (hyp(_warmS.center.x - x, _warmS.center.z - z) - _warmS.radius < r) it.prio = 0;
+    }
+  },
+  // the programs root uses, compiled like the frame does (post chain target or the canvas), resolved once they're linked
+  compile(root, sc = scene, rt = Render.composer ? Render.composer.inputBuffer : null, cam = camera, env = null) {
+    if (sc === scene && !DayNight.indoor && !env) Render.updateEnv();
+    const prev = renderer.getRenderTarget(), e0 = sc.environment;
+    let mats;
+    try { if (env) sc.environment = env; renderer.setRenderTarget(rt); mats = renderer.compile(root, cam, sc); } finally { renderer.setRenderTarget(prev); sc.environment = e0; }
+    return new Promise((res) => {
+      const chk = () => { for (const m of mats) { const p = renderer.properties.get(m).currentProgram; if (!p || p.isReady()) mats.delete(m); } if (!mats.size) res(); else setTimeout(chk, 8); };
+      chk();
+    });
+  },
+  // the post chain (bloom, AO, grade: fullscreen passes with scenes of their own) and the interiors' room environment can't be
+  // compiled ahead: one frame of an empty scene through the composer, early and out of sight, pays for them in one go
+  postFrame() {
+    if (this._post || this.skip()) return; this._post = true;
+    Render.roomTex();
+    const C = Render.composer; if (!C) return;
+    const undo = []; for (const c of scene.children) if (!c.isLight && c.visible) { c.visible = false; undo.push(c); }
+    this.drawing = true;
+    try { C.render(); } finally { this.drawing = false; for (const c of undo) c.visible = true; }
+  },
+  async run() {
+    if (this.running || !renderer) return;
+    this.running = true;
+    try {
+      while (this.q.length) {
+        // while playing: a batch only in a frame with time to spare (its own work under ~10 ms; at most 20 frames' wait)
+        if (G.started) for (let k = 0; k < 20 && PERF.cpu > 10; k++) await new Promise((r) => requestAnimationFrame(r));
+        this.q.sort((a, b) => a.prio - b.prio);
+        // predraw draws whole top-level objects, so whole tops are compiled (a member left out would link synchronously inside
+        // that draw) and the items queued under the same tops come along (up to a cap: the rest are cheap later, already built)
+        // (one environment per batch: the rooms' items under the room PMREM, the rest under the sky's)
+        const room = this.q[0].room, n = G.started ? 2 : 8, cap = G.started ? 16 : 48, B = this.cur = [], tops = new Set(), rest = [];
+        for (const it of this.q) if (B.length < n && it.room === room) { B.push(it); tops.add(it.top); } else rest.push(it);
+        this.q = []; for (const it of rest) (B.length < cap && it.room === room && tops.has(it.top) ? B : this.q).push(it);
+        const env = room ? Render.roomTex() : null, t0 = performance.now();
+        await Promise.all([...tops].map((t) => this.compile(t, scene, undefined, camera, env)));
+        while (G.started && !$('loading').hidden) await new Promise((r) => requestAnimationFrame(r)); // (the start's hidden frames go first)
+        const t1 = performance.now();
+        guard('warm.draw', () => this.predraw(B, false, env));
+        const S = this.stats; S.wait += t1 - t0; S.draw += performance.now() - t1; S.batches++; S.progs = renderer.info.programs.length;
+        this.ok += B.length; this.cur = null;
+        if (!this._started0 && !this.busy(0)) { this._started0 = true; for (const fn of (this._afterS || []).splice(0)) Jobs.add(fn); }
+        if (!G.started) Boot.ui(0.9 + 0.1 * this.frac(), '准备画面 ' + Math.round(this.frac() * 100) + '%');
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+    } finally { this.running = false; }
+    this.done = !this.q.length;
+    if (!this.done) return this.run();
+    if (!this._started0) { this._started0 = true; for (const fn of (this._afterS || []).splice(0)) Jobs.add(fn); }
+    if (!this.live) this.goLive();
+    for (const fn of this._after.splice(0)) Jobs.add(fn);
+  },
+  // one draw of each batch member into a 1-px scissor of the frame's target: the driver builds its pipeline now, not mid-game.
+  // The scene is cut down to the lights + the batch's tops for that draw (its child list swapped, nothing else touched: no
+  // sweep over ~12k children, no world-matrix pass over the rest). shadows: also through the shadow pass (its depth programs)
+  predraw(B, shadows = false, env = null) {
+    const rt = Render.composer ? Render.composer.inputBuffer : null, tops = new Set(B.map((it) => it.top)), undo = [], kids = scene.children, only = [], sl = [];
+    for (const c of kids) if (c.isLight ? c.visible : tops.has(c)) only.push(c);
+    for (const it of B) {
+      for (let p = it.o; p && p !== scene; p = p.parent) if (!p.visible) { p.visible = true; undo.push([p, 'visible', false]); }
+      if (it.o.frustumCulled) { it.o.frustumCulled = false; undo.push([it.o, 'frustumCulled', true]); }
+    }
+    if (shadows) for (const c of only) if (c.isLight && c.castShadow && c.shadow) sl.push(c);
+    const prevT = renderer.getRenderTarget(), sh = renderer.shadowMap.autoUpdate, ac = renderer.autoClear, sc = rt ? rt.scissor.clone() : null, st = rt ? rt.scissorTest : false;
+    this.drawing = true; renderer.shadowMap.autoUpdate = shadows && sl.length > 0; renderer.autoClear = false;
+    for (const l of sl) l.shadow.needsUpdate = true;
+    const e0 = scene.environment; if (env) scene.environment = env;
+    scene.children = only;
+    try {
+      renderer.setRenderTarget(rt);
+      if (rt) { rt.scissor.set(0, 0, 1, 1); rt.scissorTest = true; renderer.setRenderTarget(rt); } else { renderer.setScissor(0, 0, 1, 1); renderer.setScissorTest(true); }
+      renderer.render(scene, camera);
+    } finally {
+      scene.children = kids; scene.environment = e0;
+      if (rt) { rt.scissor.copy(sc); rt.scissorTest = st; } else renderer.setScissorTest(false);
+      renderer.setRenderTarget(prevT); renderer.shadowMap.autoUpdate = sh; renderer.autoClear = ac; this.drawing = false;
+      for (let i = undo.length - 1; i >= 0; i--) { const [o, k, v] = undo[i]; o[k] = v; }
+      for (const l of sl) l.shadow.needsUpdate = true; // (the maps now hold only the batch: the next real frame redraws them)
+    }
+  },
+  // the shadow pass's depth programs (renderer.compile can't build them; the title's fly-over only makes the city's): one
+  // shadow-casting draw of the opening's characters and rooms while the title is idle, not in the first frames after 新游戏
+  shadowWarm(roots) {
+    if (this.skip() || G.started || G.starting || this._shadowed) return; this._shadowed = true;
+    const B = [];
+    for (const r of roots) if (r) { let t = r; while (t.parent && t.parent !== scene) t = t.parent; if (t.parent) r.traverse((o) => { if (o.castShadow && o.material && (o.isMesh || o.isPoints || o.isLine)) B.push({ o, top: t }); }); }
+    if (B.length) guard('warm.shadow', () => this.predraw(B, true, Render.roomTex())); // (a new game opens indoors)
+  },
+  // the title's world appears (a fade-in behind the title card)
+  goLive() {
+    if (!G.started && !G.starting && !DEV.noRender) guard('warm.frame', () => { this.postFrame(); Render.render(0); }); // (shadow passes, the post chain, anything missed)
+    this.live = true; Boot.mark('live');
+    canvasEl.classList.add('live');
+    if (!G.started && !G.starting) { Boot.done(); $('boot-msg').hidden = true; }
+  },
+};
+// the start first (the hero and the prologue's rooms: a new game opens in the well, then the prison), then the city
+function warmStart() {
+  if (Player.human) Warm.add(Player.human.root, 0).add(Player.human.root, 0, true); // (outdoors and in the rooms: a new game opens in the well)
+  guard('warm.portraits', () => HeroFace.refreshPortraits()); // the HUD face + title bust: their studio programs compile alongside
+  for (const id of ['well', 'prison']) { const I = guard('warm.room', () => Interiors.build(id)); if (I) Warm.add(I.grp, 0, true); }
+}
+// then, while the title is up: the post chain's frame (a second or so of driver work on a first visit) and the map's canvases
 function warmShaders() {
-  if (AutoQ.off && !DEV.warm) return; // SwiftShader (headless tests) compiles for seconds per program; real GPUs take ms
-  const hid = [], t = performance.now(), n0 = renderer.info.programs ? renderer.info.programs.length : 0;
-  scene.traverse((o) => { if (!o.visible) { o.visible = true; hid.push(o); } });
-  try { renderer.compile(scene, camera); } finally { for (const o of hid) o.visible = false; }
-  if (DEV.warm) console.log(`[warmup] ${hid.length} hidden objects, programs ${n0} → ${renderer.info.programs.length}, ${Math.round(performance.now() - t)} ms`);
+  Warm.afterStart(() => guard('warm.post', () => Warm.postFrame()));
+  Warm.afterStart(() => Warm.shadowWarm([Player.human && Player.human.root, ...['well', 'prison'].map((id) => Interiors.built[id] && Interiors.built[id].grp)]));
+  Warm.afterStart(() => guard('MapGfx.pre', () => MapGfx.prebuild()));
+  Warm.add(scene, 5);
 }
 async function boot() {
-  if (!renderer) { $('boot-msg').textContent = '你的浏览器不支持 WebGL，这个游戏跑不起来。换个新一点的 Chrome / Safari 试试。'; return; }
+  if (!renderer) { $('boot-msg').textContent = '你的浏览器不支持 WebGL2，这个游戏跑不起来。换个新一点的 Chrome / Edge / Safari 试试。'; $('boot-msg').className = 'err'; $('boot-bar').hidden = true; return; }
+  Boot.mark('boot');
+  // files: 'boot' (what the world is built from) and 'play' (the first view's models / clips / sky) download from here on;
+  // the rest streams in the background once the title is up
+  Assets.start();
+  const tier = (t, k0, k1, text) => { const tk = setInterval(() => { Boot.ui(k0 + (k1 - k0) * Assets.progress(t), text); Boot.tip(); }, 90); return Assets.tier(t).then(() => clearInterval(tk)); };
+  Boot.ui(0.01, '正在搬运素材……'); Boot.tip();
   FACE_IMG.src = FACE_DATA;
   // decode() can stall in a background tab: whichever of decode / onload / a short timeout comes first
   await Promise.race([FACE_IMG.decode().catch(() => {}), new Promise((r) => { if (FACE_IMG.complete) r(); else { FACE_IMG.onload = r; FACE_IMG.onerror = r; } }), new Promise((r) => setTimeout(r, 1500))]);
   await HeroFace.boot(); // a face the player uploaded earlier replaces the default before any texture is made
   buildAssets();
-  buildWorld();
+  // title art right away (the hero's bust: last visit's render, or the drawing until the model is in)
+  HeroFace.titleArt(true);
+  const tc = $('t-klaude'); tc.getContext('2d').drawImage(HEADS.klaudeEvil.image, 0, 0, tc.width, tc.height);
+  const tx = $('t-kodex'); tx.getContext('2d').drawImage(HEADS.kodex.image, 0, 0, tx.width, tx.height);
+  Boot.mark('title');
+  await tier(0, 0.02, 0.3, '正在搬运素材……'); Boot.mark('assets-boot');
+  Boot.ui(0.32, '正在盖四九城……');
+  await new Promise((r) => setTimeout(r, 0)); // let the text paint before the synchronous world build
+  await buildWorld(); Boot.mark('world');
   Sky.init(); Water.init(); FX.init(); Pillar.init();
   Tokens.init(); guard('Tokens.seed', () => Tokens.seed()); Coins.init();
   RPG.recalc();
+  // the scene's lights and the post chain are final from here: programs compiled from now on are the ones the frames use
+  guard('Interiors.init', () => Interiors.init()); Render.init();
+  await tier(1, 0.62, 0.85, '正在请演员……'); Boot.mark('assets-play');
+  Assets.stream(); // everything else, in the background
   Player.init();
+  guard('warm.start', warmStart); // the GPU compiles the opening's shaders while the rest sets up
   guard('Cars.init', () => Cars.init()); guard('Peds.init', () => Peds.init());
-  guard('Interiors.init', () => Interiors.init()); guard('Story.init', () => Story.init());
-  guard('UI.init', () => UI.init()); Render.init();
+  guard('Story.init', () => Story.init());
+  guard('UI.init', () => UI.init());
   Hooks.runInit();
   DayNight.update(0);
-  // title art
-  HeroFace.titleArt();
-  const tc = $('t-klaude'); tc.getContext('2d').drawImage(HEADS.klaudeEvil.image, 0, 0, tc.width, tc.height);
-  const tx = $('t-kodex'); tx.getContext('2d').drawImage(HEADS.kodex.image, 0, 0, tx.width, tx.height);
   onResize();
+  Boot.ui(0.9, '准备画面……');
   guard('warmup', warmShaders);
   window.addEventListener('resize', onResize);
   { const z = Store.get('gta-cam3'); if (Number.isInteger(z) && z >= 0 && z < Cam.ZOOMS.length) Cam.zoom = z; }
@@ -403,17 +613,17 @@ async function boot() {
   }, { passive: false });
   const save = Store.get(SAVE_KEY);
   const bn = $('t-new'), bc = $('t-continue');
-  bn.disabled = false; bn.textContent = '新游戏';
+  bn.disabled = false; bn.textContent = '新游戏'; Boot.mark('ready');
   bn.addEventListener('click', () => { if (save) UI.confirm('开始新游戏会覆盖浏览器里的存档，确定吗？', () => { Store.del(SAVE_KEY); beginPlay(null); }); else beginPlay(null); });
   if (save && save.v === 2) { bc.hidden = false; bc.textContent = `继续游戏 · Lv.${save.rpg ? save.rpg.level : 1}`; bc.addEventListener('click', () => beginPlay(save)); }
   window.addEventListener('keydown', (e) => { if (!G.started && !G.starting && !e.repeat && e.code === 'Enter' && $('confirm').hidden && $('facepick').hidden) (save ? bc : bn).click(); });
   $('t-face').addEventListener('click', () => UI.openFacePicker());
-  $('boot-msg').hidden = true;
+  if (Warm.live) { Boot.done(); $('boot-msg').hidden = true; }
   rafId = requestAnimationFrame(frame);
   // debug: keep simulating while the tab is hidden (automated play-testing)
   let pumpT = 0;
   const pump = (on) => { clearInterval(pumpT); if (on) pumpT = setInterval(() => { if (document.hidden || performance.now() - lastT > 100) frame(performance.now(), true); }, 16); };
   const tick = (n = 1, ms = 1000 / 60) => { for (let i = 0; i < n; i++) frame(lastT + ms, true); };
-  window.GTA = { DEV, Hooks, guard, Roads, Grid, MAPD, Landmarks, City, Signals, pump, tick, scene, camera, G, Player, W, Cars, Tokens, Enemies, Story, MISSIONS, Cam, PERF, Robot, UI, Input, Peds, FX, RPG, Interiors, Boss, Monorail, DayNight, Cutscene, Actors, Render, Coins, Buffs, Props, Markers, EQUIP, SHOPS, begin: beginPlay, warm: warmShaders, renderer, Touch, Mouse, AutoQ, Weather, Sky, Water, Head3D, HeroFace, HEADS };
+  window.GTA = { DEV, Hooks, guard, Roads, Grid, MAPD, Landmarks, City, Signals, pump, tick, scene, camera, G, Player, W, Cars, Tokens, Enemies, Story, MISSIONS, Cam, PERF, Robot, UI, Input, Peds, FX, RPG, Interiors, Boss, Monorail, DayNight, Cutscene, Actors, Render, Coins, Buffs, Props, Markers, EQUIP, SHOPS, begin: beginPlay, warm: warmShaders, Warm, Boot, Jobs, renderer, Touch, Mouse, AutoQ, Weather, Sky, Water, Head3D, HeroFace, HEADS, Assets, MapGfx };
 }
 boot();

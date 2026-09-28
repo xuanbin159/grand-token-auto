@@ -203,11 +203,11 @@ const Head3D = (() => {
           'vHdF = dot(normal, hdDir) - 0.6 * smoothstep(0.45, 0.8, abs(position.x)) * smoothstep(-0.55, -1.05, position.y);');
       sh.fragmentShader = 'uniform sampler2D hdPhoto; uniform vec2 hdFall; uniform float hdGlow; varying vec2 vHdPh; varying float vHdF, vHdHl;\n' +
         sh.fragmentShader.replace('#include <map_fragment>', [
-          'vec4 hdB = texture2D(map, vUv), hdP = texture2D(hdPhoto, vHdPh);',
+          'vec4 hdB = texture2D(map, vMapUv), hdP = texture2D(hdPhoto, vHdPh);',
           'vec2 hdE = step(vec2(0.0), vHdPh) * step(vHdPh, vec2(1.0));',
           // above the generated hairline the cap takes over (the picture's own hair / backdrop would sit on it as a patch);
           // only the solid part of the cut-out counts, and its thin edge is never un-premultiplied into a coloured fringe
-          'float hdW = hdE.x * hdE.y * smoothstep(hdFall.x, hdFall.y, vHdF) * smoothstep(0.6, 0.98, hdP.a) * step(0.0, vUv.y) * (1.0 - smoothstep(-0.05, 0.1, vHdHl));',
+          'float hdW = hdE.x * hdE.y * smoothstep(hdFall.x, hdFall.y, vHdF) * smoothstep(0.6, 0.98, hdP.a) * step(0.0, vMapUv.y) * (1.0 - smoothstep(-0.05, 0.1, vHdHl));',
           'diffuseColor.rgb *= mix(hdB.rgb, hdP.rgb / max(hdP.a, 0.35), hdW);'].join('\n\t'))
           .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * hdGlow;');
     };
@@ -389,11 +389,13 @@ const Head3D = (() => {
   let carHead = null, idleT = 0, look = 0;
   const _q = new V3();
   function syncHero(P, dt = 0) {
-    const H = P.human, hd = H && H.head3d; if (!hd) return;
-    const human = P.face.material === P.faceMatH;
+    const H = P.human, hd = H && H.head3d, human = P.face.material === P.faceMatH;
+    if (H && H.rig && human) P.face.visible = false; // the VRM hero has a face of its own (anime or the photo head on its neck)
+    if (!hd) return;
     if (human) P.face.visible = false;
     const pulse = P.gulp > 0 ? Math.sin(Math.min(1, (0.22 - P.gulp) / 0.22) * Math.PI) * 0.22 : 0;
     hd.scale.setScalar(HERO.unit * (1 + pulse));
+    if (hd.userData.vrm) { if (carHead) carHead.visible = false; return; } // on the VRM body: the rig turns the head, no roof gag
     // standing about: after a moment the head turns to glance at the camera (only if it's somewhere in front)
     idleT = P.mode === 'human' && !P.atk && hyp(P.vel.x, P.vel.z) < 0.5 ? idleT + dt : 0;
     const d = angDiff(P.heading, Math.atan2(Cam.toCam.x, Cam.toCam.z));
@@ -514,9 +516,9 @@ const Head3D = (() => {
     const fit = { eyes: FACE_EYES_CENTRED, yaw: 0, iw: 300, ih: 364 };
     const init = () => {
       R = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-      R.setPixelRatio(1); R.outputEncoding = THREE.sRGBEncoding; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.15;
-      sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xdde8ff, 0x6a5a4a, 0.85));
-      const d = new THREE.DirectionalLight(0xfff2e0, 0.95); d.position.set(2, 4, 5); sc.add(d);
+      R.setPixelRatio(1); R.outputColorSpace = THREE.SRGBColorSpace; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.15;
+      sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xdde8ff, 0x6a5a4a, 0.85 * LIGHT_K));
+      const d = new THREE.DirectionalLight(0xfff2e0, 0.95 * LIGHT_K); d.position.set(2, 4, 5); sc.add(d);
       cam = new THREE.PerspectiveCamera(24, canvas.width / canvas.height, 1, 60); cam.position.set(0, 10.5, 12.5); cam.lookAt(0, 9.62, 0);
       photo = photoTex(mkCanvas(2, 2)); base = paintBase([233, 195, 160], [34, 28, 26], HAIR0, 'human');
       geo = buildGeo('human', HAIR0, true); mat = headMat(photo, base, fit);
@@ -560,7 +562,7 @@ const Head3D = (() => {
   });
 
   return {
-    EX, EZ, HERO, SHAPES, fitM, buildGeo, headMat, photoTex, paintBase, sampleFace, hexRGB, detect, preview,
+    EX, EZ, HERO, SHAPES, fitM, buildGeo, headMat, photoTex, paintBase, sampleFace, hexRGB, detect, preview, hatParts, glassesParts,
     // the hero's head with whatever hat / glasses are worn; buildHuman parents it at the neck
     heroHead(hat, glasses) { const g = assemble(heroFace(), hat, glasses); g.position.y = HERO.y; g.scale.setScalar(HERO.unit); return g; },
     get hero() { return heroFace(); },

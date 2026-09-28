@@ -1,0 +1,196 @@
+{
+ "chinese_armchair": {
+  "trisBefore": 2675,
+  "tris": 1605,
+  "bytes": 114880,
+  "tex": 512,
+  "nodes": [
+   "chinese_armchair"
+  ]
+ },
+ "chinese_tea_table": {
+  "trisBefore": 2508,
+  "tris": 1504,
+  "bytes": 81196,
+  "tex": 512,
+  "nodes": [
+   "chinese_tea_table"
+  ]
+ },
+ "chinese_stool": {
+  "trisBefore": 1090,
+  "tris": 762,
+  "bytes": 86544,
+  "tex": 512,
+  "nodes": [
+   "chinese_stool"
+  ]
+ },
+ "chinese_cabinet": {
+  "trisBefore": 15668,
+  "tris": 4046,
+  "bytes": 377216,
+  "tex": 1024,
+  "nodes": [
+   "chinese_cabinet_door_01",
+   "chinese_cabinet_door_02",
+   "chinese_cabinet_drawer_01",
+   "chinese_cabinet_drawer_02",
+   ""
+  ]
+ },
+ "chinese_screen_panels": {
+  "trisBefore": 784,
+  "tris": 784,
+  "bytes": 301692,
+  "tex": 1024,
+  "nodes": [
+   "chinese_screen_panels_a",
+   "chinese_screen_panels_b"
+  ]
+ },
+ "chinese_chandelier": {
+  "trisBefore": 7828,
+  "tris": 3506,
+  "bytes": 185652,
+  "tex": 512,
+  "nodes": [
+   "chinese_chandelier"
+  ]
+ },
+ "chinese_commode": {
+  "trisBefore": 6775,
+  "tris": 3045,
+  "bytes": 311124,
+  "tex": 1024,
+  "nodes": [
+   "chinese_commode_drawer_01",
+   "chinese_commode_drawer_02",
+   "chinese_commode_drawer_03",
+   ""
+  ]
+ },
+ "chinese_console_table": {
+  "trisBefore": 13648,
+  "tris": 4094,
+  "bytes": 239524,
+  "tex": 512,
+  "nodes": [
+   "chinese_console_table"
+  ]
+ },
+ "chinese_sofa": {
+  "trisBefore": 704,
+  "tris": 704,
+  "bytes": 231696,
+  "tex": 1024,
+  "nodes": [
+   "chinese_sofa"
+  ]
+ },
+ "antique_ceramic_vase_01": {
+  "trisBefore": 9408,
+  "tris": 2822,
+  "bytes": 89844,
+  "tex": 512,
+  "nodes": [
+   "antique_ceramic_vase_01"
+  ]
+ },
+ "ceramic_vase_02": {
+  "trisBefore": 11128,
+  "tris": 6676,
+  "bytes": 149804,
+  "tex": 512,
+  "nodes": [
+   "ceramic_vase_02"
+  ]
+ },
+ "wooden_display_shelves_01": {
+  "trisBefore": 3174,
+  "tris": 1903,
+  "bytes": 101204,
+  "tex": 512,
+  "nodes": [
+   "wooden_display_shelves_01",
+   "wooden_display_shelves_01_drawer_03",
+   "wooden_display_shelves_01_drawer_02",
+   "wooden_display_shelves_01_drawer_01"
+  ]
+ },
+ "steel_frame_shelves_01": {
+  "trisBefore": 4348,
+  "tris": 2174,
+  "bytes": 94112,
+  "tex": 512,
+  "nodes": [
+   "steel_frame_shelves_01"
+  ]
+ },
+ "metal_office_desk": {
+  "trisBefore": 6898,
+  "tris": 3448,
+  "bytes": 124056,
+  "tex": 512,
+  "nodes": [
+   "metal_office_desk_drawer_06",
+   "metal_office_desk_tray_01",
+   "metal_office_desk",
+   "metal_office_desk_drawer_04",
+   "metal_office_desk_drawer_03",
+   "metal_office_desk_drawer_05",
+   "metal_office_desk_drawer_02",
+   "metal_office_desk_drawer_01",
+   "metal_office_desk_tray_02"
+  ]
+ },
+ "modern_arm_chair_01": {
+  "trisBefore": 8916,
+  "tris": 3118,
+  "bytes": 154196,
+  "tex": 512,
+  "nodes": [
+   "modern_arm_chair_01"
+  ]
+ },
+ "potted_plant_04": {
+  "trisBefore": 8929,
+  "tris": 4719,
+  "bytes": 206052,
+  "tex": 512,
+  "nodes": [
+   "potted_plant_04_ground",
+   "potted_plant_04_dirt",
+   "potted_plant_04_plant",
+   "potted_plant_04_pot"
+  ]
+ },
+ "wooden_crate_02": {
+  "trisBefore": 5176,
+  "tris": 2068,
+  "bytes": 152376,
+  "tex": 512,
+  "nodes": [
+   "wooden_crate_02_crate",
+   "wooden_crate_02_lid"
+  ]
+ },
+ "round_wooden_table_02": {
+  "trisBefore": 4254,
+  "tris": 2127,
+  "bytes": 124460,
+  "tex": 512,
+  "nodes": [
+   "round_wooden_table_02"
+  ]
+ },
+ "wooden_bookshelf_worn": {
+  "trisBefore": 10106,
+  "tris": 3536,
+  "bytes": 711712,
+  "tex": 1024,
+  "nodes": [
+   "wooden_bookshelf_worn"
+  ]
+ }
+}

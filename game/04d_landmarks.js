@@ -22,14 +22,30 @@ function lmBox(key) {
 const greenByName = (re) => (W.greenPolys || []).filter((g) => re.test(g.name));
 function ringBox(r) { let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (const [x, z] of r) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); } return { x0, x1, z0, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0 }; }
 const rectRing = (x0, z0, x1, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+// a round steel bollard: post, domed cap, a red reflective band
+const BOLLARD = [new THREE.CylinderGeometry(0.14, 0.15, 0.86, 12), new THREE.SphereGeometry(0.14, 12, 6, 0, TAU, 0, Math.PI / 2), new THREE.CylinderGeometry(0.152, 0.152, 0.12, 12)];
 function reserveRect(x0, z0, x1, z1, k = GK.RESV) { Grid.poly([rectRing(x0, z0, x1, z1)], (i) => { if (Grid.kind[i] !== GK.WATER && Grid.kind[i] !== GK.ROAD) Grid.kind[i] = k; }); }
 function reserveRing(ring, k = GK.RESV) { Grid.poly([ring], (i) => { if (Grid.kind[i] !== GK.WATER && Grid.kind[i] !== GK.ROAD) Grid.kind[i] = k; }); }
 
+// lawn for the hills (uv = metres / k): the grass photo set, the old canvas where it's missing. The set is a dry, straw-coloured
+// lawn: tinted to a summer green (untinted a whole hill of it read as a sand dune), big soft patches, bare soil on the steeper bits
+function hillMat(k) {
+  const m = PBR.mat('grass', { tile: 2.6 / k, color: 0xa4e0a0 }) || new THREE.MeshLambertMaterial({ map: TEX.grass, color: 0xa8c888 });
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', ['#include <map_fragment>',
+      '{ vec2 hp = vGtaW.xz * 0.06, hi = floor(hp), hf = fract(hp); hf = hf * hf * (3.0 - 2.0 * hf); vec2 hk = vec2(12.99, 78.23);',
+      '  float hn = mix(mix(fract(sin(dot(hi, hk)) * 43758.5), fract(sin(dot(hi + vec2(1.0, 0.0), hk)) * 43758.5), hf.x), mix(fract(sin(dot(hi + vec2(0.0, 1.0), hk)) * 43758.5), fract(sin(dot(hi + 1.0, hk)) * 43758.5), hf.x), hf.y);',
+      '  diffuseColor.rgb *= mix(vec3(0.82, 0.9, 0.8), vec3(1.02, 1.04, 0.9), hn);',
+      '  float hs = (1.0 - smoothstep(0.86, 0.97, vGtaUp)) * smoothstep(0.55, 0.75, hn);', // worn soil where it is steep
+      '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.52, 0.4) * (0.85 + 0.3 * hn), hs * 0.7); }'].join('\n'));
+  };
+  m.customProgramCacheKey = () => 'hill';
+  return m;
+}
 // GeoAcc accumulator → a group of meshes (for things built in local space and placed with a rotation)
 function accGroup(A) {
-  const g = new THREE.Group(), M = BJ.mats;
-  const pairs = [['brick', M.brick], ['roof', M.roofGrey], ['lattice', M.lattice], ['red', M.redWall], ['yellow', M.roofYellow], ['green', M.roofGreen], ['blue', M.roofBlue], ['white', M.white], ['marble', M.marble], ['grey', M.greyBrick]];
-  for (const [k, m] of pairs) if (!A[k].empty) { const mesh = new THREE.Mesh(A[k].geo(), m); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); }
+  const g = new THREE.Group();
+  for (const [k, mk] of ACC_MATS) if (!A[k].empty) { const mesh = new THREE.Mesh(A[k].geo(), BJ.mats[mk]); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); }
   A.shops.forEach((a, k) => { if (!a.empty) { const mesh = new THREE.Mesh(a.geo(), BJ.oldShopMats[k]); mesh.castShadow = true; g.add(mesh); } });
   return g;
 }
@@ -56,14 +72,24 @@ function wallAlong(A, pts, h, t, tile = 'yellow', mat = 'red', closed = true, ga
     for (const [s0, s1] of spans) {
       const P = (s, side, y) => [a[0] + ux * s + nx * side, y, a[1] + uz * s + nz * side];
       const y0 = 0.3, y1 = 0.3 + h, yr = y1 + 0.5, L2 = s1 - s0;
-      const uv = (s, y) => [s / 3, y / 3];
+      const uv = (s, y) => [s, y];
       A[mat].quad(P(s0, 1, y0), P(s1, 1, y0), P(s1, 1, y1), P(s0, 1, y1), uv(s0, y0), uv(s1, y0), uv(s1, y1), uv(s0, y1));
       A[mat].quad(P(s1, -1, y0), P(s0, -1, y0), P(s0, -1, y1), P(s1, -1, y1), uv(s1, y0), uv(s0, y0), uv(s0, y1), uv(s1, y1));
-      A[mat].quad(P(s0, -1, y0), P(s0, 1, y0), P(s0, 1, y1), P(s0, -1, y1), [0, 0], [t / 3, 0], [t / 3, h / 3], [0, h / 3]);
-      A[mat].quad(P(s1, 1, y0), P(s1, -1, y0), P(s1, -1, y1), P(s1, 1, y1), [0, 0], [t / 3, 0], [t / 3, h / 3], [0, h / 3]);
+      A[mat].quad(P(s0, -1, y0), P(s0, 1, y0), P(s0, 1, y1), P(s0, -1, y1), [0, y0], [t, y0], [t, y1], [0, y1]);
+      A[mat].quad(P(s1, 1, y0), P(s1, -1, y0), P(s1, -1, y1), P(s1, 1, y1), [0, y0], [t, y0], [t, y1], [0, y1]);
+      // 下碱: a grey brick plinth a little proud of the plaster (red walls)
+      if (mat === 'red' && h > 2) {
+        const k = 1 + 0.16 / t, yb = y0 + Math.min(1.1, h * 0.16), Q = (s, side, y) => [a[0] + ux * s + nx * side * k, y, a[1] + uz * s + nz * side * k];
+        A.grey.quad(Q(s0, 1, y0 - 0.3), Q(s1, 1, y0 - 0.3), Q(s1, 1, yb), Q(s0, 1, yb), [s0, 0], [s1, 0], [s1, yb], [s0, yb]);
+        A.grey.quad(Q(s1, -1, y0 - 0.3), Q(s0, -1, y0 - 0.3), Q(s0, -1, yb), Q(s1, -1, yb), [s1, 0], [s0, 0], [s0, yb], [s1, yb]);
+        A.grey.quad(Q(s0, 1, yb), Q(s1, 1, yb), P(s1, 1, yb), P(s0, 1, yb), [s0, 0], [s1, 0], [s1, 0.08], [s0, 0.08]);
+        A.grey.quad(Q(s1, -1, yb), Q(s0, -1, yb), P(s0, -1, yb), P(s1, -1, yb), [s1, 0], [s0, 0], [s0, 0.08], [s1, 0.08]);
+      }
       const E = (s, side) => [a[0] + ux * s + nx * side * 1.8, y1, a[1] + uz * s + nz * side * 1.8], R = (s) => [a[0] + ux * s, yr, a[1] + uz * s];
-      A[tile].quad(E(s0, 1), E(s1, 1), R(s1), R(s0), [s0 / 1.5, 0], [s1 / 1.5, 0], [s1 / 1.5, 0.4], [s0 / 1.5, 0.4]);
-      A[tile].quad(E(s1, -1), E(s0, -1), R(s0), R(s1), [s1 / 1.5, 0], [s0 / 1.5, 0], [s0 / 1.5, 0.4], [s1 / 1.5, 0.4]);
+      A[tile].quad(E(s0, 1), E(s1, 1), R(s1), R(s0), [s0, 0], [s1, 0], [s1, 0.9], [s0, 0.9]);
+      A[tile].quad(E(s1, -1), E(s0, -1), R(s0), R(s1), [s1, 0], [s0, 0], [s0, 0.9], [s1, 0.9]);
+      // the coping's eave: 瓦当 fascia + soffit back to the wall face, both sides
+      for (const sd of [1, -1]) eaveBand(A, (u) => E(s0 + L2 * u, sd), (u) => P(s0 + L2 * u, sd, y1 - 0.02), 1, 0.2);
       const cx = a[0] + ux * (s0 + s1) / 2, cz = a[1] + uz * (s0 + s1) / 2;
       solids.push(addSolid(null, { cx, cz, hx: L2 / 2, hz: t / 2 + 0.1, rot: Math.atan2(uz, ux), h: h + 0.8, kind: 'bld' }));
       Grid.obb(cx, cz, L2 / 2, t / 2 + 0.4, ux, uz, (i) => { if (Grid.kind[i] !== GK.ROAD && Grid.kind[i] !== GK.WATER) Grid.kind[i] = GK.BLD; });
@@ -181,6 +207,12 @@ const Landmarks = {
       const m = k === 'bjstation' ? 14 : k === 'jiaolou' ? 10 : 6;
       reserveRect(b.x0 - m, b.z0 - m, b.x1 + m, b.z1 + m);
     }
+    // 太庙 (劳动人民文化宫) / 社稷坛 (中山公园): old cypress groves on grass inside the red walls, not a paved lot
+    for (const [k, name] of [['taimiao', '太庙'], ['shejitan', '社稷坛']]) {
+      const b = lmBox(k); if (!b) continue;
+      const r = rectRing(b.x0 + 2, b.z0 + 2, b.x1 - 2, b.z1 - 2); W.greenPolys.push({ type: 'park', name, rings: [r] });
+      Grid.poly([r], (i) => { if (Grid.kind[i] === GK.RESV) Grid.kind[i] = GK.PARK; });
+    }
     const qm = lmBox('zhengyangmen'), jl = lmBox('jianlou');
     if (qm && jl) W.plazaPolys.push([rectRing(Math.min(qm.x0, jl.x0) - 10, qm.z0 - 8, Math.max(qm.x1, jl.x1) + 10, jl.z1 + 6)]);
     const bs = lmBox('bjstation'); if (bs) W.plazaPolys.push([rectRing(bs.x0 - 10, bs.z1, bs.x1 + 10, bs.z1 + 22)]);
@@ -231,7 +263,7 @@ const Landmarks = {
     if (wm) {
       const cx = wm.cx, mz = Z1, ww = Math.max(40, wm.w), gy = 8.5;
       boxW(A.red, cx - ww / 2, 0.3, mz - 6, cx - 3, gy, mz + 2, 3); boxW(A.red, cx + 3, 0.3, mz - 6, cx + ww / 2, gy, mz + 2, 3);
-      boxW(A.red, cx - 3, 5.3, mz - 6, cx + 3, gy, mz + 2, 3, 'nst');
+      archTop(A.red, cx, mz - 6, mz + 2, 4.8, gy, 6); // the centre passage: a round-headed barrel vault
       hall(A, props, cx, mz - 2, 26, 6.5, gy, 5.2, { double: true });
       addSolid(null, { x0: cx - ww / 2, x1: cx - 3, z0: mz - 6, z1: mz + 2, h: 20, kind: 'bld' }); addSolid(null, { x0: cx + 3, x1: cx + ww / 2, z0: mz - 6, z1: mz + 2, h: 20, kind: 'bld' });
       for (const s of [-1, 1]) {
@@ -243,6 +275,7 @@ const Landmarks = {
     if (sw) { // 神武门
       const cx = sw.cx;
       boxW(A.red, cx - 13, 0.3, Z0 - 4, cx - 3, 8, Z0 + 4, 3); boxW(A.red, cx + 3, 0.3, Z0 - 4, cx + 13, 8, Z0 + 4, 3); boxW(A.red, cx - 3, 5.3, Z0 - 4, cx + 3, 8, Z0 + 4, 3, 'nst');
+      for (const z of [Z0 - 4.03, Z0 + 4.03]) props.push(gpart(new THREE.CylinderGeometry(3, 3, 0.06, 20, 1, false, -Math.PI / 2, Math.PI), 0x2a1512, cx, 5.3, z, -Math.PI / 2, 0, 0, 1, 1, 0.65));
       hall(A, props, cx, Z0, 20, 5.5, 8, 4.4, { double: true });
       addSolid(null, { x0: cx - 13, x1: cx - 3, z0: Z0 - 4, z1: Z0 + 4, h: 18, kind: 'bld' }); addSolid(null, { x0: cx + 3, x1: cx + 13, z0: Z0 - 4, z1: Z0 + 4, h: 18, kind: 'bld' });
     }
@@ -265,7 +298,7 @@ const Landmarks = {
       const ty = terrace(A, ax, tz, 48, tl, 3, 0.9, 2.2);
       hall(A, props, ax, td.cz, 30, 15, ty, 7.6, { double: true, rh: 4.8 });
       addSolid(null, { x0: ax - 15, x1: ax + 15, z0: td.cz - 7.5, z1: td.cz + 7.5, h: 26, kind: 'bld' });
-      if (zh) { hall(A, props, ax, zh.cz, 8.5, 8.5, ty, 5, {}); pyramidRoof(A.yellow, ax, zh.cz, 8.5, ty + 5, 3.2, 0.8); props.push(gpart(new THREE.SphereGeometry(0.55, 10, 8), 0xe8b422, ax, ty + 8.6, zh.cz)); addSolid(null, { x0: ax - 4.3, x1: ax + 4.3, z0: zh.cz - 4.3, z1: zh.cz + 4.3, h: 16, kind: 'bld' }); }
+      if (zh) { hall(A, props, ax, zh.cz, 8.5, 8.5, ty, 5, { rh: 3.4 }); props.push(gpart(new THREE.SphereGeometry(0.55, 10, 8), 0xe8b422, ax, ty + 8.6, zh.cz)); addSolid(null, { x0: ax - 4.3, x1: ax + 4.3, z0: zh.cz - 4.3, z1: zh.cz + 4.3, h: 16, kind: 'bld' }); }
       hall(A, props, ax, bh.cz, 24, 11, ty, 6, { double: true, rh: 3.6 });
       addSolid(null, { x0: ax - 12, x1: ax + 12, z0: bh.cz - 5.5, z1: bh.cz + 5.5, h: 20, kind: 'bld' });
       for (let k = -11; k <= 11; k++) props.push(box(ax + k * 2.05, ty + 0.35, tz + tl / 2 - 5.2, 0.2, 0.7, 0.2, 0xf2f0ea), box(ax + k * 2.05, ty + 0.35, tz - tl / 2 + 5.2, 0.2, 0.7, 0.2, 0xf2f0ea));
@@ -275,7 +308,7 @@ const Landmarks = {
     if (qq && kn) {
       const iz = (qq.cz + kn.cz) / 2, iy = terrace(A, ax, iz, 30, Math.abs(kn.cz - qq.cz) + 16, 1, 1.2, 0);
       hall(A, props, ax, qq.cz, 21, 10, iy, 5.6, { double: true, rh: 3.2 }); addSolid(null, { x0: ax - 10.5, x1: ax + 10.5, z0: qq.cz - 5, z1: qq.cz + 5, h: 18, kind: 'bld' });
-      if (jt) { hall(A, props, ax, jt.cz, 7, 7, iy, 4.2, {}); pyramidRoof(A.yellow, ax, jt.cz, 7, iy + 4.2, 2.6, 0.6); }
+      if (jt) { hall(A, props, ax, jt.cz, 7, 7, iy, 4.2, { rh: 2.8 }); props.push(gpart(new THREE.SphereGeometry(0.45, 10, 8), 0xe8b422, ax, iy + 7.3, jt.cz)); }
       hall(A, props, ax, kn.cz, 19, 9, iy, 5, { rh: 3 }); addSolid(null, { x0: ax - 9.5, x1: ax + 9.5, z0: kn.cz - 4.5, z1: kn.cz + 4.5, h: 14, kind: 'bld' });
       for (let k = 0; k < 16; k++) newProp(ax + rand(-22, 22), rand(Z0 + 6, kn.cz - 10), rand(0.7, 1.05), 'cypress');
     }
@@ -284,24 +317,45 @@ const Landmarks = {
       const sx0 = s < 0 ? X0 + 8 : ax + 30, sx1 = s < 0 ? ax - 30 : X1 - 8;
       if (sx1 - sx0 < 16) continue;
       for (const q of palaceWall(A, s < 0 ? ax - 27 : ax + 27, Z0 + 12, s < 0 ? ax - 27 : ax + 27, (th ? th.cz : Z1) - 14, 5, 1.1, td ? [[td.cz - 4, td.cz + 4]] : [])) addSolid(null, Object.assign(q, { h: 6, kind: 'bld' }));
+      // 东六宫 / 西六宫: a row of walled courtyards, each a main hall across the back, two side halls (配殿) facing the court,
+      // a front wall with a small tiled gate (the rows used to be one long hall and one long wall: barracks from the hill)
+      const wall = (x0, z0, x1, z1) => { boxW(A.red, x0, 0.3, z0, x1, 4.2, z1, 3, 'nsew'); const ax2 = x1 - x0 > z1 - z0; gableRoof(A.yellow, (x0 + x1) / 2, (z0 + z1) / 2, ax2 ? x1 - x0 : z1 - z0, ax2 ? z1 - z0 : x1 - x0, 4.2, 0.4, ax2 ? 0 : 1, 0.2); addSolid(null, { x0, x1, z0, z1, h: 5, kind: 'bld' }); };
       for (let zz = Z0 + 14; zz < (th ? th.cz : Z1) - 26; zz += 17) {
-        const cxh = (sx0 + sx1) / 2, hw = Math.min(26, sx1 - sx0 - 4);
-        hall(A, props, cxh, zz + 4, hw, 6, 0.3, 4, { gable: true, rh: 2.2 });
-        addSolid(null, { x0: cxh - hw / 2, x1: cxh + hw / 2, z0: zz + 1, z1: zz + 7, h: 8, kind: 'bld' });
-        boxW(A.red, sx0 + 1, 0.3, zz + 12, sx1 - 1, 4.3, zz + 12.8, 3, 'nsew'); gableRoof(A.yellow, (sx0 + sx1) / 2, zz + 12.4, sx1 - sx0 - 2, 0.8, 4.3, 0.4, 0, 0.2);
-        addSolid(null, { x0: sx0 + 1, x1: sx1 - 1, z0: zz + 12, z1: zz + 12.8, h: 5, kind: 'bld' });
-        if (Math.random() < 0.7) newProp(cxh + rand(-6, 6), zz + 9.5, rand(0.6, 0.85), 'cypress');
+        const n = Math.max(1, Math.round((sx1 - sx0) / 30)), cw = (sx1 - sx0) / n;
+        for (let i = 0; i < n; i++) {
+          const c0 = sx0 + i * cw, c1 = c0 + cw, cxh = (c0 + c1) / 2, hw = Math.min(17, cw * 0.56), pr = i % 3 === 1;
+          hall(A, props, cxh, zz + 3.6, hw, 6, 0.3, pr ? 4.4 : 3.8, { gable: !pr, rh: pr ? 2.4 : 2.1 });
+          addSolid(null, { x0: cxh - hw / 2, x1: cxh + hw / 2, z0: zz + 0.6, z1: zz + 6.6, h: 8, kind: 'bld' });
+          for (const sd of [-1, 1]) { // 配殿: ridge along z, lattice toward the court
+            const x = sd < 0 ? c0 + 2.7 : c1 - 2.7;
+            boxW(A.red, x - 1.8, 0.3, zz + 7.3, x + 1.8, 3.3, zz + 11.3, 3, 'nsew'); latticeFace(A.lattice, sd < 0 ? 'e' : 'w', x - 1.83, 0.5, zz + 7.6, x + 1.83, 3.1, zz + 11.0);
+            gableRoof(A.yellow, x, zz + 9.3, 4, 3.6, 3.3, 1.4, 1, 0.45);
+            addSolid(null, { x0: x - 1.8, x1: x + 1.8, z0: zz + 7.3, z1: zz + 11.3, h: 6, kind: 'bld' });
+          }
+          // front wall with a gate: two piers, a little tiled roof over the opening
+          wall(c0 + 0.4, zz + 12, cxh - 1.7, zz + 12.8); wall(cxh + 1.7, zz + 12, c1 - 0.4, zz + 12.8);
+          boxW(A.red, cxh - 2.2, 0.3, zz + 11.9, cxh - 1.6, 3.9, zz + 12.9, 2); boxW(A.red, cxh + 1.6, 0.3, zz + 11.9, cxh + 2.2, 3.9, zz + 12.9, 2);
+          gableRoof(A.yellow, cxh, zz + 12.4, 4.6, 1.6, 3.9, 0.85, 0, 0.4);
+          if (i > 0) wall(c0 - 0.4, zz + 0.5, c0 + 0.4, zz + 12);
+          if (Math.random() < 0.8) newProp(cxh + rand(-2.5, 2.5) + (Math.random() < 0.5 ? -4 : 4), zz + 9.2, rand(0.7, 0.95), Math.random() < 0.6 ? 'cypress' : 'tree');
+        }
       }
     }
     flushAcc(A); Build.props.push(...props);
   },
-  // a red gate base (城台) with a real walk-through centre arch; side arches are painted on. Returns the top height.
+  // a red gate base (城台) with a real barrel-vaulted walk-through centre arch; the side arches are shader portals (a lit passage
+  // seen through each, not a black cut-out). Returns the top height.
   gateWall(A, props, cx, cz, w, d, h, aw = 3.6, ah = 6.2, sides = [-2, -1, 1, 2], pitch = 7) {
     const z0 = cz - d / 2, z1 = cz + d / 2;
     boxW(A.red, cx - w / 2, 0.3, z0, cx - aw / 2, h, z1, 3); boxW(A.red, cx + aw / 2, 0.3, z0, cx + w / 2, h, z1, 3);
-    boxW(A.red, cx - aw / 2, 0.3 + ah, z0, cx + aw / 2, h, z1, 3, 'nst');
-    props.push(box(cx, 0.3 + ah - 0.05, cz, aw, 0.1, d, 0x2a1512));
-    for (const k of sides) for (const sd of [-1, 1]) props.push(box(cx + k * pitch, 0.3 + ah * 0.42, cz + sd * (d / 2 + 0.03), aw * 0.72, ah * 0.8, 0.06, 0x17120e));
+    archTop(A.red, cx, z0, z1, 0.3 + ah, h, aw);
+    for (const k of sides) for (const sd of [-1, 1]) Portals.add(cx + k * pitch, 0.3, cz + sd * d / 2, 0, sd, aw * 0.72, ah * 0.82, d, 1, 0x8e3226);
+    // 须弥座: a white marble plinth between the arches, a marble cornice under the parapet (the big red faces get a base and a top line)
+    const cuts = [[cx - aw / 2 - 0.12, cx + aw / 2 + 0.12], ...sides.map((k) => [cx + k * pitch - aw * 0.36 - 0.12, cx + k * pitch + aw * 0.36 + 0.12])].sort((a, b) => a[0] - b[0]);
+    let px = cx - w / 2 - 0.22;
+    for (const [c0, c1] of cuts.concat([[cx + w / 2 + 0.22, 1e9]])) { if (c0 - px > 0.2) { boxW(A.marble, px, 0.3, z0 - 0.22, c0, 1.35, z0 + 0.3, 2, 'nst'); boxW(A.marble, px, 0.3, z1 - 0.3, c0, 1.35, z1 + 0.22, 2, 'nst'); } px = c1; }
+    boxW(A.marble, cx - w / 2 - 0.22, 0.3, z0 - 0.22, cx - w / 2 + 0.3, 1.35, z1 + 0.22, 2, 'ewt'); boxW(A.marble, cx + w / 2 - 0.3, 0.3, z0 - 0.22, cx + w / 2 + 0.22, 1.35, z1 + 0.22, 2, 'ewt');
+    boxW(A.marble, cx - w / 2 - 0.14, h - 0.55, z0 - 0.14, cx + w / 2 + 0.14, h - 0.12, z1 + 0.14, 2, 'nsew');
     addSolid(null, { x0: cx - w / 2, x1: cx - aw / 2, z0, z1, h: h + 14, kind: 'bld' }); addSolid(null, { x0: cx + aw / 2, x1: cx + w / 2, z0, z1, h: h + 14, kind: 'bld' });
     return h;
   },
@@ -310,11 +364,22 @@ const Landmarks = {
     const A = acc3(), props = [], cx = t.cx, cz = t.cz, w = Math.max(40, t.w + 8), d = 14, gy = 11;
     this.gateWall(A, props, cx, cz, w, d, gy);
     hall(A, props, cx, cz, w - 8, d - 5, gy, 6, { double: true, rh: 4 });
+    balustrade(A, cx - w / 2 + 0.35, cz - d / 2 + 0.35, cx + w / 2 - 0.35, cz + d / 2 - 0.35, gy, 0); // the rostrum's 汉白玉 railing
+    { // eight big red lanterns hung across the front colonnade
+      const hw = w - 8, nb = Math.max(2, Math.round((hw - 0.8) / 3.8)), bay = (hw - 0.8) / nb, x0 = cx - hw / 2 + 0.4, zf = cz + (d - 5) / 2 + 0.25, k0 = Math.max(0, Math.floor((nb - 8) / 2));
+      for (let k = k0; k < Math.min(nb, k0 + 8); k++) BJB.lanterns.push([x0 + bay * (k + 0.5), gy + 3.4, zf, 2.4]);
+    }
     // 金水桥 and a pair of 华表
     const wz = cz + d / 2 + 7;
     addWater({ x0: cx - w / 2 - 12, x1: cx + w / 2 + 12, z0: wz - 1.2, z1: wz + 1.2, deco: true, bridges: [-2, -1, 0, 1, 2].map((k) => [cx + k * 6.5, 3.2]) });
     for (let k = -2; k <= 2; k++) props.push(box(cx + k * 6.5, 0.6, wz, 3.2, 0.4, 3.8, 0xeceae4));
-    for (const s of [-1, 1]) props.push(gpart(new THREE.CylinderGeometry(0.5, 0.6, 9, 10), 0xeceae4, cx + s * 14, 4.8, wz + 5), box(cx + s * 14, 9.1, wz + 5, 2.6, 0.4, 0.6, 0xeceae4));
+    // 华表: an octagonal two-step plinth, the column, the 云板 and a round cap with the 犼 squatting on top
+    for (const s of [-1, 1]) {
+      const x = cx + s * 14, z = wz + 5, M = 0xeceae4;
+      props.push(gpart(new THREE.CylinderGeometry(1.5, 1.6, 0.6, 8), 0xdcd8cf, x, 0.6, z), gpart(new THREE.CylinderGeometry(1.05, 1.15, 0.45, 8), M, x, 1.12, z),
+        gpart(new THREE.CylinderGeometry(0.5, 0.6, 9, 12), M, x, 4.8, z), box(x, 9.1, z, 2.6, 0.4, 0.6, M), gpart(new THREE.CylinderGeometry(0.85, 0.7, 0.32, 14), M, x, 9.5, z),
+        gpart(new THREE.SphereGeometry(0.34, 12, 9), M, x, 9.95, z, 0, 0, 0, 0.9, 1.15, 1.2), gpart(new THREE.SphereGeometry(0.2, 10, 8), M, x, 10.28, z + 0.22));
+    }
     // 端门: a smaller twin of 天安门 halfway to 午门, with the long 朝房 along both sides of the courtyard
     const dm = W.duanmen;
     if (dm) {
@@ -335,11 +400,13 @@ const Landmarks = {
   square() { // 广场: open stone paving, flag, flower beds, lamps; 大会堂 and 博物馆 as colonnaded blocks
     const sq = lmBox('square'); if (!sq) return;
     const props = [], cx = sq.cx;
-    props.push(gpart(new THREE.CylinderGeometry(0.22, 0.3, 30, 10), 0xd9dcde, cx, 15, sq.z0 + 16), box(cx, 0.6, sq.z0 + 16, 5, 1.2, 5, 0xc9c4b8));
+    // the flagpole on a marble terrace with a balustrade (the steps face the square)
+    { const FA = acc3(); terrace(FA, cx, sq.z0 + 16, 8, 8, 1, 1.0, 0); flushAcc(FA); }
+    props.push(gpart(new THREE.CylinderGeometry(0.22, 0.3, 30, 12), 0xd9dcde, cx, 15.9, sq.z0 + 16), gpart(new THREE.CylinderGeometry(0.55, 0.7, 0.5, 12), 0xc9c4b8, cx, 1.55, sq.z0 + 16));
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 3), new THREE.MeshLambertMaterial({ color: 0xd52b1e, side: THREE.DoubleSide }));
     flag.position.set(cx + 2.4, 28.2, sq.z0 + 16); scene.add(flag); W.flag = flag;
     // 国庆 flower beds: a granite rim, stepped rings of red / yellow / pink flowers, a 花篮 on top, loose flower clumps round the edge
-    const clump = new THREE.IcosahedronGeometry(0.42, 0), FL = [0xd8323a, 0xf2c230, 0xe0508f, 0xf07a2a, 0xffffff, 0xc8102e];
+    const FL = [0xff4048, 0xffcc30, 0xff70b0, 0xff8a2a, 0xffffff, 0xe8203a];
     for (const k of [0.35, 0.62]) {
       const z = sq.z0 + sq.d * k;
       props.push(gpart(new THREE.CylinderGeometry(7.4, 7.6, 0.7, 28), 0xd9d4c8, cx, 0.35, z), gpart(new THREE.CylinderGeometry(7.0, 7.0, 0.72, 28), 0x4f7a36, cx, 0.38, z),
@@ -347,20 +414,23 @@ const Landmarks = {
         gpart(new THREE.CylinderGeometry(3.0, 3.9, 0.6, 20), 0xe0508f, cx, 2.05, z), gpart(new THREE.CylinderGeometry(1.8, 2.4, 0.5, 16), 0x4f7a36, cx, 2.55, z),
         gpart(new THREE.CylinderGeometry(1.9, 0.9, 2.2, 14), 0xc8102e, cx, 3.9, z), gpart(new THREE.TorusGeometry(1.9, 0.12, 5, 20), 0xe0b64a, cx, 5.0, z, Math.PI / 2),
         gpart(new THREE.IcosahedronGeometry(1.6, 1), 0xf2c230, cx, 5.4, z, 0, 0, 0, 1, 0.55, 1));
-      for (let i = 0; i < 90; i++) {
-        const a = rand(TAU), r = i < 60 ? rand(6.0, 6.7) : rand(4.6, 5.4), y = i < 60 ? 0.85 : 1.35;
-        props.push(gpart(clump, pick(FL), cx + Math.cos(a) * r, y + rand(0, 0.15), z + Math.sin(a) * r, rand(TAU), rand(TAU), 0, rand(0.8, 1.2), rand(0.6, 0.9), rand(0.8, 1.2)));
-      }
+      // flower cards over each ring's top (tinted like the ring), a loose mixed border round the rim
+      // ring: [inner r, top r, bottom r, top y, slope height, tint, count]; cards follow the flat top and the slope
+      for (const [ri, rt, rb, yt, hh, col, n] of [[6.6, 7.0, 7.0, 0.74, 0, -1, 130], [5.3, 5.9, 6.6, 1.25, 0.6, 0xff3a3a, 220], [3.9, 4.5, 5.3, 1.8, 0.6, 0xffc830, 170], [2.4, 3.0, 3.9, 2.35, 0.6, 0xff70b0, 120], [0.9, 1.8, 2.4, 2.8, 0.5, 0xfff4e8, 50]])
+        for (let i = 0; i < n; i++) {
+          const a = rand(TAU), r = Math.sqrt(rand(ri * ri, rb * rb)), y = r <= rt || rb <= rt ? yt : yt - (r - rt) / (rb - rt) * hh;
+          BJB.flowers.push({ x: cx + Math.cos(a) * r, y: y - 0.05, z: z + Math.sin(a) * r, ry: rand(TAU), s: rand(0.75, 1.15), c: col < 0 ? pick(FL) : col });
+        }
       addSolid(null, { x0: cx - 7, x1: cx + 7, z0: z - 7, z1: z + 7, h: 2, kind: 'bld' });
     }
     // the 长安街 side: a row of white bollards with red bands (pedestrians through, cars not)
     for (let x = sq.x0 + 2, bz = sq.z0 + 1.4; x <= sq.x1 - 2; x += 2.6) {
       const k = Grid.at(x, bz), ns = Roads.nearest(x, bz, 16, (e) => e.C.traffic && Math.abs(e.pts[e.pts.length - 1][1] - e.pts[0][1]) > Math.abs(e.pts[e.pts.length - 1][0] - e.pts[0][0]));
       if (k === GK.ROAD || k === GK.ALLEY || (ns && ns.d < ns.e.hw + 2.5)) continue; // not across the side roads
-      props.push(box(x, 0.45, bz, 0.28, 0.9, 0.28, 0xf2f1ec), box(x, 0.66, bz, 0.3, 0.12, 0.3, 0xc8102e));
+      props.push(gpart(BOLLARD[0], 0xf2f1ec, x, 0.43, bz), gpart(BOLLARD[1], 0xf2f1ec, x, 0.86, bz), gpart(BOLLARD[2], 0xc8102e, x, 0.66, bz));
       addSolid(null, { x0: x - 0.15, x1: x + 0.15, z0: bz - 0.15, z1: bz + 0.15, h: 1.1, kind: 'pillar' });
     }
-    for (let z = sq.z0 + 10; z < sq.z1 - 6; z += 24) for (const s of [-1, 1]) newProp(cx + s * (sq.w / 2 - 6), z, 1, 'lamp').ry = s > 0 ? -Math.PI / 2 : Math.PI / 2;
+    for (let z = sq.z0 + 10; z < sq.z1 - 6; z += 24) for (const s of [-1, 1]) { const it = newProp(cx + s * (sq.w / 2 - 6), z, 1, 'lamp'); it.ry = s > 0 ? -Math.PI / 2 : Math.PI / 2; it.hua = true; } // 华灯
     for (const k of ['dahuitang', 'museum']) {
       const b = lmBox(k); if (!b) continue;
       const A = acc3(), face = k === 'dahuitang' ? 'e' : 'w', h = 15;
@@ -385,12 +455,23 @@ const Landmarks = {
       W.landmarks.qianmen = { x: g.cx, z: g.cz };
     }
     if (j) { // 箭楼: grey brick, rows of arrow windows
-      boxW(A.grey, j.cx - 17, 0.3, j.cz - 6, j.cx + 17, 10.3, j.cz + 6, 2.5);
-      props.push(box(j.cx, 3.6, j.cz + 6.03, 4, 6.4, 0.06, 0x17120e));
+      gateBase(A, props, j.cx, j.cz, 34, 12, 10, true, 'grey', 4);
+      // a stone string course on the base and a crenellated parapet (垛口) round the terrace
+      boxW(A.marble, j.cx - 17.12, 10.0, j.cz - 6.12, j.cx + 17.12, 10.3, j.cz + 6.12, 2, 'nsew');
+      for (const [x0, z0, x1, z1] of [[j.cx - 17, j.cz + 5.6, j.cx + 17, j.cz + 6], [j.cx - 17, j.cz - 6, j.cx + 17, j.cz - 5.6], [j.cx - 17, j.cz - 5.6, j.cx - 16.6, j.cz + 5.6], [j.cx + 16.6, j.cz - 5.6, j.cx + 17, j.cz + 5.6]]) {
+        boxW(A.grey, x0, 10.3, z0, x1, 10.9, z1, 2, 'nsewt');
+        const L = Math.max(x1 - x0, z1 - z0), ax = x1 - x0 > z1 - z0;
+        for (let t = 0.3; t < L - 0.5; t += 1.3) boxW(A.grey, ax ? x0 + t : x0, 10.9, ax ? z0 : z0 + t, ax ? x0 + t + 0.75 : x1, 11.5, ax ? z1 : z0 + t + 0.75, 2, 'nsewt');
+      }
       boxW(A.grey, j.cx - 15, 10.3, j.cz - 5, j.cx + 15, 17.3, j.cz + 5, 2.5);
-      for (let row = 0; row < 4; row++) for (let k = 0; k < 12; k++) props.push(box(j.cx - 13 + k * 2.35, 11.2 + row * 1.5, j.cz + 5.03, 0.6, 0.6, 0.06, 0x16120e));
+      // arrow windows (箭窗): a deep dark embrasure each, a pale stone sill and lintel
+      for (let row = 0; row < 4; row++) for (let k = 0; k < 12; k++) {
+        const x = j.cx - 12.93 + k * 2.35, y = 10.95 + row * 1.5;
+        Portals.add(x, y, j.cz + 5, 0, 1, 0.56, 0.62, 1.6, 0, 0x8d9095, true);
+        props.push(box(x, y - 0.06, j.cz + 5.07, 0.84, 0.12, 0.16, 0xc9c4b8), box(x, y + 0.68, j.cz + 5.04, 0.74, 0.1, 0.1, 0xb9b4a8));
+      }
       hipRoof(A.roof, j.cx, j.cz, 31, 11, 17.3, 4.4, 0, 1.3);
-      addSolid(null, { x0: j.cx - 17, x1: j.cx - 2.4, z0: j.cz - 6, z1: j.cz + 6, h: 24, kind: 'bld' }); addSolid(null, { x0: j.cx + 2.4, x1: j.cx + 17, z0: j.cz - 6, z1: j.cz + 6, h: 24, kind: 'bld' });
+      addSolid(null, { x0: j.cx - 17, x1: j.cx - 2, z0: j.cz - 6, z1: j.cz + 6, h: 24, kind: 'bld' }); addSolid(null, { x0: j.cx + 2, x1: j.cx + 17, z0: j.cz - 6, z1: j.cz + 6, h: 24, kind: 'bld' });
     }
     flushAcc(A); Build.props.push(...props);
     // the story's square: in front of the 箭楼 (a golden Token coin on a plinth, where 杜卡德 calls you)
@@ -412,7 +493,7 @@ const Landmarks = {
     const p = g.attributes.position, uv = g.attributes.uv;
     for (let i = 0; i < p.count; i++) { const x = p.getX(i) + cx, z = p.getZ(i) + cz; p.setXYZ(i, x, hillH(hill, x, z) + 0.3 + 0.01, z); uv.setXY(i, x / 6, z / 6); }
     g.computeVertexNormals();
-    const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: TEX.grass, color: 0xb8d8a0 })); mesh.receiveShadow = true; scene.add(mesh);
+    const mesh = new THREE.Mesh(g, hillMat(6)); mesh.receiveShadow = true; scene.add(mesh);
     reserveRect(cx - hill.rx, cz - hill.rz, cx + hill.rx, cz + hill.rz, GK.PARK);
     for (let k = 0; k < 90; k++) { const a = rand(TAU), rr = Math.sqrt(Math.random()) * 0.92; const x = cx + Math.cos(a) * hill.rx * rr, z = cz + Math.sin(a) * hill.rz * rr; if (Math.abs(x - cx) < 6 && Math.abs(z - cz) < 6) continue; if (Math.abs(x - cx) < 14 && z > cz + 2 && z < cz + 30) continue; newProp(x, z, rand(0.7, 1.05), 'cypress'); }
     const pav = (x, s, tiers, roof) => {
@@ -437,8 +518,20 @@ const Landmarks = {
     const gp = g.attributes.position, guv = g.attributes.uv;
     for (let i = 0; i < gp.count; i++) { const x = q.cx + gp.getX(i) * (hl.rx + 0.8), z = q.cz + gp.getZ(i) * (hl.rz + 0.8); gp.setXYZ(i, x, hillH(hl, x, z) + 0.36, z); guv.setXY(i, x / 5, z / 5); }
     g.computeVertexNormals();
-    const isl = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: TEX.grass, color: 0xb8d8a0 })); isl.receiveShadow = true; scene.add(isl);
-    for (let k = 0; k < 40; k++) { const a = rand(TAU), rr = Math.sqrt(Math.random()) * 0.85; newProp(q.cx + Math.cos(a) * hl.rx * rr, q.cz + Math.sin(a) * hl.rz * rr, rand(0.6, 0.95), Math.random() < 0.6 ? 'cypress' : 'tree'); }
+    const isl = new THREE.Mesh(g, hillMat(5)); isl.receiveShadow = true; scene.add(isl);
+    // pines / 国槐 over the island, the 永安桥 axis (the view up to the 白塔) kept open; 太湖石 rockeries among them
+    for (let k = 0, n = 0; k < 200 && n < 72; k++) {
+      const a = rand(TAU), rr = Math.sqrt(Math.random()) * 0.86, x = q.cx + Math.cos(a) * hl.rx * rr, z = q.cz + Math.sin(a) * hl.rz * rr;
+      if (Math.abs(x - ix) < 7 && Math.abs(z - iz) < 7) continue; // the 白塔 terrace
+      if (Math.abs(x - q.cx) < 9 && z > iz) continue;              // the axis from the bridge
+      newProp(x, z, rand(0.6, 0.95), Math.random() < 0.6 ? 'cypress' : 'tree'); n++;
+    }
+    const rock = new THREE.IcosahedronGeometry(1, 1); // (smooth-shaded lumps, squashed per stone: not faceted gems)
+    for (let k = 0; k < 26; k++) {
+      const a = rand(TAU), rr = rand(0.25, 0.9), x = q.cx + Math.cos(a) * hl.rx * rr, z = q.cz + Math.sin(a) * hl.rz * rr, y = hillH(hl, x, z) + 0.3;
+      if (Math.abs(x - ix) < 6 && Math.abs(z - iz) < 6) continue;
+      for (let j = 0; j < 3; j++) props.push(gpart(rock, j ? 0xa8a39a : 0xbab5ab, x + rand(-0.8, 0.8), y + rand(0.1, 0.5), z + rand(-0.8, 0.8), rand(TAU), rand(TAU), rand(TAU), rand(0.45, 1.0), rand(0.6, 1.3), rand(0.45, 0.9)));
+    }
     const by = hillH(hl, ix, iz) + 0.3;
     boxW(A.white, ix - 4.2, by, iz - 4.2, ix + 4.2, by + 2.6, iz + 4.2, 2);
     const white = 0xf4f2ec;
@@ -465,7 +558,7 @@ const Landmarks = {
     if (gl) {
       const cx = gl.cx, dz = gl.cz;
       boxW(A.red, cx - 14, 0.3, dz - 8, cx + 14, 9.3, dz + 8, 3);
-      for (const k of [-7, 0, 7]) props.push(box(cx + k, 3.4, dz + 8.03, 3, 6, 0.06, 0x17120e));
+      for (const k of [-7, 0, 7]) for (const sd of [-1, 1]) Portals.add(cx + k, 0.3, dz + sd * 8, 0, sd, 3, 4.6, 16, 1, 0x8e3226); // the three 券洞 through the base
       addSolid(null, { x0: cx - 14, x1: cx + 14, z0: dz - 8, z1: dz + 8, h: 24, kind: 'bld' });
       hall(A, props, cx, dz, 22, 11, 9.3, 4.2, { roof: 'roof', north: true });
       boxW(A.red, cx - 10, 15.3, dz - 4.6, cx + 10, 18.8, dz + 4.6, 3, 'nsew'); latticeFace(A.lattice, 's', cx - 9.5, 15.3, dz - 4.6, cx + 9.5, 18.6, dz + 4.63);
@@ -474,8 +567,8 @@ const Landmarks = {
     }
     if (zl) {
       const cx = zl.cx, bz = zl.cz;
-      boxW(A.grey, cx - 8, 0.3, bz - 8, cx + 8, 9.3, bz + 8, 2.5); props.push(box(cx, 3.4, bz + 8.03, 3.2, 6, 0.06, 0x17120e));
-      boxW(A.grey, cx - 6, 9.3, bz - 6, cx + 6, 15.3, bz + 6, 2.5); props.push(box(cx, 12.3, bz + 6.03, 2, 3.6, 0.06, 0x17120e));
+      boxW(A.grey, cx - 8, 0.3, bz - 8, cx + 8, 9.3, bz + 8, 2.5); for (const sd of [-1, 1]) Portals.add(cx, 0.3, bz + sd * 8, 0, sd, 3.2, 4.5, 16, 1, 0x8d9095);
+      boxW(A.grey, cx - 6, 9.3, bz - 6, cx + 6, 15.3, bz + 6, 2.5); for (const sd of [-1, 1]) Portals.add(cx, 10.5, bz + sd * 6, 0, sd, 2, 2.6, 2.4, 0, 0x8d9095);
       hipRoof(A.roof, cx, bz, 12.8, 12.8, 15.3, 1.4, 0, 1.1); boxW(A.grey, cx - 4.2, 16.3, bz - 4.2, cx + 4.2, 17.6, bz + 4.2, 2, 'nsew'); hipRoof(A.roof, cx, bz, 9.4, 9.4, 17.6, 3.4, 0, 1);
       addSolid(null, { x0: cx - 8, x1: cx + 8, z0: bz - 8, z1: bz + 8, h: 22, kind: 'bld' });
     }
@@ -492,9 +585,10 @@ const Landmarks = {
     reserveRect(cx - 25, qz - 25, cx + 25, qz + 25, GK.PLAZA); W.plazaPolys.push([rectRing(cx - 23.5, qz - 23.5, cx + 23.5, qz + 23.5)]);
     const ty = roundTerrace(A, cx, qz, 16, 3, 0.9, 2.2);
     cylW(A.red, cx, qz, 7.2, ty, ty + 6, 26, 2); latticeRound(A.lattice, cx, qz, 7.25, ty, ty + 5.6);
-    roundRoof(A.blue, cx, qz, 8.6, ty + 6, 1.4, 30, 1.2);
-    cylW(A.red, cx, qz, 6, ty + 7.2, ty + 8.8, 26, 2); roundRoof(A.blue, cx, qz, 7.2, ty + 8.8, 1.3, 30, 1.0);
-    cylW(A.red, cx, qz, 4.9, ty + 10, ty + 11.6, 26, 2); roundRoof(A.blue, cx, qz, 5.8, ty + 11.6, 4.4, 30, 0.9);
+    // (each upper drum starts at the eave below it: the cone under it is lower than its foot, which left a slot of sky)
+    roundRoof(A.blue, cx, qz, 8.6, ty + 6, 1.4, 30, 1.2, 7.2);
+    cylW(A.red, cx, qz, 6, ty + 6, ty + 8.8, 26, 2); roundRoof(A.blue, cx, qz, 7.2, ty + 8.8, 1.3, 30, 1.0, 6);
+    cylW(A.red, cx, qz, 4.9, ty + 8.8, ty + 11.6, 26, 2); roundRoof(A.blue, cx, qz, 5.8, ty + 11.6, 4.4, 30, 0.9, 4.9);
     props.push(gpart(new THREE.SphereGeometry(0.8, 12, 10), 0xe8b422, cx, ty + 16.5, qz));
     addSolid(null, { x0: cx - 7.2, x1: cx + 7.2, z0: qz - 7.2, z1: qz + 7.2, h: 28, kind: 'bld' });
     W.landmarks.tiantan = { x: cx, z: qz };
@@ -505,7 +599,7 @@ const Landmarks = {
       W.platforms.push({ x0: cx - 3.4, x1: cx + 3.4, z0: qz + 25, z1: hz - 11, h: 1.5 });
       reserveRect(cx - 4, qz + 25, cx + 4, hz - 11, GK.PLAZA); W.plazaPolys.push([rectRing(cx - 3.4, qz + 25, cx + 3.4, hz - 11)]);
       const hy = roundTerrace(A, hx, hz, 6.2, 1, 0.9, 0);
-      cylW(A.red, hx, hz, 4.1, hy, hy + 3.8, 22, 2); latticeRound(A.lattice, hx, hz, 4.15, hy, hy + 3.4); roundRoof(A.blue, hx, hz, 5, hy + 3.8, 3.4, 26, 0.9);
+      cylW(A.red, hx, hz, 4.1, hy, hy + 3.8, 22, 2); latticeRound(A.lattice, hx, hz, 4.15, hy, hy + 3.4); roundRoof(A.blue, hx, hz, 5, hy + 3.8, 3.4, 26, 0.9, 4.1);
       props.push(gpart(new THREE.SphereGeometry(0.45, 10, 8), 0xe8b422, hx, hy + 7.4, hz));
       addSolid(null, { x0: hx - 4.1, x1: hx + 4.1, z0: hz - 4.1, z1: hz + 4.1, h: 11, kind: 'bld' });
       for (const [u0, u1] of [[-Math.PI / 2 + 0.3, Math.PI / 2 - 0.3], [Math.PI / 2 + 0.3, Math.PI * 1.5 - 0.3]])
@@ -669,9 +763,26 @@ const Landmarks = {
     hall(A, props, 0, z0 + 10, Math.min(30, w - 8), 8, 1.1, 4.6, { roof: 'green', double: true, rh: 2.6 }); boxW(A.marble, -Math.min(16, w / 2 - 3), 0.3, z0 + 5, Math.min(16, w / 2 - 3), 1.1, z0 + 15, 2);
     hall(A, props, 0, cz0 + 2, Math.min(24, w - 10), 7, 0.3, 4, { roof: 'roof' });
     for (const s of [-1, 1]) hall(A, props, s * (w / 2 - 6), cz0 + 2, 5, Math.min(18, d / 3), 0.3, 3.4, { roof: 'roof', gable: true });
-    boxW(A.red, -4, 0.3, z1 - 3, 4, 5.2, z1 + 0.4, 2, 'nsew'); hipRoof(A.green, 0, z1 - 1.3, 9, 4.4, 5.2, 2, 0, 0.8);
-    props.push(box(0, 2.3, z1 + 0.45, 3.4, 4, 0.1, 0x9b1c14), box(-2.1, 0.6, z1 + 1.2, 0.9, 1.2, 0.9, 0xb8b4aa), box(2.1, 0.6, z1 + 1.2, 0.9, 1.2, 0.9, 0xb8b4aa));
-    for (const s of [-1, 1]) props.push(gpart(new THREE.SphereGeometry(0.5, 8, 6), 0x9a968e, s * 2.1, 1.6, z1 + 1.2));
+    // 王府大门: a three-bay gatehouse on a stone base, lacquered columns, 彩画, the vermilion doors with gold studs
+    boxW(A.marble, -5, 0.3, z1 - 3.4, 5, 0.75, z1 + 0.8, 2); for (let k = 0; k < 3; k++) boxW(A.marble, -2, 0.3, z1 + 0.8 + (2 - k) * 0.35, 2, 0.3 + 0.15 * (k + 1), z1 + 0.8 + (3 - k) * 0.35, 2, 'sewt');
+    hallBody(A, -4.5, z1 - 3.1, 4.5, z1 + 0.5, 0.75, 4.6, { bays: 3 });
+    hipRoof(A.green, 0, z1 - 1.3, 9, 3.6, 5.35, 2.2, 0, 1.1, 0.55);
+    props.push(box(0, 2.35, z1 - 0.15, 2.3, 3.2, 0.08, 0x9b1c14), box(0, 2.35, z1 - 0.1, 0.05, 3.2, 0.04, 0x5a120c));
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) for (const sx of [-1, 1]) props.push(box(sx * (0.25 + c * 0.32), 1.25 + r * 0.55, z1 - 0.09, 0.09, 0.09, 0.06, 0xe0b040));
+    // 石狮: a lion on a carved plinth each side
+    for (const s of [-1, 1]) {
+      const x = s * 3.4, z = z1 + 2.2, st = 0xb4afa4, dk = 0x8f8a80;
+      // a seated 蹲狮: haunches, a raised chest on straight forelegs, the curly mane behind a square-muzzled head; the male's paw on a 绣球
+      const S = (r, w = 14, h = 10) => new THREE.SphereGeometry(r, w, h), md = 0x9d978b;
+      props.push(box(x, 0.45, z, 1.1, 0.9, 1.5, dk), box(x, 0.95, z, 1.25, 0.12, 1.65, st), box(x, 1.03, z, 1.0, 0.06, 1.35, md),
+        gpart(S(0.42), st, x, 1.4, z - 0.2, 0, 0, 0, 0.95, 0.85, 1.2), gpart(S(0.36), st, x, 1.72, z + 0.1, -0.35, 0, 0, 0.9, 1.25, 0.8),
+        gpart(new THREE.CylinderGeometry(0.085, 0.1, 0.62, 10), st, x - 0.17, 1.35, z + 0.34), gpart(new THREE.CylinderGeometry(0.085, 0.1, 0.62, 10), st, x + 0.17, 1.35, z + 0.34),
+        gpart(S(0.11, 10, 8), st, x - 0.17, 1.1, z + 0.42, 0, 0, 0, 1, 0.7, 1.3), gpart(S(0.11, 10, 8), st, x + 0.17, 1.1, z + 0.42, 0, 0, 0, 1, 0.7, 1.3),
+        gpart(new THREE.IcosahedronGeometry(0.42, 1), md, x, 2.12, z + 0.02, 0.3, 0.4, 0, 1, 1.05, 0.8), gpart(S(0.33), st, x, 2.18, z + 0.24),
+        gpart(S(0.17, 12, 8), st, x, 2.07, z + 0.5, 0, 0, 0, 1.25, 0.85, 1), gpart(S(0.05, 8, 6), 0x3a342c, x - 0.12, 2.26, z + 0.52), gpart(S(0.05, 8, 6), 0x3a342c, x + 0.12, 2.26, z + 0.52));
+      for (let k = 0; k < 7; k++) { const a = -1.2 + k * 0.4; props.push(gpart(S(0.085, 8, 6), md, x + Math.sin(a) * 0.3, 2.44 + Math.cos(a) * 0.06, z + 0.14 - Math.abs(a) * 0.08)); }
+      props.push(s > 0 ? gpart(S(0.17, 12, 10), 0x8f8a80, x + 0.2, 1.17, z + 0.52) : gpart(S(0.13, 10, 8), st, x + 0.22, 1.15, z + 0.5, 0, 0, 0, 0.9, 0.8, 1.2));
+    }
     const grp = accGroup(A);
     const pm = new THREE.Mesh(mergeParts(props), MAT.vc); pm.castShadow = true; grp.add(pm);
     grp.position.set(g.cx, 0, g.cz); grp.rotation.y = rot; scene.add(grp);
@@ -806,8 +917,9 @@ const Landmarks = {
     }
   },
   tower(cx, cz, rot = 0) { // 中国尊-shaped: wide base, pinched waist, flared crown
-    const fac = Render.cutout(new THREE.MeshPhongMaterial({ color: 0xa9bdd6, map: TEX.curtain, emissive: 0xffc940, emissiveMap: TEX.curtainE, emissiveIntensity: 0.5, shininess: 70 }));
-    W.towerMat = fac;
+    // lathe uv: u 0..6 round the ~65 m waist, v in 16 m units → ~1.7 m × 3.2 m panes
+    const fac = Render.cutout(PBR.glass({ color: 0xd8e4f2, emissive: 0xffd08a, ei: 0.5, rx: 1.6, ry: 0.5 }) || new THREE.MeshStandardMaterial({ color: 0xa9bdd6, map: TEX.curtain, emissive: 0xffc940, emissiveMap: TEX.curtainE, emissiveIntensity: 0.5, metalness: 0.8, roughness: 0.14 }));
+    W.towerMat = fac; W.extraFacades.push(fac); // lit offices follow the time of day
     const pts = []; const H = 120;
     for (let k = 0; k <= 12; k++) { const t = k / 12, w = 11.5 - 3.2 * Math.sin(t * Math.PI) + (t > 0.9 ? (t - 0.9) * 14 : 0); pts.push(new THREE.Vector2(w, t * H)); }
     const g = new THREE.LatheGeometry(pts, 4, Math.PI / 4);

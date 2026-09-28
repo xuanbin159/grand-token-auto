@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><title>Material preview</title>
+<style>html,body{margin:0;background:#111;color:#ddd;font:12px system-ui}canvas{display:block}</style>
+<!-- Dev check page: every runtime PBR material on a rounded box, lit by one of the runtime HDRIs.
+     /scripts/assets/viewer/materials.html?hdri=kloofendal_48d_partly_cloudy_puresky_1k&tier=lo -->
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+const q = new URLSearchParams(location.search), W = innerWidth, H = innerHeight, R = '../../../assets/runtime/';
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1); renderer.toneMapping = THREE.ACESFilmicToneMapping; document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(35, W / H, 0.05, 200);
+const sun = new THREE.DirectionalLight(0xfff0dd, 2.0); sun.position.set(3, 5, 4); scene.add(sun);
+const errors = []; addEventListener('error', (e) => errors.push(String(e.message)));
+const tl = new THREE.TextureLoader(), tex = (p, srgb) => new Promise((res) => tl.load(p, (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; res(t); }, undefined, () => { errors.push('tex ' + p); res(null); }));
+
+async function setHDRI(name) {
+  const hdr = await new HDRLoader().loadAsync(R + 'hdri/' + name + '.hdr');
+  hdr.mapping = THREE.EquirectangularReflectionMapping; scene.background = hdr;
+  scene.environment = new THREE.PMREMGenerator(renderer).fromEquirectangular(hdr).texture;
+  return { w: hdr.image.width, h: hdr.image.height };
+}
+async function material(m, tier) {
+  const base = R + 'tex/' + (tier ? tier + '/' : '') + m.key + '/', nrm = m.sharedNormal ? R + 'tex/' + (tier ? tier + '/' : '') + m.sharedNormal + '/normal.webp' : base + 'normal.webp';
+  const [map, normalMap, arm, emissiveMap] = await Promise.all([tex(base + 'albedo.webp', true), tex(nrm), tex(base + 'arm.webp'), m.emissive ? tex(base + 'emissive.webp', true) : null]);
+  return new THREE.MeshStandardMaterial({ map, normalMap, aoMap: arm, roughnessMap: arm, metalnessMap: arm, metalness: 1, roughness: 1, emissiveMap, emissive: emissiveMap ? 0xffffff : 0x000000,
+    alphaTest: m.alpha ? 0.5 : 0, side: m.alpha ? THREE.DoubleSide : THREE.FrontSide, transparent: false });
+}
+async function grid(tier) {
+  const man = await (await fetch(R + 'manifest.json')).json(), mats = man.materials, n = mats.length, cols = Math.ceil(Math.sqrt(n * W / H)), geo = new RoundedBoxGeometry(1, 1, 1, 4, 0.12);
+  geo.setAttribute('uv1', geo.attributes.uv);
+  for (let i = 0; i < n; i++) {
+    const m = await material(mats[i], tier), mesh = new THREE.Mesh(geo, m);
+    mesh.position.set((i % cols) * 1.5, -Math.floor(i / cols) * 1.5, 0); mesh.rotation.set(0.45, -0.6, 0); scene.add(mesh);
+  }
+  const rows = Math.ceil(n / cols); cam.position.set((cols - 1) * 0.75, -(rows - 1) * 0.75, Math.max(cols, rows * W / H) * 1.25 + 2); cam.lookAt((cols - 1) * 0.75, -(rows - 1) * 0.75, 0);
+  renderer.render(scene, cam); return n;
+}
+async function prop(url) {
+  const g = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url), box = new THREE.Box3().setFromObject(g.scene), s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  scene.add(g.scene); const d = Math.max(s.x, s.y, s.z) * 1.6 + 0.5; cam.position.set(c.x + d * 0.7, c.y + d * 0.35, c.z + d * 0.7); cam.lookAt(c);
+  let tris = 0; g.scene.traverse((o) => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
+  renderer.render(scene, cam); return { tris, size: s.toArray().map((v) => +v.toFixed(2)) };
+}
+window.M = { THREE, scene, renderer, cam, setHDRI, grid, prop, errors };
+(async () => { if (q.get('hdri')) await setHDRI(q.get('hdri')); if (q.get('grid')) await grid(q.get('tier') || ''); window.READY = true; })().catch((e) => { errors.push(String(e.stack || e)); window.READY = true; });
+</script></body></html>

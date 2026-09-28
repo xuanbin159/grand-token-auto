@@ -1,0 +1,6031 @@
+{
+ "name": "Grand Token Auto runtime assets",
+ "version": 1,
+ "generated": "2026-09-28",
+ "base": "assets/runtime/",
+ "howToLoad": {
+  "vrm": "GLTFLoader + VRMLoaderPlugin (@pixiv/three-vrm 3.x); textures are EXT_texture_webp. VRM 0.x: VRMUtils.rotateVRM0(vrm). Expressions: chars[].expressions (three-vrm names; custom \"ko\" = hidden iris/highlight where present). Create a VRMLookAtQuaternionProxy per VRM before createVRMAnimationClip to avoid its warning.",
+  "vrma": "GLTFLoader + VRMAnimationLoaderPlugin; createVRMAnimationClip(gltf.userData.vrmAnimations[0], vrm). In place: add `travel` (m, over the clip) in the controller for root motion. Locomotion playbackRate = moveSpeed / (speedPerHipsY * vrm.humanoid.normalizedRestPose.hips.position[1]).",
+  "texture": "TextureLoader (WebP). albedo = sRGB; normal = OpenGL; arm -> aoMap (R) + roughnessMap (G) + metalnessMap (B) (aoMap needs uv1 = uv). tile = metres per repeat.",
+  "hdri": "HDRLoader (three r17x+; RGBELoader in older builds) + PMREMGenerator.fromEquirectangular.",
+  "glb": "GLTFLoader.setMeshoptDecoder(MeshoptDecoder); uses EXT_meshopt_compression, KHR_mesh_quantization, EXT_texture_webp, KHR_texture_transform (tree bark).",
+  "phone": "tier \"phone\" files replace \"desktop\" ones (chars/lo, tex/lo); \"both\" is shared. Trees: lod1 + impostor on phones."
+ },
+ "totals": {
+  "files": 330,
+  "allMB": 72.3,
+  "desktopMB": 54.4,
+  "phoneMB": 38.9
+ },
+ "chars": [
+  {
+   "key": "hairsample_male",
+   "name": "HairSample_Male",
+   "gender": "m",
+   "role": "hero",
+   "path": "chars/hairsample_male.vrm",
+   "lo": "chars/lo/hairsample_male.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "ko"
+   ],
+   "tris": 24858,
+   "materials": 14,
+   "drawPrims": 14,
+   "springGroups": 10,
+   "morphTargets": "54->16",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/hairsample_male.zip",
+   "page": "https://opengameart.org/content/vroid-studio-cc0-models",
+   "notes": "Male hero: black hair, white hoodie, dark trousers"
+  },
+  {
+   "key": "sendagaya_shino",
+   "name": "千駄ヶ谷篠 Sendagaya Shino",
+   "gender": "f",
+   "role": "lead",
+   "path": "chars/sendagaya_shino.vrm",
+   "lo": "chars/lo/sendagaya_shino.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra"
+   ],
+   "tris": 31211,
+   "materials": 17,
+   "drawPrims": 17,
+   "springGroups": 17,
+   "morphTargets": "41->15",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/sendagaya_shino.zip",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/360013482714-Sendagaya-Shino",
+   "notes": "Female lead #1: long straight black hair, school uniform"
+  },
+  {
+   "key": "vita",
+   "name": "ヴィータ Vita (β AvatarSample_3)",
+   "gender": "f",
+   "role": "lead",
+   "path": "chars/vita.vrm",
+   "lo": "chars/lo/vita.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra"
+   ],
+   "tris": 27002,
+   "materials": 16,
+   "drawPrims": 16,
+   "springGroups": 18,
+   "morphTargets": "41->15",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_f.zip",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/360014900113",
+   "notes": "Female lead #2: silver/blue hair, glowing cyber bodysuit (emissive, bloom-friendly)"
+  },
+  {
+   "key": "sendagaya_shibu",
+   "name": "千駄ヶ谷渋 Sendagaya Shibu (β AvatarSample_1)",
+   "gender": "f",
+   "role": "ped",
+   "path": "chars/sendagaya_shibu.vrm",
+   "lo": "chars/lo/sendagaya_shibu.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra"
+   ],
+   "tris": 34395,
+   "materials": 17,
+   "drawPrims": 17,
+   "springGroups": 16,
+   "morphTargets": "41->15",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_d_0.zip",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/360012381793",
+   "notes": "Ped: short black bob, school uniform"
+  },
+  {
+   "key": "darkness_shibu",
+   "name": "Darkness Shibu (β AvatarSample_1 dark)",
+   "gender": "f",
+   "role": "ped",
+   "path": "chars/darkness_shibu.vrm",
+   "lo": "chars/lo/darkness_shibu.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra",
+    "ko"
+   ],
+   "tris": 33750,
+   "materials": 15,
+   "drawPrims": 15,
+   "springGroups": 17,
+   "morphTargets": "56->18",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_d_darkness.zip",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/360012381793",
+   "notes": "Ped: gothic dark palette variant of Shibu"
+  },
+  {
+   "key": "vivi",
+   "name": "ビビ Vivi (β AvatarSample_2)",
+   "gender": "f",
+   "role": "ped",
+   "path": "chars/vivi.vrm",
+   "lo": "chars/lo/vivi.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra"
+   ],
+   "tris": 26706,
+   "materials": 16,
+   "drawPrims": 16,
+   "springGroups": 22,
+   "morphTargets": "41->15",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_e.zip",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/360014900273",
+   "notes": "Ped: brunette bob, green apron dress (shop keeper / waitress)"
+  },
+  {
+   "key": "victoria_rubin",
+   "name": "ヴィクトリア・ルービン Victoria Rubin (β AvatarSample_4)",
+   "gender": "f",
+   "role": "ped",
+   "path": "chars/victoria_rubin.vrm",
+   "lo": "chars/lo/victoria_rubin.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra"
+   ],
+   "tris": 29800,
+   "materials": 16,
+   "drawPrims": 16,
+   "springGroups": 16,
+   "morphTargets": "41->15",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_g.zip",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/360014900233",
+   "notes": "Ped: blonde twin-tails, pastel lolita dress (tourist / fashion girl)"
+  },
+  {
+   "key": "hairsample_female",
+   "name": "HairSample_Female",
+   "gender": "f",
+   "role": "ped",
+   "path": "chars/hairsample_female.vrm",
+   "lo": "chars/lo/hairsample_female.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra",
+    "ko"
+   ],
+   "tris": 27068,
+   "materials": 14,
+   "drawPrims": 14,
+   "springGroups": 10,
+   "morphTargets": "56->18",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/hairsample_female.zip",
+   "page": "https://opengameart.org/content/vroid-studio-cc0-models",
+   "notes": "Ped: plain young woman, simple outfit"
+  },
+  {
+   "key": "sakurada_fumiriya",
+   "name": "桜田史利矢 Sakurada Fumiriya",
+   "gender": "m",
+   "role": "ped",
+   "path": "chars/sakurada_fumiriya.vrm",
+   "lo": "chars/lo/sakurada_fumiriya.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised"
+   ],
+   "tris": 39548,
+   "materials": 17,
+   "drawPrims": 17,
+   "springGroups": 13,
+   "morphTargets": "39->13",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/sakurada_fumiriya.zip",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/360014788554-Sakurada-Fumiriya",
+   "notes": "Ped / alt hero: tall young man, light-brown hair, school uniform with vest and tie"
+  },
+  {
+   "key": "base_male",
+   "name": "VRoid Base_Male (0.14)",
+   "gender": "m",
+   "role": "ped",
+   "path": "chars/base_male.vrm",
+   "lo": "chars/lo/base_male.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "ko"
+   ],
+   "tris": 15176,
+   "materials": 15,
+   "drawPrims": 15,
+   "springGroups": 0,
+   "morphTargets": "54->16",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/base_male.zip",
+   "page": "https://opengameart.org/content/vroid-studio-cc0-models",
+   "notes": "Blank male base: no hair mesh, default outfit; for recolours"
+  },
+  {
+   "key": "base_female",
+   "name": "VRoid Base_Female (0.14)",
+   "gender": "f",
+   "role": "ped",
+   "path": "chars/base_female.vrm",
+   "lo": "chars/lo/base_female.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra",
+    "ko"
+   ],
+   "tris": 14804,
+   "materials": 15,
+   "drawPrims": 15,
+   "springGroups": 2,
+   "morphTargets": "56->18",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/base_female.zip",
+   "page": "https://opengameart.org/content/vroid-studio-cc0-models",
+   "notes": "Blank female base: no hair mesh, default outfit; for recolours"
+  },
+  {
+   "key": "avatarsample_a",
+   "name": "AvatarSample_A (VRoidPreset A)",
+   "gender": "f",
+   "role": "ped",
+   "path": "chars/avatarsample_a.vrm",
+   "lo": "chars/lo/avatarsample_a.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra",
+    "ko"
+   ],
+   "tris": 24854,
+   "materials": 17,
+   "drawPrims": 17,
+   "springGroups": 10,
+   "morphTargets": "56->18",
+   "licence": "pixiv VRoidPreset terms (NOT CC0)",
+   "source": "https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/stable/AvatarSample_A.vrm",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
+   "notes": "Casual girl: brown bob, cream cardigan. pixiv terms: free use/edit/redistribute, no credit; do not relabel as CC0, no paid redistribution, no character-creation service"
+  },
+  {
+   "key": "avatarsample_b",
+   "name": "AvatarSample_B (VRoidPreset B)",
+   "gender": "f",
+   "role": "ped",
+   "path": "chars/avatarsample_b.vrm",
+   "lo": "chars/lo/avatarsample_b.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "Extra",
+    "ko"
+   ],
+   "tris": 28292,
+   "materials": 19,
+   "drawPrims": 19,
+   "springGroups": 11,
+   "morphTargets": "56->18",
+   "licence": "pixiv VRoidPreset terms (NOT CC0)",
+   "source": "https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/stable/AvatarSample_B.vrm",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
+   "notes": "Street-fashion girl: long twin-tails, varsity jacket. Same pixiv terms as A"
+  },
+  {
+   "key": "avatarsample_c",
+   "name": "AvatarSample_C (VRoidPreset C)",
+   "gender": "m",
+   "role": "hero_alt",
+   "path": "chars/avatarsample_c.vrm",
+   "lo": "chars/lo/avatarsample_c.vrm",
+   "expressions": [
+    "neutral",
+    "aa",
+    "ih",
+    "ou",
+    "ee",
+    "oh",
+    "blink",
+    "blinkLeft",
+    "blinkRight",
+    "angry",
+    "relaxed",
+    "happy",
+    "sad",
+    "Surprised",
+    "ko"
+   ],
+   "tris": 26988,
+   "materials": 14,
+   "drawPrims": 14,
+   "springGroups": 8,
+   "morphTargets": "54->16",
+   "licence": "pixiv VRoidPreset terms (NOT CC0)",
+   "source": "https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/stable/AvatarSample_C.vrm",
+   "page": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
+   "notes": "Cool male in black techwear (alt hero / rival). Same pixiv terms as A"
+  }
+ ],
+ "anims": [
+  {
+   "key": "idle",
+   "path": "anims/idle.vrma",
+   "loop": true,
+   "tags": [
+    "idle"
+   ],
+   "duration": 3.125,
+   "source": "base:Idle_A"
+  },
+  {
+   "key": "idle_alt",
+   "path": "anims/idle_alt.vrma",
+   "loop": true,
+   "tags": [
+    "idle"
+   ],
+   "duration": 2.583,
+   "source": "addon:Idle_Subtle"
+  },
+  {
+   "key": "idle_listen",
+   "path": "anims/idle_listen.vrma",
+   "loop": true,
+   "tags": [
+    "idle",
+    "npc"
+   ],
+   "duration": 1.708,
+   "source": "addon:Idle Listening"
+  },
+  {
+   "key": "idle_arms",
+   "path": "anims/idle_arms.vrma",
+   "loop": true,
+   "tags": [
+    "idle",
+    "npc"
+   ],
+   "duration": 2.5,
+   "source": "base:Idle_FoldArms"
+  },
+  {
+   "key": "idle_soft",
+   "path": "anims/idle_soft.vrma",
+   "loop": true,
+   "tags": [
+    "idle"
+   ],
+   "duration": 10.375,
+   "source": "https://github.com/pixiv/ChatVRM (public/idle_loop.vrma)"
+  },
+  {
+   "key": "walk",
+   "path": "anims/walk.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 1.667,
+   "speed": 0.681,
+   "speedPerHipsY": 0.675,
+   "source": "base:Walk"
+  },
+  {
+   "key": "walk_female",
+   "path": "anims/walk_female.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 1.375,
+   "speed": 0.784,
+   "speedPerHipsY": 0.777,
+   "source": "addon:Walk_Female"
+  },
+  {
+   "key": "walk_formal",
+   "path": "anims/walk_formal.vrma",
+   "loop": true,
+   "tags": [
+    "move",
+    "npc"
+   ],
+   "duration": 1.667,
+   "speed": 0.685,
+   "speedPerHipsY": 0.679,
+   "source": "base:Walk_Formal"
+  },
+  {
+   "key": "walk_back",
+   "path": "anims/walk_back.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 1,
+   "speed": -0.919,
+   "speedPerHipsY": -0.911,
+   "source": "addon:Walk_Backwards"
+  },
+  {
+   "key": "jog",
+   "path": "anims/jog.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 1.167,
+   "speed": 3.865,
+   "speedPerHipsY": 3.833,
+   "source": "base:Jog"
+  },
+  {
+   "key": "run",
+   "path": "anims/run.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 0.75,
+   "speed": 3.181,
+   "speedPerHipsY": 3.155,
+   "source": "addon:Run_Anime",
+   "notes": "anime run, arms back"
+  },
+  {
+   "key": "run_female",
+   "path": "anims/run_female.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 0.833,
+   "speed": 2.393,
+   "speedPerHipsY": 2.374,
+   "source": "addon:Run_Female"
+  },
+  {
+   "key": "sprint",
+   "path": "anims/sprint.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 0.833,
+   "speed": 3.486,
+   "speedPerHipsY": 3.458,
+   "source": "base:Sprint"
+  },
+  {
+   "key": "strafe_l",
+   "path": "anims/strafe_l.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 1,
+   "speed": -0.781,
+   "speedPerHipsY": -0.774,
+   "source": "addon:Strafe_left"
+  },
+  {
+   "key": "strafe_r",
+   "path": "anims/strafe_r.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 1,
+   "speed": 0.802,
+   "speedPerHipsY": 0.795,
+   "source": "addon:Strafe_right"
+  },
+  {
+   "key": "crouch_idle",
+   "path": "anims/crouch_idle.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 3.667,
+   "source": "base:Crouch_Idle"
+  },
+  {
+   "key": "crouch_walk",
+   "path": "anims/crouch_walk.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 2.5,
+   "speed": 0.376,
+   "speedPerHipsY": 0.372,
+   "source": "base:Crouch_Walk"
+  },
+  {
+   "key": "flee",
+   "path": "anims/flee.vrma",
+   "loop": true,
+   "tags": [
+    "move",
+    "npc"
+   ],
+   "duration": 1.667,
+   "speed": 3.546,
+   "speedPerHipsY": 3.517,
+   "source": "base:Sprint",
+   "notes": "panic run: sprint legs + arms flailing (Help_Two_Arms), 2 sprint cycles"
+  },
+  {
+   "key": "jump_start",
+   "path": "anims/jump_start.vrma",
+   "loop": false,
+   "tags": [
+    "jump"
+   ],
+   "duration": 1.667,
+   "travel": [
+    -0.028,
+    0.078
+   ],
+   "source": "base:Jump_Start"
+  },
+  {
+   "key": "jump_air",
+   "path": "anims/jump_air.vrma",
+   "loop": true,
+   "tags": [
+    "jump"
+   ],
+   "duration": 3.125,
+   "source": "base:Jump_air"
+  },
+  {
+   "key": "jump_land",
+   "path": "anims/jump_land.vrma",
+   "loop": false,
+   "tags": [
+    "jump"
+   ],
+   "duration": 1.583,
+   "travel": [
+    0.03,
+    0.004
+   ],
+   "source": "base:Jump_Land"
+  },
+  {
+   "key": "run_jump",
+   "path": "anims/run_jump.vrma",
+   "loop": false,
+   "tags": [
+    "jump"
+   ],
+   "duration": 1.25,
+   "source": "addon:Run Jump"
+  },
+  {
+   "key": "roll",
+   "path": "anims/roll.vrma",
+   "loop": false,
+   "tags": [
+    "move",
+    "fight"
+   ],
+   "duration": 1.833,
+   "travel": [
+    0.017,
+    0.098
+   ],
+   "source": "base:Roll"
+  },
+  {
+   "key": "fight_idle",
+   "path": "anims/fight_idle.vrma",
+   "loop": true,
+   "tags": [
+    "fight"
+   ],
+   "duration": 1.708,
+   "source": "addon:Fighting Idle"
+  },
+  {
+   "key": "punch_jab",
+   "path": "anims/punch_jab.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 1.083,
+   "source": "base:Punch_Jab"
+  },
+  {
+   "key": "punch_cross",
+   "path": "anims/punch_cross.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 1.25,
+   "source": "base:Punch_Cross"
+  },
+  {
+   "key": "hook",
+   "path": "anims/hook.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 0.458,
+   "travel": [
+    -0.058,
+    0.288
+   ],
+   "source": "base:Melee_Hook"
+  },
+  {
+   "key": "hook_rec",
+   "path": "anims/hook_rec.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 0.583,
+   "travel": [
+    0.009,
+    -0.331
+   ],
+   "source": "base:Melee_Hook_Rec",
+   "notes": "recovery after hook"
+  },
+  {
+   "key": "jab_l",
+   "path": "anims/jab_l.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 0.917,
+   "source": "addon:Fighting Left Jab"
+  },
+  {
+   "key": "jab_r",
+   "path": "anims/jab_r.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 0.917,
+   "source": "addon:Fighting Right Jab"
+  },
+  {
+   "key": "kick",
+   "path": "anims/kick.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 1.35,
+   "travel": [
+    0,
+    1.129
+   ],
+   "source": "cmu/135_04",
+   "notes": "CMU 135_04 right front snap kick (stance -> kick -> land)"
+  },
+  {
+   "key": "kick_breach",
+   "path": "anims/kick_breach.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 1.833,
+   "source": "mocap:Kick_Breach",
+   "notes": "front push kick (door breach)"
+  },
+  {
+   "key": "kick_jump",
+   "path": "anims/kick_jump.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 2,
+   "travel": [
+    0,
+    2.542
+   ],
+   "source": "cmu/90_05",
+   "notes": "CMU 90_05 jump kick"
+  },
+  {
+   "key": "kick_spin",
+   "path": "anims/kick_spin.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 1.5,
+   "travel": [
+    0,
+    1.088
+   ],
+   "source": "cmu/87_01",
+   "notes": "CMU 87_01 jump spin kick (tornado kick)"
+  },
+  {
+   "key": "defend",
+   "path": "anims/defend.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 0.958,
+   "source": "addon:Defend"
+  },
+  {
+   "key": "dodge_back",
+   "path": "anims/dodge_back.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 1,
+   "source": "addon:Dodge_back"
+  },
+  {
+   "key": "power_up",
+   "path": "anims/power_up.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 0.75,
+   "source": "addon:Power Up",
+   "notes": "transform / charge"
+  },
+  {
+   "key": "ground_pound",
+   "path": "anims/ground_pound.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 2.708,
+   "source": "addon:Attack_Ground_Pound"
+  },
+  {
+   "key": "land_hero",
+   "path": "anims/land_hero.vrma",
+   "loop": false,
+   "tags": [
+    "fight",
+    "jump"
+   ],
+   "duration": 0.955,
+   "travel": [
+    -0.035,
+    0.249
+   ],
+   "source": "addon:Land_Three_Point",
+   "notes": "superhero landing; starts ~0.8 m above ground, play when landing from a big jump"
+  },
+  {
+   "key": "throw",
+   "path": "anims/throw.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 1.333,
+   "source": "base:OverhandThrow"
+  },
+  {
+   "key": "throw_object",
+   "path": "anims/throw_object.vrma",
+   "loop": false,
+   "tags": [
+    "fight"
+   ],
+   "duration": 1.875,
+   "travel": [
+    -0.008,
+    0.031
+   ],
+   "source": "addon:Throw Object"
+  },
+  {
+   "key": "hit_front",
+   "path": "anims/hit_front.vrma",
+   "loop": false,
+   "tags": [
+    "hurt"
+   ],
+   "duration": 0.417,
+   "source": "base:Hit_Chest"
+  },
+  {
+   "key": "hit_head",
+   "path": "anims/hit_head.vrma",
+   "loop": false,
+   "tags": [
+    "hurt"
+   ],
+   "duration": 0.542,
+   "source": "base:Hit_Head"
+  },
+  {
+   "key": "knockdown",
+   "path": "anims/knockdown.vrma",
+   "loop": false,
+   "tags": [
+    "hurt"
+   ],
+   "duration": 0.833,
+   "source": "base:Hit_Knockback",
+   "notes": "stagger back; chain death_* or getup"
+  },
+  {
+   "key": "getup",
+   "path": "anims/getup.vrma",
+   "loop": false,
+   "tags": [
+    "hurt"
+   ],
+   "duration": 1.5,
+   "travel": [
+    0.002,
+    0.153
+   ],
+   "source": "base:LayToIdle",
+   "notes": "from lying on the back to idle"
+  },
+  {
+   "key": "death",
+   "path": "anims/death.vrma",
+   "loop": false,
+   "tags": [
+    "hurt"
+   ],
+   "duration": 4.5,
+   "travel": [
+    0.005,
+    0.733
+   ],
+   "source": "addon:Death_A"
+  },
+  {
+   "key": "death_b",
+   "path": "anims/death_b.vrma",
+   "loop": false,
+   "tags": [
+    "hurt"
+   ],
+   "duration": 1.875,
+   "travel": [
+    -0.074,
+    -0.172
+   ],
+   "source": "addon:Death_B"
+  },
+  {
+   "key": "dizzy",
+   "path": "anims/dizzy.vrma",
+   "loop": true,
+   "tags": [
+    "hurt"
+   ],
+   "duration": 2.417,
+   "source": "addon:Dizzy"
+  },
+  {
+   "key": "hurt_idle",
+   "path": "anims/hurt_idle.vrma",
+   "loop": true,
+   "tags": [
+    "hurt"
+   ],
+   "duration": 1.667,
+   "source": "addon:Idle Hurt"
+  },
+  {
+   "key": "fear",
+   "path": "anims/fear.vrma",
+   "loop": true,
+   "tags": [
+    "npc"
+   ],
+   "duration": 0.25,
+   "source": "addon:Shivering",
+   "notes": "cowering shiver (short loop)"
+  },
+  {
+   "key": "sit_idle",
+   "path": "anims/sit_idle.vrma",
+   "loop": true,
+   "tags": [
+    "sit"
+   ],
+   "duration": 2.083,
+   "source": "base:Sitting_Idle"
+  },
+  {
+   "key": "sit_talk",
+   "path": "anims/sit_talk.vrma",
+   "loop": true,
+   "tags": [
+    "sit",
+    "npc"
+   ],
+   "duration": 3.667,
+   "source": "base:Sitting_Talking"
+  },
+  {
+   "key": "sit_enter",
+   "path": "anims/sit_enter.vrma",
+   "loop": false,
+   "tags": [
+    "sit"
+   ],
+   "duration": 1.625,
+   "travel": [
+    -0.003,
+    -0.245
+   ],
+   "source": "base:Sitting_Enter"
+  },
+  {
+   "key": "sit_exit",
+   "path": "anims/sit_exit.vrma",
+   "loop": false,
+   "tags": [
+    "sit"
+   ],
+   "duration": 1.292,
+   "travel": [
+    0.003,
+    0.245
+   ],
+   "source": "base:Sitting_Exit"
+  },
+  {
+   "key": "drive",
+   "path": "anims/drive.vrma",
+   "loop": true,
+   "tags": [
+    "vehicle"
+   ],
+   "duration": 2.083,
+   "source": "base:Driving"
+  },
+  {
+   "key": "bike",
+   "path": null,
+   "loop": false,
+   "tags": [
+    "vehicle"
+   ],
+   "alias": "drive",
+   "notes": "reuse drive for the upper body; pedal the normalized legs in code (sin/cos phase, right = left + PI)"
+  },
+  {
+   "key": "phone_call",
+   "path": "anims/phone_call.vrma",
+   "loop": true,
+   "tags": [
+    "npc"
+   ],
+   "duration": 2.917,
+   "source": "base:Idle_TalkingPhone"
+  },
+  {
+   "key": "talk",
+   "path": "anims/talk.vrma",
+   "loop": true,
+   "tags": [
+    "npc"
+   ],
+   "duration": 3.667,
+   "source": "base:Idle_Talking"
+  },
+  {
+   "key": "wave",
+   "path": "anims/wave.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 4.833,
+   "source": "addon:Greeting"
+  },
+  {
+   "key": "nod",
+   "path": "anims/nod.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 0.875,
+   "source": "addon:Head Nod"
+  },
+  {
+   "key": "yes",
+   "path": "anims/yes.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 2.5,
+   "source": "base:Yes"
+  },
+  {
+   "key": "reject",
+   "path": "anims/reject.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 3.792,
+   "source": "addon:Reject"
+  },
+  {
+   "key": "angry",
+   "path": "anims/angry.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 0.833,
+   "source": "addon:Angry"
+  },
+  {
+   "key": "confused",
+   "path": "anims/confused.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 2.917,
+   "source": "addon:Confused"
+  },
+  {
+   "key": "insult",
+   "path": "anims/insult.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 2.783,
+   "source": "mocap:Insult"
+  },
+  {
+   "key": "bow",
+   "path": "anims/bow.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 3.75,
+   "source": "addon:Bow",
+   "notes": "抱拳 fist-in-palm bow"
+  },
+  {
+   "key": "salute",
+   "path": "anims/salute.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 4.383,
+   "source": "mocap:Salute"
+  },
+  {
+   "key": "cheer",
+   "path": "anims/cheer.vrma",
+   "loop": true,
+   "tags": [
+    "npc"
+   ],
+   "duration": 1.583,
+   "source": "mocap:Cheering_Two_Hands"
+  },
+  {
+   "key": "cheer_one",
+   "path": "anims/cheer_one.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 2.167,
+   "source": "mocap:Cheer_One_arm"
+  },
+  {
+   "key": "victory",
+   "path": "anims/victory.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 1.667,
+   "source": "addon:Victory"
+  },
+  {
+   "key": "fist_pump",
+   "path": "anims/fist_pump.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 2.25,
+   "source": "addon:Victory Fist Pump"
+  },
+  {
+   "key": "dance",
+   "path": "anims/dance.vrma",
+   "loop": true,
+   "tags": [
+    "dance"
+   ],
+   "duration": 1.25,
+   "source": "base:Dance_Simple",
+   "notes": "广场舞 basic step"
+  },
+  {
+   "key": "dance_charleston",
+   "path": "anims/dance_charleston.vrma",
+   "loop": true,
+   "tags": [
+    "dance"
+   ],
+   "duration": 2.333,
+   "source": "addon:Dance Charleston"
+  },
+  {
+   "key": "dance_bodyroll",
+   "path": "anims/dance_bodyroll.vrma",
+   "loop": true,
+   "tags": [
+    "dance"
+   ],
+   "duration": 6.5,
+   "source": "addon:Dance Body Roll"
+  },
+  {
+   "key": "dance_chicken",
+   "path": "anims/dance_chicken.vrma",
+   "loop": true,
+   "tags": [
+    "dance"
+   ],
+   "duration": 8,
+   "source": "cmu/18_15",
+   "notes": "CMU 18_15 chicken dance"
+  },
+  {
+   "key": "jumping_jacks",
+   "path": "anims/jumping_jacks.vrma",
+   "loop": true,
+   "tags": [
+    "dance"
+   ],
+   "duration": 1.25,
+   "source": "addon:Jumping Jacks",
+   "notes": "晨练"
+  },
+  {
+   "key": "taichi",
+   "path": "anims/taichi.vrma",
+   "loop": true,
+   "tags": [
+    "dance"
+   ],
+   "duration": 20,
+   "source": "cmu/12_04",
+   "notes": "CMU 12_04 tai chi, 20 s of the form"
+  },
+  {
+   "key": "walk_carry",
+   "path": "anims/walk_carry.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 2,
+   "speed": 0.57,
+   "speedPerHipsY": 0.565,
+   "source": "base:Walk_Carry",
+   "notes": "walk carrying something in both arms"
+  },
+  {
+   "key": "crouch_carry",
+   "path": null,
+   "loop": false,
+   "tags": [
+    "move"
+   ],
+   "alias": "walk_carry",
+   "notes": "carrying someone: use walk_carry (arms under the body) with a lowered hips offset"
+  },
+  {
+   "key": "push",
+   "path": "anims/push.vrma",
+   "loop": true,
+   "tags": [
+    "npc"
+   ],
+   "duration": 3.333,
+   "source": "base:Push"
+  },
+  {
+   "key": "pickup",
+   "path": "anims/pickup.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 1.042,
+   "source": "base:PickUp_Table"
+  },
+  {
+   "key": "interact",
+   "path": "anims/interact.vrma",
+   "loop": false,
+   "tags": [
+    "npc"
+   ],
+   "duration": 2.5,
+   "source": "base:Interact"
+  },
+  {
+   "key": "swim",
+   "path": "anims/swim.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 1.667,
+   "source": "base:Swim_Fwd"
+  },
+  {
+   "key": "swim_idle",
+   "path": "anims/swim_idle.vrma",
+   "loop": true,
+   "tags": [
+    "move"
+   ],
+   "duration": 4.167,
+   "source": "base:Swim_Idle"
+  },
+  {
+   "key": "meditate",
+   "path": "anims/meditate.vrma",
+   "loop": true,
+   "tags": [
+    "npc"
+   ],
+   "duration": 1.5,
+   "source": "addon:Meditate"
+  },
+  {
+   "key": "sleep",
+   "path": "anims/sleep.vrma",
+   "loop": true,
+   "tags": [
+    "npc"
+   ],
+   "duration": 1.667,
+   "source": "addon:Sleeping"
+  },
+  {
+   "key": "pushup",
+   "path": "anims/pushup.vrma",
+   "loop": true,
+   "tags": [
+    "npc"
+   ],
+   "duration": 1.542,
+   "source": "addon:Pushup"
+  },
+  {
+   "key": "fishing",
+   "path": "anims/fishing.vrma",
+   "loop": true,
+   "tags": [
+    "npc"
+   ],
+   "duration": 1.45,
+   "source": "mocap:Fishing_Reel",
+   "notes": "后海 fishing uncle"
+  }
+ ],
+ "materials": [
+  {
+   "key": "brick_grey",
+   "res": 1024,
+   "tile": 1.9,
+   "maps": {
+    "albedo": "tex/brick_grey/albedo.webp",
+    "normal": "tex/brick_grey/normal.webp",
+    "arm": "tex/brick_grey/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/brick_grey/albedo.webp",
+    "normal": "tex/lo/brick_grey/normal.webp",
+    "arm": "tex/lo/brick_grey/arm.webp"
+   },
+   "alpha": false,
+   "use": "hutong grey brick walls (青砖)",
+   "source": "https://polyhaven.com/a/brick_wall_08",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "plaster_palace_red",
+   "res": 1024,
+   "tile": 2,
+   "maps": {
+    "albedo": "tex/plaster_palace_red/albedo.webp",
+    "normal": "tex/plaster_palace_red/normal.webp",
+    "arm": "tex/plaster_palace_red/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/plaster_palace_red/albedo.webp",
+    "normal": "tex/lo/plaster_palace_red/normal.webp",
+    "arm": "tex/lo/plaster_palace_red/arm.webp"
+   },
+   "alpha": false,
+   "use": "palace / temple red walls (故宫红)",
+   "source": "https://polyhaven.com/a/red_plaster_weathered",
+   "licence": "CC0-1.0",
+   "tint": "#8b2a1e"
+  },
+  {
+   "key": "lacquer_red",
+   "res": 1024,
+   "tile": 1,
+   "maps": {
+    "albedo": "tex/lacquer_red/albedo.webp",
+    "normal": "tex/lacquer_red/normal.webp",
+    "arm": "tex/lacquer_red/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/lacquer_red/albedo.webp",
+    "normal": "tex/lo/lacquer_red/normal.webp",
+    "arm": "tex/lo/lacquer_red/arm.webp"
+   },
+   "alpha": false,
+   "use": "red lacquered columns, doors, window frames",
+   "source": [
+    "https://ambientcg.com/view?id=PaintedWood003",
+    "https://polyhaven.com/a/lacquered_cherry_wood"
+   ],
+   "licence": "CC0-1.0",
+   "tint": "#8e1c12"
+  },
+  {
+   "key": "marble_white",
+   "res": 1024,
+   "tile": 2,
+   "maps": {
+    "albedo": "tex/marble_white/albedo.webp",
+    "normal": "tex/marble_white/normal.webp",
+    "arm": "tex/marble_white/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/marble_white/albedo.webp",
+    "normal": "tex/lo/marble_white/normal.webp",
+    "arm": "tex/lo/marble_white/arm.webp"
+   },
+   "alpha": false,
+   "use": "white marble balustrades / terraces (汉白玉)",
+   "source": "https://ambientcg.com/view?id=Marble019",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "paving_stone",
+   "res": 1024,
+   "tile": 3.5,
+   "maps": {
+    "albedo": "tex/paving_stone/albedo.webp",
+    "normal": "tex/paving_stone/normal.webp",
+    "arm": "tex/paving_stone/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/paving_stone/albedo.webp",
+    "normal": "tex/lo/paving_stone/normal.webp",
+    "arm": "tex/lo/paving_stone/arm.webp"
+   },
+   "alpha": false,
+   "use": "big stone paving: Tiananmen Square, palace courtyards",
+   "source": "https://ambientcg.com/view?id=PavingStones128",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "courtyard_brick",
+   "res": 1024,
+   "tile": 2,
+   "maps": {
+    "albedo": "tex/courtyard_brick/albedo.webp",
+    "normal": "tex/courtyard_brick/normal.webp",
+    "arm": "tex/courtyard_brick/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/courtyard_brick/albedo.webp",
+    "normal": "tex/lo/courtyard_brick/normal.webp",
+    "arm": "tex/lo/courtyard_brick/arm.webp"
+   },
+   "alpha": false,
+   "use": "courtyard brick floor (砖墁地)",
+   "source": "https://polyhaven.com/a/blue_floor_tiles_01",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "hutong_paving",
+   "res": 1024,
+   "tile": 2,
+   "maps": {
+    "albedo": "tex/hutong_paving/albedo.webp",
+    "normal": "tex/hutong_paving/normal.webp",
+    "arm": "tex/hutong_paving/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/hutong_paving/albedo.webp",
+    "normal": "tex/lo/hutong_paving/normal.webp",
+    "arm": "tex/lo/hutong_paving/arm.webp"
+   },
+   "alpha": false,
+   "use": "hutong lane paving",
+   "source": "https://polyhaven.com/a/brick_pavement_02",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "granite_tile",
+   "res": 1024,
+   "tile": 2,
+   "maps": {
+    "albedo": "tex/granite_tile/albedo.webp",
+    "normal": "tex/granite_tile/normal.webp",
+    "arm": "tex/granite_tile/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/granite_tile/albedo.webp",
+    "normal": "tex/lo/granite_tile/normal.webp",
+    "arm": "tex/lo/granite_tile/arm.webp"
+   },
+   "alpha": false,
+   "use": "plazas, station forecourts",
+   "source": "https://polyhaven.com/a/granite_tile_04",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "asphalt",
+   "res": 1024,
+   "tile": 3,
+   "maps": {
+    "albedo": "tex/asphalt/albedo.webp",
+    "normal": "tex/asphalt/normal.webp",
+    "arm": "tex/asphalt/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/asphalt/albedo.webp",
+    "normal": "tex/lo/asphalt/normal.webp",
+    "arm": "tex/lo/asphalt/arm.webp"
+   },
+   "alpha": false,
+   "use": "road surface (tileable detail)",
+   "source": "https://polyhaven.com/a/asphalt_02",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "asphalt_wear",
+   "res": 1024,
+   "tile": 30,
+   "maps": {
+    "albedo": "tex/asphalt_wear/albedo.webp",
+    "normal": "tex/asphalt_wear/normal.webp",
+    "arm": "tex/asphalt_wear/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/asphalt_wear/albedo.webp",
+    "normal": "tex/lo/asphalt_wear/normal.webp",
+    "arm": "tex/lo/asphalt_wear/arm.webp"
+   },
+   "alpha": false,
+   "use": "large-scale road wear / tyre marks overlay (blend over asphalt)",
+   "source": "https://polyhaven.com/a/aerial_asphalt_01",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "sidewalk",
+   "res": 1024,
+   "tile": 2,
+   "maps": {
+    "albedo": "tex/sidewalk/albedo.webp",
+    "normal": "tex/sidewalk/normal.webp",
+    "arm": "tex/sidewalk/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/sidewalk/albedo.webp",
+    "normal": "tex/lo/sidewalk/normal.webp",
+    "arm": "tex/lo/sidewalk/arm.webp"
+   },
+   "alpha": false,
+   "use": "sidewalk concrete tiles",
+   "source": "https://polyhaven.com/a/floor_tiles_09",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "tactile",
+   "res": 1024,
+   "tile": 1.2,
+   "maps": {
+    "albedo": "tex/tactile/albedo.webp",
+    "normal": "tex/tactile/normal.webp",
+    "arm": "tex/tactile/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/tactile/albedo.webp",
+    "normal": "tex/lo/tactile/normal.webp",
+    "arm": "tex/lo/tactile/arm.webp"
+   },
+   "alpha": false,
+   "use": "yellow tactile strip (盲道)",
+   "source": "https://ambientcg.com/view?id=TactilePaving003",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "grass",
+   "res": 1024,
+   "tile": 2,
+   "maps": {
+    "albedo": "tex/grass/albedo.webp",
+    "normal": "tex/grass/normal.webp",
+    "arm": "tex/grass/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/grass/albedo.webp",
+    "normal": "tex/lo/grass/normal.webp",
+    "arm": "tex/lo/grass/arm.webp"
+   },
+   "alpha": false,
+   "use": "park lawns",
+   "source": "https://polyhaven.com/a/leafy_grass",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "dirt",
+   "res": 1024,
+   "tile": 1.4,
+   "maps": {
+    "albedo": "tex/dirt/albedo.webp",
+    "normal": "tex/dirt/normal.webp",
+    "arm": "tex/dirt/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/dirt/albedo.webp",
+    "normal": "tex/lo/dirt/normal.webp",
+    "arm": "tex/lo/dirt/arm.webp"
+   },
+   "alpha": false,
+   "use": "tree pits, dirt lots",
+   "source": "https://polyhaven.com/a/brown_mud_dry",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "facade_brick_windows",
+   "res": 1024,
+   "tile": 13,
+   "maps": {
+    "albedo": "tex/facade_brick_windows/albedo.webp",
+    "normal": "tex/facade_brick_windows/normal.webp",
+    "arm": "tex/facade_brick_windows/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/facade_brick_windows/albedo.webp",
+    "normal": "tex/lo/facade_brick_windows/normal.webp",
+    "arm": "tex/lo/facade_brick_windows/arm.webp"
+   },
+   "alpha": false,
+   "use": "mid-rise brick facade with windows",
+   "source": "https://ambientcg.com/view?id=Facade018A",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "facade_office_night",
+   "res": 1024,
+   "tile": 12,
+   "maps": {
+    "albedo": "tex/facade_office_night/albedo.webp",
+    "normal": "tex/facade_office_night/normal.webp",
+    "arm": "tex/facade_office_night/arm.webp",
+    "emissive": "tex/facade_office_night/emissive.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/facade_office_night/albedo.webp",
+    "normal": "tex/lo/facade_office_night/normal.webp",
+    "arm": "tex/lo/facade_office_night/arm.webp",
+    "emissive": "tex/lo/facade_office_night/emissive.webp"
+   },
+   "alpha": false,
+   "use": "office tower facade; emissive.webp = lit windows at night",
+   "source": "https://ambientcg.com/view?id=Facade017",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "glass_curtain",
+   "res": 1024,
+   "tile": 6,
+   "maps": {
+    "albedo": "tex/glass_curtain/albedo.webp",
+    "normal": "tex/glass_curtain/normal.webp",
+    "arm": "tex/glass_curtain/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/glass_curtain/albedo.webp",
+    "normal": "tex/lo/glass_curtain/normal.webp",
+    "arm": "tex/lo/glass_curtain/arm.webp"
+   },
+   "alpha": false,
+   "use": "glass curtain wall (CBD towers); metalness from source",
+   "source": "https://ambientcg.com/view?id=Facade001",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "concrete_tile_facade",
+   "res": 1024,
+   "tile": 3,
+   "maps": {
+    "albedo": "tex/concrete_tile_facade/albedo.webp",
+    "normal": "tex/concrete_tile_facade/normal.webp",
+    "arm": "tex/concrete_tile_facade/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/concrete_tile_facade/albedo.webp",
+    "normal": "tex/lo/concrete_tile_facade/normal.webp",
+    "arm": "tex/lo/concrete_tile_facade/arm.webp"
+   },
+   "alpha": false,
+   "use": "modern concrete facade tiles",
+   "source": "https://polyhaven.com/a/concrete_tile_facade",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "concrete",
+   "res": 1024,
+   "tile": 3,
+   "maps": {
+    "albedo": "tex/concrete/albedo.webp",
+    "normal": "tex/concrete/normal.webp",
+    "arm": "tex/concrete/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/concrete/albedo.webp",
+    "normal": "tex/lo/concrete/normal.webp",
+    "arm": "tex/lo/concrete/arm.webp"
+   },
+   "alpha": false,
+   "use": "generic concrete walls, overpasses",
+   "source": "https://polyhaven.com/a/concrete_wall_008",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "roof_grey",
+   "res": 1024,
+   "tile": 2.9,
+   "maps": {
+    "albedo": "tex/roof_grey/albedo.webp",
+    "normal": "tex/roof_tiles/normal.webp",
+    "arm": "tex/roof_grey/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/roof_grey/albedo.webp",
+    "normal": "tex/lo/roof_tiles/normal.webp",
+    "arm": "tex/lo/roof_grey/arm.webp"
+   },
+   "alpha": false,
+   "sharedNormal": "roof_tiles",
+   "use": "grey clay roof tiles (hutong, 四合院)",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "licence": "CC0-1.0",
+   "recolour": "#5b5e61"
+  },
+  {
+   "key": "roof_yellow",
+   "res": 1024,
+   "tile": 2.9,
+   "maps": {
+    "albedo": "tex/roof_yellow/albedo.webp",
+    "normal": "tex/roof_tiles/normal.webp",
+    "arm": "tex/roof_yellow/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/roof_yellow/albedo.webp",
+    "normal": "tex/lo/roof_tiles/normal.webp",
+    "arm": "tex/lo/roof_yellow/arm.webp"
+   },
+   "alpha": false,
+   "sharedNormal": "roof_tiles",
+   "use": "yellow glazed tiles (imperial: 故宫, 天安门); clearcoat ~0.6",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "licence": "CC0-1.0",
+   "recolour": "#d6a11e"
+  },
+  {
+   "key": "roof_green",
+   "res": 1024,
+   "tile": 2.9,
+   "maps": {
+    "albedo": "tex/roof_green/albedo.webp",
+    "normal": "tex/roof_tiles/normal.webp",
+    "arm": "tex/roof_green/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/roof_green/albedo.webp",
+    "normal": "tex/lo/roof_tiles/normal.webp",
+    "arm": "tex/lo/roof_green/arm.webp"
+   },
+   "alpha": false,
+   "sharedNormal": "roof_tiles",
+   "use": "green glazed tiles (princely mansions, 恭王府)",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "licence": "CC0-1.0",
+   "recolour": "#2f7a4e"
+  },
+  {
+   "key": "roof_blue",
+   "res": 1024,
+   "tile": 2.9,
+   "maps": {
+    "albedo": "tex/roof_blue/albedo.webp",
+    "normal": "tex/roof_tiles/normal.webp",
+    "arm": "tex/roof_blue/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/roof_blue/albedo.webp",
+    "normal": "tex/lo/roof_tiles/normal.webp",
+    "arm": "tex/lo/roof_blue/arm.webp"
+   },
+   "alpha": false,
+   "sharedNormal": "roof_tiles",
+   "use": "blue glazed tiles (天坛 祈年殿)",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "licence": "CC0-1.0",
+   "recolour": "#2c5c8c"
+  },
+  {
+   "key": "wood_floor",
+   "res": 1024,
+   "tile": 2.4,
+   "maps": {
+    "albedo": "tex/wood_floor/albedo.webp",
+    "normal": "tex/wood_floor/normal.webp",
+    "arm": "tex/wood_floor/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/wood_floor/albedo.webp",
+    "normal": "tex/lo/wood_floor/normal.webp",
+    "arm": "tex/lo/wood_floor/arm.webp"
+   },
+   "alpha": false,
+   "use": "room floor planks (王府, 老字号, 道场)",
+   "source": "https://polyhaven.com/a/dark_wooden_planks",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "plaster_beige",
+   "res": 1024,
+   "tile": 3,
+   "maps": {
+    "albedo": "tex/plaster_beige/albedo.webp",
+    "normal": "tex/plaster_beige/normal.webp",
+    "arm": "tex/plaster_beige/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/plaster_beige/albedo.webp",
+    "normal": "tex/lo/plaster_beige/normal.webp",
+    "arm": "tex/lo/plaster_beige/arm.webp"
+   },
+   "alpha": false,
+   "use": "interior plaster walls (tinted per room)",
+   "source": "https://polyhaven.com/a/beige_wall_001",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "wood_dark",
+   "res": 1024,
+   "tile": 1.2,
+   "maps": {
+    "albedo": "tex/wood_dark/albedo.webp",
+    "normal": "tex/wood_dark/normal.webp",
+    "arm": "tex/wood_dark/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/wood_dark/albedo.webp",
+    "normal": "tex/lo/wood_dark/normal.webp",
+    "arm": "tex/lo/wood_dark/arm.webp"
+   },
+   "alpha": false,
+   "use": "dark hardwood: ceiling beams, wainscot, counters, procedural furniture",
+   "source": "https://polyhaven.com/a/dark_wood",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "leaves_broadleaf",
+   "res": 1024,
+   "tile": 1,
+   "maps": {
+    "albedo": "tex/leaves_broadleaf/albedo.webp",
+    "normal": "tex/leaves_broadleaf/normal.webp",
+    "arm": "tex/leaves_broadleaf/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/leaves_broadleaf/albedo.webp",
+    "normal": "tex/lo/leaves_broadleaf/normal.webp",
+    "arm": "tex/lo/leaves_broadleaf/arm.webp"
+   },
+   "alpha": true,
+   "use": "broadleaf leaf cards (国槐, 柳, 银杏); alpha in albedo",
+   "source": "https://ambientcg.com/view?id=LeafSet024",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "leaves_conifer",
+   "res": 1024,
+   "tile": 1,
+   "maps": {
+    "albedo": "tex/leaves_conifer/albedo.webp",
+    "normal": "tex/leaves_conifer/normal.webp",
+    "arm": "tex/leaves_conifer/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/leaves_conifer/albedo.webp",
+    "normal": "tex/lo/leaves_conifer/normal.webp",
+    "arm": "tex/lo/leaves_conifer/arm.webp"
+   },
+   "alpha": true,
+   "use": "conifer needle cards (桧柏, pine); alpha in albedo",
+   "source": "https://ambientcg.com/view?id=LeafSet019",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "bark_hackberry",
+   "res": 1024,
+   "tile": 1,
+   "maps": {
+    "albedo": "tex/bark_hackberry/albedo.webp",
+    "normal": "tex/bark_hackberry/normal.webp",
+    "arm": "tex/bark_hackberry/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/bark_hackberry/albedo.webp",
+    "normal": "tex/lo/bark_hackberry/normal.webp",
+    "arm": "tex/lo/bark_hackberry/arm.webp"
+   },
+   "alpha": false,
+   "use": "broadleaf bark (国槐)",
+   "source": "https://polyhaven.com/a/chinese_hackberry_bark",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "bark_willow",
+   "res": 1024,
+   "tile": 1,
+   "maps": {
+    "albedo": "tex/bark_willow/albedo.webp",
+    "normal": "tex/bark_willow/normal.webp",
+    "arm": "tex/bark_willow/arm.webp"
+   },
+   "lo": {
+    "albedo": "tex/lo/bark_willow/albedo.webp",
+    "normal": "tex/lo/bark_willow/normal.webp",
+    "arm": "tex/lo/bark_willow/arm.webp"
+   },
+   "alpha": false,
+   "use": "willow bark (柳)",
+   "source": "https://polyhaven.com/a/bark_willow",
+   "licence": "CC0-1.0"
+  }
+ ],
+ "hdri": [
+  {
+   "key": "kloofendal_48d_partly_cloudy_puresky",
+   "use": "day, partly cloudy (main midday sky / IBL)",
+   "path1k": "hdri/kloofendal_48d_partly_cloudy_puresky_1k.hdr",
+   "source": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "kloppenheim_06_puresky",
+   "use": "sunset / golden hour",
+   "path1k": "hdri/kloppenheim_06_puresky_1k.hdr",
+   "source": "https://polyhaven.com/a/kloppenheim_06_puresky",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "qwantani_dusk_2_puresky",
+   "use": "dusk / blue hour",
+   "path1k": "hdri/qwantani_dusk_2_puresky_1k.hdr",
+   "source": "https://polyhaven.com/a/qwantani_dusk_2_puresky",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "kloppenheim_02_puresky",
+   "use": "clear night with moon",
+   "path1k": "hdri/kloppenheim_02_puresky_1k.hdr",
+   "source": "https://polyhaven.com/a/kloppenheim_02_puresky",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "kloofendal_overcast_puresky",
+   "use": "overcast",
+   "path1k": "hdri/kloofendal_overcast_puresky_1k.hdr",
+   "source": "https://polyhaven.com/a/kloofendal_overcast_puresky",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "kloofendal_misty_morning_puresky",
+   "use": "haze / 雾霾 morning",
+   "path1k": "hdri/kloofendal_misty_morning_puresky_1k.hdr",
+   "source": "https://polyhaven.com/a/kloofendal_misty_morning_puresky",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "shanghai_bund",
+   "use": "city night (neon skyline reflections)",
+   "path1k": "hdri/shanghai_bund_1k.hdr",
+   "source": "https://polyhaven.com/a/shanghai_bund",
+   "licence": "CC0-1.0"
+  }
+ ],
+ "trees": [
+  {
+   "key": "guohuai",
+   "name": "国槐 Chinese scholar tree",
+   "path": "trees/guohuai.glb",
+   "impostor": "trees/guohuai_impostor.webp",
+   "height": 11,
+   "size": [
+    9.39,
+    11,
+    9.4
+   ],
+   "tris": {
+    "lod0": 7980,
+    "lod1": 2458,
+    "bark": 3500,
+    "leaves": 4480,
+    "bark_lod1": 964,
+    "leaves_lod1": 1494
+   },
+   "impostorInfo": {
+    "views": [
+     0,
+     45,
+     90,
+     135
+    ],
+    "grid": "2x2",
+    "halfExtent": 5.61,
+    "centerY": 5.5,
+    "bytes": 177408
+   },
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)"
+  },
+  {
+   "key": "liu",
+   "name": "柳 weeping willow",
+   "path": "trees/liu.glb",
+   "impostor": "trees/liu_impostor.webp",
+   "height": 10,
+   "size": [
+    15.9,
+    10,
+    12.09
+   ],
+   "tris": {
+    "lod0": 7968,
+    "lod1": 2441,
+    "bark": 4048,
+    "leaves": 3920,
+    "bark_lod1": 1133,
+    "leaves_lod1": 1308
+   },
+   "impostorInfo": {
+    "views": [
+     0,
+     45,
+     90,
+     135
+    ],
+    "grid": "2x2",
+    "halfExtent": 8.109,
+    "centerY": 5,
+    "bytes": 131074
+   },
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)"
+  },
+  {
+   "key": "cypress",
+   "name": "桧柏 Chinese juniper / cypress",
+   "path": "trees/cypress.glb",
+   "impostor": "trees/cypress_impostor.webp",
+   "height": 9,
+   "size": [
+    2.81,
+    9,
+    3
+   ],
+   "tris": {
+    "lod0": 5440,
+    "lod1": 1705,
+    "bark": 2560,
+    "leaves": 2880,
+    "bark_lod1": 745,
+    "leaves_lod1": 960
+   },
+   "impostorInfo": {
+    "views": [
+     0,
+     45,
+     90,
+     135
+    ],
+    "grid": "2x2",
+    "halfExtent": 4.59,
+    "centerY": 4.5,
+    "bytes": 53384
+   },
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)"
+  },
+  {
+   "key": "yinxing",
+   "name": "银杏 ginkgo (autumn gold)",
+   "path": "trees/yinxing.glb",
+   "impostor": "trees/yinxing_impostor.webp",
+   "height": 13,
+   "size": [
+    6.96,
+    13,
+    7.1
+   ],
+   "tris": {
+    "lod0": 5576,
+    "lod1": 1777,
+    "bark": 2232,
+    "leaves": 3344,
+    "bark_lod1": 661,
+    "leaves_lod1": 1116
+   },
+   "impostorInfo": {
+    "views": [
+     0,
+     45,
+     90,
+     135
+    ],
+    "grid": "2x2",
+    "halfExtent": 6.63,
+    "centerY": 6.5,
+    "bytes": 98066
+   },
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)"
+  }
+ ],
+ "props": [
+  {
+   "key": "fire_hydrant",
+   "path": "props/fire_hydrant.glb",
+   "use": "red fire hydrant (clean + _aged variants, caps and chain as separate nodes)",
+   "author": "Gonçalo Felício",
+   "tris": 7158,
+   "nodes": [
+    "fire_hydrant",
+    "fire_hydrant_cap_01",
+    "fire_hydrant_cap_02",
+    "fire_hydrant_cap_03",
+    "fire_hydrant_chain",
+    "fire_hydrant_aged",
+    "fire_hydrant_cap_01_aged",
+    "fire_hydrant_cap_02_aged",
+    "fire_hydrant_cap_03_aged",
+    "fire_hydrant_chain_aged"
+   ],
+   "source": "https://polyhaven.com/a/fire_hydrant",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "metal_trash_can",
+   "path": "props/metal_trash_can.glb",
+   "use": "metal street bin (clean + _rust variants)",
+   "author": "GurJas Studios",
+   "tris": 4540,
+   "nodes": [
+    "metal_trash_can_handle_left",
+    "metal_trash_can_lid",
+    "metal_trash_can",
+    "metal_trash_can_handle_right",
+    "metal_trash_can_rust",
+    "metal_trash_can_rust_handle_left",
+    "metal_trash_can_rust_handle_right",
+    "metal_trash_can_rust_lid"
+   ],
+   "source": "https://polyhaven.com/a/metal_trash_can",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "modular_street_seating",
+   "path": "props/modular_street_seating.glb",
+   "use": "modular bench kit: seat, back, legs, armrests, connectors",
+   "author": "Stuart Attenborrow",
+   "tris": 10974,
+   "nodes": [
+    "crossbar",
+    "legs_double",
+    "legs_single",
+    "suspended_support_01",
+    "suspended_support_02",
+    "back_support_r",
+    "back_support_l",
+    "arm_rest_01",
+    "arm_rest_02",
+    "seat",
+    "seat_back",
+    "connector_60",
+    "connector_45",
+    "connector_90",
+    "connector_30",
+    "seat_bench"
+   ],
+   "source": "https://polyhaven.com/a/modular_street_seating",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "concrete_road_barrier",
+   "path": "props/concrete_road_barrier.glb",
+   "use": "concrete jersey barrier (roadworks, 天安门 security lines)",
+   "author": "Amal Kumar",
+   "tris": 1826,
+   "nodes": [
+    "concrete_road_barrier"
+   ],
+   "source": "https://polyhaven.com/a/concrete_road_barrier",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "modular_electricity_poles",
+   "path": "props/modular_electricity_poles.glb",
+   "use": "modular wooden utility-pole kit: poles, crossarms, insulators, bolts (胡同 overhead wires)",
+   "author": "James Ray Cock",
+   "tris": 25756,
+   "nodes": [
+    "bolt_large",
+    "bolt_small",
+    "cap",
+    "connection_large_01",
+    "connection_large_02",
+    "connection_large_offset_01",
+    "connection_large_offset_02",
+    "connection_single_01",
+    "connection_single_02",
+    "connection_single_03",
+    "connection_small_01",
+    "connection_small_02",
+    "fastener",
+    "fastener_bolt",
+    "fastener_connection",
+    "fastener_loop",
+    "fastener_nut",
+    "fuse_01",
+    "fuse_02",
+    "insulator_01",
+    "insulator_02",
+    "insulator_03",
+    "insulator_cable_01",
+    "insulator_cable_02",
+    "insulator_cable_03",
+    "insulators_large",
+    "insulators_small",
+    "nail",
+    "nail_bent",
+    "nut",
+    "pole",
+    "pole_large",
+    "pole_small",
+    "ring_large",
+    "ring_small",
+    "support_large_01",
+    "support_large_02",
+    "support_large_offset_01",
+    "support_large_offset_02",
+    "support_small_01",
+    "support_small_02",
+    "transformer_01",
+    "transformer_02",
+    "preset_03_bolt_small_01",
+    "preset_03_bolt_small_02",
+    "preset_03_bolt_small_03",
+    "preset_03_bolt_small_04",
+    "preset_03_bolt_small_05",
+    "preset_03_bolt_small_06",
+    "preset_03_cap",
+    "preset_03_connection_large_offset_01",
+    "preset_03_connection_single_01",
+    "preset_03_connection_small_01_02",
+    "preset_03_fuse_01",
+    "preset_03_nail_bent",
+    "preset_03_pole",
+    "preset_03_ring_large_01",
+    "preset_03_ring_large_02",
+    "preset_03_ring_small_01",
+    "preset_03_ring_small_02",
+    "preset_03_ring_small_03",
+    "preset_03_ring_small_04",
+    "preset_03_transformer_01",
+    "preset_02_cap",
+    "preset_02_connection_large_01",
+    "preset_02_connection_single_01",
+    "preset_02_connection_single_01_02",
+    "preset_02_connection_small_01",
+    "preset_02_pole",
+    "preset_02_ring_large",
+    "preset_02_ring_large_02",
+    "preset_02_ring_small_01",
+    "preset_02_ring_small_02",
+    "preset_02_ring_small_03",
+    "preset_02_ring_small_04",
+    "preset_02_ring_small_05",
+    "preset_01_bolt_small_01",
+    "preset_01_bolt_small_02",
+    "preset_01_bolt_small_03",
+    "preset_01_bolt_small_04",
+    "preset_01_bolt_small_05",
+    "preset_01_bolt_small_06",
+    "preset_01_bolt_small_07",
+    "preset_01_bolt_small_08",
+    "preset_01_bolt_small_09",
+    "preset_01_cap",
+    "preset_01_connection_large_02",
+    "preset_01_connection_single_01",
+    "preset_01_connection_small_02",
+    "preset_01_fastener",
+    "preset_01_fastener_connection",
+    "preset_01_fastener_loop",
+    "preset_01_fuse_01",
+    "preset_01_fuse_02",
+    "preset_01_nail_bent",
+    "preset_01_pole",
+    "preset_01_ring_large",
+    "preset_01_ring_small",
+    "preset_01_ring_small_01",
+    "preset_01_ring_small_02",
+    "preset_01_ring_small_03",
+    "preset_01_transformer_01",
+    "preset_01_transformer_02"
+   ],
+   "source": "https://polyhaven.com/a/modular_electricity_poles",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "water_manhole_cover",
+   "path": "props/water_manhole_cover.glb",
+   "use": "manhole cover + frame",
+   "author": "Raunox",
+   "tris": 1642,
+   "nodes": [
+    "water_manhole_cover_frame",
+    "water_manhole_cover"
+   ],
+   "source": "https://polyhaven.com/a/water_manhole_cover",
+   "licence": "CC0-1.0"
+  }
+ ],
+ "furniture": [
+  {
+   "key": "chinese_armchair",
+   "path": "furniture/chinese_armchair.glb",
+   "use": "太师椅 armchair (Token 王府, 同 Token 堂, 权重德)",
+   "author": "Kirill Sannikov",
+   "tris": 1605,
+   "nodes": [
+    "chinese_armchair"
+   ],
+   "source": "https://polyhaven.com/a/chinese_armchair",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "chinese_tea_table",
+   "path": "furniture/chinese_tea_table.glb",
+   "use": "square tea table (得云社, 王府)",
+   "author": "Kirill Sannikov",
+   "tris": 1504,
+   "nodes": [
+    "chinese_tea_table"
+   ],
+   "source": "https://polyhaven.com/a/chinese_tea_table",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "chinese_stool",
+   "path": "furniture/chinese_stool.glb",
+   "use": "round-legged stool (得云社, 老北京小吃店)",
+   "author": "Kirill Sannikov",
+   "tris": 762,
+   "nodes": [
+    "chinese_stool"
+   ],
+   "source": "https://polyhaven.com/a/chinese_stool",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "chinese_cabinet",
+   "path": "furniture/chinese_cabinet.glb",
+   "use": "tall carved cabinet (容错斋, 王府 wardrobe)",
+   "author": "Kirill Sannikov",
+   "tris": 4046,
+   "nodes": [
+    "chinese_cabinet_door_01",
+    "chinese_cabinet_door_02",
+    "chinese_cabinet_drawer_01",
+    "chinese_cabinet_drawer_02",
+    ""
+   ],
+   "source": "https://polyhaven.com/a/chinese_cabinet",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "chinese_screen_panels",
+   "path": "furniture/chinese_screen_panels.glb",
+   "use": "folding screen (王府, 道场)",
+   "author": "Kirill Sannikov",
+   "tris": 784,
+   "nodes": [
+    "chinese_screen_panels_a",
+    "chinese_screen_panels_b"
+   ],
+   "source": "https://polyhaven.com/a/chinese_screen_panels",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "chinese_chandelier",
+   "path": "furniture/chinese_chandelier.glb",
+   "use": "hanging palace lantern / chandelier (王府, 得云社, 权重德)",
+   "author": "Kirill Sannikov",
+   "tris": 3506,
+   "nodes": [
+    "chinese_chandelier"
+   ],
+   "source": "https://polyhaven.com/a/chinese_chandelier",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "chinese_commode",
+   "path": "furniture/chinese_commode.glb",
+   "use": "long carved sideboard (容错斋, 同 Token 堂 counter back)",
+   "author": "Kirill Sannikov",
+   "tris": 3045,
+   "nodes": [
+    "chinese_commode_drawer_01",
+    "chinese_commode_drawer_02",
+    "chinese_commode_drawer_03",
+    ""
+   ],
+   "source": "https://polyhaven.com/a/chinese_commode",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "chinese_console_table",
+   "path": "furniture/chinese_console_table.glb",
+   "use": "narrow altar / console table (王府, 容错斋)",
+   "author": "Kirill Sannikov",
+   "tris": 4094,
+   "nodes": [
+    "chinese_console_table"
+   ],
+   "source": "https://polyhaven.com/a/chinese_console_table",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "chinese_sofa",
+   "path": "furniture/chinese_sofa.glb",
+   "use": "罗汉床 daybed (王府 bedroom corner, 得云社)",
+   "author": "Kirill Sannikov",
+   "tris": 704,
+   "nodes": [
+    "chinese_sofa"
+   ],
+   "source": "https://polyhaven.com/a/chinese_sofa",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "antique_ceramic_vase_01",
+   "path": "furniture/antique_ceramic_vase_01.glb",
+   "use": "tall antique vase (容错斋 shelves)",
+   "author": "James Ray Cock",
+   "tris": 2822,
+   "nodes": [
+    "antique_ceramic_vase_01"
+   ],
+   "source": "https://polyhaven.com/a/antique_ceramic_vase_01",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "ceramic_vase_02",
+   "path": "furniture/ceramic_vase_02.glb",
+   "use": "small ceramic vase (容错斋, 王府)",
+   "author": "James Ray Cock",
+   "tris": 6676,
+   "nodes": [
+    "ceramic_vase_02"
+   ],
+   "source": "https://polyhaven.com/a/ceramic_vase_02",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "wooden_display_shelves_01",
+   "path": "furniture/wooden_display_shelves_01.glb",
+   "use": "wooden display shelves (布鞋店、商场)",
+   "author": "James Ray Cock",
+   "tris": 1903,
+   "nodes": [
+    "wooden_display_shelves_01",
+    "wooden_display_shelves_01_drawer_03",
+    "wooden_display_shelves_01_drawer_02",
+    "wooden_display_shelves_01_drawer_01"
+   ],
+   "source": "https://polyhaven.com/a/wooden_display_shelves_01",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "steel_frame_shelves_01",
+   "path": "furniture/steel_frame_shelves_01.glb",
+   "use": "steel shelving (老王五金, 海量电子城)",
+   "author": "James Ray Cock",
+   "tris": 2174,
+   "nodes": [
+    "steel_frame_shelves_01"
+   ],
+   "source": "https://polyhaven.com/a/steel_frame_shelves_01",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "metal_office_desk",
+   "path": "furniture/metal_office_desk.glb",
+   "use": "metal office desk (应用科学部, 阿卡姆标注中心)",
+   "author": "Ulan Cabanilla",
+   "tris": 3448,
+   "nodes": [
+    "metal_office_desk_drawer_06",
+    "metal_office_desk_tray_01",
+    "metal_office_desk",
+    "metal_office_desk_drawer_04",
+    "metal_office_desk_drawer_03",
+    "metal_office_desk_drawer_05",
+    "metal_office_desk_drawer_02",
+    "metal_office_desk_drawer_01",
+    "metal_office_desk_tray_02"
+   ],
+   "source": "https://polyhaven.com/a/metal_office_desk",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "modern_arm_chair_01",
+   "path": "furniture/modern_arm_chair_01.glb",
+   "use": "office armchair (应用科学部, 阿卡姆)",
+   "author": "Vibrant Nordic",
+   "tris": 3118,
+   "nodes": [
+    "modern_arm_chair_01"
+   ],
+   "source": "https://polyhaven.com/a/modern_arm_chair_01",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "potted_plant_04",
+   "path": "furniture/potted_plant_04.glb",
+   "use": "potted plant (shops, lab)",
+   "author": "James Ray Cock",
+   "tris": 4719,
+   "nodes": [
+    "potted_plant_04_ground",
+    "potted_plant_04_dirt",
+    "potted_plant_04_plant",
+    "potted_plant_04_pot"
+   ],
+   "source": "https://polyhaven.com/a/potted_plant_04",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "wooden_crate_02",
+   "path": "furniture/wooden_crate_02.glb",
+   "use": "wooden crate (五金, 电子城 stock)",
+   "author": "James Ray Cock, Jurita Burger",
+   "tris": 2068,
+   "nodes": [
+    "wooden_crate_02_crate",
+    "wooden_crate_02_lid"
+   ],
+   "source": "https://polyhaven.com/a/wooden_crate_02",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "round_wooden_table_02",
+   "path": "furniture/round_wooden_table_02.glb",
+   "use": "round table (老北京小吃店)",
+   "author": "Ulan Cabanilla",
+   "tris": 2127,
+   "nodes": [
+    "round_wooden_table_02"
+   ],
+   "source": "https://polyhaven.com/a/round_wooden_table_02",
+   "licence": "CC0-1.0"
+  },
+  {
+   "key": "wooden_bookshelf_worn",
+   "path": "furniture/wooden_bookshelf_worn.glb",
+   "use": "worn bookshelf (王府 study, 应用科学部)",
+   "author": "Ulan Cabanilla",
+   "tris": 3536,
+   "nodes": [
+    "wooden_bookshelf_worn"
+   ],
+   "source": "https://polyhaven.com/a/wooden_bookshelf_worn",
+   "licence": "CC0-1.0"
+  }
+ ],
+ "files": [
+  {
+   "key": "angry",
+   "path": "anims/angry.vrma",
+   "type": "vrma",
+   "size": 26832,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Angry)",
+   "notes": ""
+  },
+  {
+   "key": "bow",
+   "path": "anims/bow.vrma",
+   "type": "vrma",
+   "size": 24412,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Bow)",
+   "notes": "抱拳 fist-in-palm bow"
+  },
+  {
+   "key": "cheer_one",
+   "path": "anims/cheer_one.vrma",
+   "type": "vrma",
+   "size": 29772,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (mocap:Cheer_One_arm)",
+   "notes": ""
+  },
+  {
+   "key": "cheer",
+   "path": "anims/cheer.vrma",
+   "type": "vrma",
+   "size": 27788,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (mocap:Cheering_Two_Hands)",
+   "notes": ""
+  },
+  {
+   "key": "confused",
+   "path": "anims/confused.vrma",
+   "type": "vrma",
+   "size": 34336,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Confused)",
+   "notes": ""
+  },
+  {
+   "key": "crouch_idle",
+   "path": "anims/crouch_idle.vrma",
+   "type": "vrma",
+   "size": 26416,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Crouch_Idle)",
+   "notes": ""
+  },
+  {
+   "key": "crouch_walk",
+   "path": "anims/crouch_walk.vrma",
+   "type": "vrma",
+   "size": 29132,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Crouch_Walk)",
+   "notes": ""
+  },
+  {
+   "key": "dance_bodyroll",
+   "path": "anims/dance_bodyroll.vrma",
+   "type": "vrma",
+   "size": 69184,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Dance Body Roll)",
+   "notes": ""
+  },
+  {
+   "key": "dance_charleston",
+   "path": "anims/dance_charleston.vrma",
+   "type": "vrma",
+   "size": 39848,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Dance Charleston)",
+   "notes": ""
+  },
+  {
+   "key": "dance_chicken",
+   "path": "anims/dance_chicken.vrma",
+   "type": "vrma",
+   "size": 82216,
+   "tier": "both",
+   "licence": "CMU mocap terms (free for all uses incl. commercial; no resale of the data itself)",
+   "source": "http://mocap.cs.cmu.edu/ (subject/trial 18_15)",
+   "notes": "CMU 18_15 chicken dance"
+  },
+  {
+   "key": "dance",
+   "path": "anims/dance.vrma",
+   "type": "vrma",
+   "size": 28844,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Dance_Simple)",
+   "notes": "广场舞 basic step"
+  },
+  {
+   "key": "death_b",
+   "path": "anims/death_b.vrma",
+   "type": "vrma",
+   "size": 40016,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Death_B)",
+   "notes": ""
+  },
+  {
+   "key": "death",
+   "path": "anims/death.vrma",
+   "type": "vrma",
+   "size": 48176,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Death_A)",
+   "notes": ""
+  },
+  {
+   "key": "defend",
+   "path": "anims/defend.vrma",
+   "type": "vrma",
+   "size": 22480,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Defend)",
+   "notes": ""
+  },
+  {
+   "key": "dizzy",
+   "path": "anims/dizzy.vrma",
+   "type": "vrma",
+   "size": 27264,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Dizzy)",
+   "notes": ""
+  },
+  {
+   "key": "dodge_back",
+   "path": "anims/dodge_back.vrma",
+   "type": "vrma",
+   "size": 30860,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Dodge_back)",
+   "notes": ""
+  },
+  {
+   "key": "drive",
+   "path": "anims/drive.vrma",
+   "type": "vrma",
+   "size": 20004,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Driving)",
+   "notes": ""
+  },
+  {
+   "key": "fear",
+   "path": "anims/fear.vrma",
+   "type": "vrma",
+   "size": 20044,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Shivering)",
+   "notes": "cowering shiver (short loop)"
+  },
+  {
+   "key": "fight_idle",
+   "path": "anims/fight_idle.vrma",
+   "type": "vrma",
+   "size": 23844,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Fighting Idle)",
+   "notes": ""
+  },
+  {
+   "key": "fishing",
+   "path": "anims/fishing.vrma",
+   "type": "vrma",
+   "size": 28376,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (mocap:Fishing_Reel)",
+   "notes": "后海 fishing uncle"
+  },
+  {
+   "key": "fist_pump",
+   "path": "anims/fist_pump.vrma",
+   "type": "vrma",
+   "size": 34840,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Victory Fist Pump)",
+   "notes": ""
+  },
+  {
+   "key": "flee",
+   "path": "anims/flee.vrma",
+   "type": "vrma",
+   "size": 34144,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Sprint)",
+   "notes": "panic run: sprint legs + arms flailing (Help_Two_Arms), 2 sprint cycles"
+  },
+  {
+   "key": "getup",
+   "path": "anims/getup.vrma",
+   "type": "vrma",
+   "size": 40944,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:LayToIdle)",
+   "notes": "from lying on the back to idle"
+  },
+  {
+   "key": "ground_pound",
+   "path": "anims/ground_pound.vrma",
+   "type": "vrma",
+   "size": 40180,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Attack_Ground_Pound)",
+   "notes": ""
+  },
+  {
+   "key": "hit_front",
+   "path": "anims/hit_front.vrma",
+   "type": "vrma",
+   "size": 27428,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Hit_Chest)",
+   "notes": ""
+  },
+  {
+   "key": "hit_head",
+   "path": "anims/hit_head.vrma",
+   "type": "vrma",
+   "size": 27596,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Hit_Head)",
+   "notes": ""
+  },
+  {
+   "key": "hook_rec",
+   "path": "anims/hook_rec.vrma",
+   "type": "vrma",
+   "size": 24192,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Melee_Hook_Rec)",
+   "notes": "recovery after hook"
+  },
+  {
+   "key": "hook",
+   "path": "anims/hook.vrma",
+   "type": "vrma",
+   "size": 24032,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Melee_Hook)",
+   "notes": ""
+  },
+  {
+   "key": "hurt_idle",
+   "path": "anims/hurt_idle.vrma",
+   "type": "vrma",
+   "size": 22900,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Idle Hurt)",
+   "notes": ""
+  },
+  {
+   "key": "idle_alt",
+   "path": "anims/idle_alt.vrma",
+   "type": "vrma",
+   "size": 21536,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Idle_Subtle)",
+   "notes": ""
+  },
+  {
+   "key": "idle_arms",
+   "path": "anims/idle_arms.vrma",
+   "type": "vrma",
+   "size": 23496,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Idle_FoldArms)",
+   "notes": ""
+  },
+  {
+   "key": "idle_listen",
+   "path": "anims/idle_listen.vrma",
+   "type": "vrma",
+   "size": 22132,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Idle Listening)",
+   "notes": ""
+  },
+  {
+   "key": "idle_soft",
+   "path": "anims/idle_soft.vrma",
+   "type": "vrma",
+   "size": 109104,
+   "tier": "both",
+   "licence": "MIT",
+   "source": "https://github.com/pixiv/ChatVRM (public/idle_loop.vrma)",
+   "notes": ""
+  },
+  {
+   "key": "idle",
+   "path": "anims/idle.vrma",
+   "type": "vrma",
+   "size": 24048,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Idle_A)",
+   "notes": ""
+  },
+  {
+   "key": "insult",
+   "path": "anims/insult.vrma",
+   "type": "vrma",
+   "size": 38740,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (mocap:Insult)",
+   "notes": ""
+  },
+  {
+   "key": "interact",
+   "path": "anims/interact.vrma",
+   "type": "vrma",
+   "size": 25268,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Interact)",
+   "notes": ""
+  },
+  {
+   "key": "jab_l",
+   "path": "anims/jab_l.vrma",
+   "type": "vrma",
+   "size": 29848,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Fighting Left Jab)",
+   "notes": ""
+  },
+  {
+   "key": "jab_r",
+   "path": "anims/jab_r.vrma",
+   "type": "vrma",
+   "size": 27156,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Fighting Right Jab)",
+   "notes": ""
+  },
+  {
+   "key": "jog",
+   "path": "anims/jog.vrma",
+   "type": "vrma",
+   "size": 29992,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Jog)",
+   "notes": ""
+  },
+  {
+   "key": "jump_air",
+   "path": "anims/jump_air.vrma",
+   "type": "vrma",
+   "size": 23212,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Jump_air)",
+   "notes": ""
+  },
+  {
+   "key": "jump_land",
+   "path": "anims/jump_land.vrma",
+   "type": "vrma",
+   "size": 34188,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Jump_Land)",
+   "notes": ""
+  },
+  {
+   "key": "jump_start",
+   "path": "anims/jump_start.vrma",
+   "type": "vrma",
+   "size": 34244,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Jump_Start)",
+   "notes": ""
+  },
+  {
+   "key": "jumping_jacks",
+   "path": "anims/jumping_jacks.vrma",
+   "type": "vrma",
+   "size": 28596,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Jumping Jacks)",
+   "notes": "晨练"
+  },
+  {
+   "key": "kick_breach",
+   "path": "anims/kick_breach.vrma",
+   "type": "vrma",
+   "size": 35908,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (mocap:Kick_Breach)",
+   "notes": "front push kick (door breach)"
+  },
+  {
+   "key": "kick_jump",
+   "path": "anims/kick_jump.vrma",
+   "type": "vrma",
+   "size": 32976,
+   "tier": "both",
+   "licence": "CMU mocap terms (free for all uses incl. commercial; no resale of the data itself)",
+   "source": "http://mocap.cs.cmu.edu/ (subject/trial 90_05)",
+   "notes": "CMU 90_05 jump kick"
+  },
+  {
+   "key": "kick_spin",
+   "path": "anims/kick_spin.vrma",
+   "type": "vrma",
+   "size": 26316,
+   "tier": "both",
+   "licence": "CMU mocap terms (free for all uses incl. commercial; no resale of the data itself)",
+   "source": "http://mocap.cs.cmu.edu/ (subject/trial 87_01)",
+   "notes": "CMU 87_01 jump spin kick (tornado kick)"
+  },
+  {
+   "key": "kick",
+   "path": "anims/kick.vrma",
+   "type": "vrma",
+   "size": 24208,
+   "tier": "both",
+   "licence": "CMU mocap terms (free for all uses incl. commercial; no resale of the data itself)",
+   "source": "http://mocap.cs.cmu.edu/ (subject/trial 135_04)",
+   "notes": "CMU 135_04 right front snap kick (stance -> kick -> land)"
+  },
+  {
+   "key": "knockdown",
+   "path": "anims/knockdown.vrma",
+   "type": "vrma",
+   "size": 32644,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Hit_Knockback)",
+   "notes": "stagger back; chain death_* or getup"
+  },
+  {
+   "key": "land_hero",
+   "path": "anims/land_hero.vrma",
+   "type": "vrma",
+   "size": 32564,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Land_Three_Point)",
+   "notes": "superhero landing; starts ~0.8 m above ground, play when landing from a big jump"
+  },
+  {
+   "key": "meditate",
+   "path": "anims/meditate.vrma",
+   "type": "vrma",
+   "size": 20004,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Meditate)",
+   "notes": ""
+  },
+  {
+   "key": "nod",
+   "path": "anims/nod.vrma",
+   "type": "vrma",
+   "size": 18620,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Head Nod)",
+   "notes": ""
+  },
+  {
+   "key": "phone_call",
+   "path": "anims/phone_call.vrma",
+   "type": "vrma",
+   "size": 30820,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Idle_TalkingPhone)",
+   "notes": ""
+  },
+  {
+   "key": "pickup",
+   "path": "anims/pickup.vrma",
+   "type": "vrma",
+   "size": 28228,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:PickUp_Table)",
+   "notes": ""
+  },
+  {
+   "key": "power_up",
+   "path": "anims/power_up.vrma",
+   "type": "vrma",
+   "size": 21404,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Power Up)",
+   "notes": "transform / charge"
+  },
+  {
+   "key": "punch_cross",
+   "path": "anims/punch_cross.vrma",
+   "type": "vrma",
+   "size": 27124,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Punch_Cross)",
+   "notes": ""
+  },
+  {
+   "key": "punch_jab",
+   "path": "anims/punch_jab.vrma",
+   "type": "vrma",
+   "size": 25364,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Punch_Jab)",
+   "notes": ""
+  },
+  {
+   "key": "push",
+   "path": "anims/push.vrma",
+   "type": "vrma",
+   "size": 30468,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Push)",
+   "notes": ""
+  },
+  {
+   "key": "pushup",
+   "path": "anims/pushup.vrma",
+   "type": "vrma",
+   "size": 26720,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Pushup)",
+   "notes": ""
+  },
+  {
+   "key": "reject",
+   "path": "anims/reject.vrma",
+   "type": "vrma",
+   "size": 40260,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Reject)",
+   "notes": ""
+  },
+  {
+   "key": "roll",
+   "path": "anims/roll.vrma",
+   "type": "vrma",
+   "size": 46612,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Roll)",
+   "notes": ""
+  },
+  {
+   "key": "run_female",
+   "path": "anims/run_female.vrma",
+   "type": "vrma",
+   "size": 26252,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Run_Female)",
+   "notes": ""
+  },
+  {
+   "key": "run_jump",
+   "path": "anims/run_jump.vrma",
+   "type": "vrma",
+   "size": 22724,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Run Jump)",
+   "notes": ""
+  },
+  {
+   "key": "run",
+   "path": "anims/run.vrma",
+   "type": "vrma",
+   "size": 27504,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Run_Anime)",
+   "notes": "anime run, arms back"
+  },
+  {
+   "key": "salute",
+   "path": "anims/salute.vrma",
+   "type": "vrma",
+   "size": 30692,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (mocap:Salute)",
+   "notes": ""
+  },
+  {
+   "key": "sit_enter",
+   "path": "anims/sit_enter.vrma",
+   "type": "vrma",
+   "size": 39280,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Sitting_Enter)",
+   "notes": ""
+  },
+  {
+   "key": "sit_exit",
+   "path": "anims/sit_exit.vrma",
+   "type": "vrma",
+   "size": 41928,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Sitting_Exit)",
+   "notes": ""
+  },
+  {
+   "key": "sit_idle",
+   "path": "anims/sit_idle.vrma",
+   "type": "vrma",
+   "size": 21628,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Sitting_Idle)",
+   "notes": ""
+  },
+  {
+   "key": "sit_talk",
+   "path": "anims/sit_talk.vrma",
+   "type": "vrma",
+   "size": 36696,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Sitting_Talking)",
+   "notes": ""
+  },
+  {
+   "key": "sleep",
+   "path": "anims/sleep.vrma",
+   "type": "vrma",
+   "size": 19728,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Sleeping)",
+   "notes": ""
+  },
+  {
+   "key": "sprint",
+   "path": "anims/sprint.vrma",
+   "type": "vrma",
+   "size": 27600,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Sprint)",
+   "notes": ""
+  },
+  {
+   "key": "strafe_l",
+   "path": "anims/strafe_l.vrma",
+   "type": "vrma",
+   "size": 27196,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Strafe_left)",
+   "notes": ""
+  },
+  {
+   "key": "strafe_r",
+   "path": "anims/strafe_r.vrma",
+   "type": "vrma",
+   "size": 27232,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Strafe_right)",
+   "notes": ""
+  },
+  {
+   "key": "swim_idle",
+   "path": "anims/swim_idle.vrma",
+   "type": "vrma",
+   "size": 28752,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Swim_Idle)",
+   "notes": ""
+  },
+  {
+   "key": "swim",
+   "path": "anims/swim.vrma",
+   "type": "vrma",
+   "size": 32272,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Swim_Fwd)",
+   "notes": ""
+  },
+  {
+   "key": "taichi",
+   "path": "anims/taichi.vrma",
+   "type": "vrma",
+   "size": 121612,
+   "tier": "both",
+   "licence": "CMU mocap terms (free for all uses incl. commercial; no resale of the data itself)",
+   "source": "http://mocap.cs.cmu.edu/ (subject/trial 12_04)",
+   "notes": "CMU 12_04 tai chi, 20 s of the form"
+  },
+  {
+   "key": "talk",
+   "path": "anims/talk.vrma",
+   "type": "vrma",
+   "size": 37252,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Idle_Talking)",
+   "notes": ""
+  },
+  {
+   "key": "throw_object",
+   "path": "anims/throw_object.vrma",
+   "type": "vrma",
+   "size": 36152,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Throw Object)",
+   "notes": ""
+  },
+  {
+   "key": "throw",
+   "path": "anims/throw.vrma",
+   "type": "vrma",
+   "size": 43880,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:OverhandThrow)",
+   "notes": ""
+  },
+  {
+   "key": "victory",
+   "path": "anims/victory.vrma",
+   "type": "vrma",
+   "size": 36512,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Victory)",
+   "notes": ""
+  },
+  {
+   "key": "walk_back",
+   "path": "anims/walk_back.vrma",
+   "type": "vrma",
+   "size": 27484,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Walk_Backwards)",
+   "notes": ""
+  },
+  {
+   "key": "walk_carry",
+   "path": "anims/walk_carry.vrma",
+   "type": "vrma",
+   "size": 28840,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Walk_Carry)",
+   "notes": "walk carrying something in both arms"
+  },
+  {
+   "key": "walk_female",
+   "path": "anims/walk_female.vrma",
+   "type": "vrma",
+   "size": 34828,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Walk_Female)",
+   "notes": ""
+  },
+  {
+   "key": "walk_formal",
+   "path": "anims/walk_formal.vrma",
+   "type": "vrma",
+   "size": 28244,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Walk_Formal)",
+   "notes": ""
+  },
+  {
+   "key": "walk",
+   "path": "anims/walk.vrma",
+   "type": "vrma",
+   "size": 30196,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Walk)",
+   "notes": ""
+  },
+  {
+   "key": "wave",
+   "path": "anims/wave.vrma",
+   "type": "vrma",
+   "size": 42040,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (addon:Greeting)",
+   "notes": ""
+  },
+  {
+   "key": "yes",
+   "path": "anims/yes.vrma",
+   "type": "vrma",
+   "size": 28384,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://github.com/Mesh2Motion/mesh2motion-app/tree/main/static/animations (base:Yes)",
+   "notes": ""
+  },
+  {
+   "key": "avatarsample_a",
+   "path": "chars/avatarsample_a.vrm",
+   "type": "vrm",
+   "size": 1197276,
+   "tier": "desktop",
+   "licence": "pixiv VRoidPreset terms (NOT CC0)",
+   "source": "https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/stable/AvatarSample_A.vrm",
+   "notes": "AvatarSample_A (VRoidPreset A). Casual girl: brown bob, cream cardigan. pixiv terms: free use/edit/redistribute, no credit; do not relabel as CC0, no paid redistribution, no character-creation service"
+  },
+  {
+   "key": "avatarsample_b",
+   "path": "chars/avatarsample_b.vrm",
+   "type": "vrm",
+   "size": 1432724,
+   "tier": "desktop",
+   "licence": "pixiv VRoidPreset terms (NOT CC0)",
+   "source": "https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/stable/AvatarSample_B.vrm",
+   "notes": "AvatarSample_B (VRoidPreset B). Street-fashion girl: long twin-tails, varsity jacket. Same pixiv terms as A"
+  },
+  {
+   "key": "avatarsample_c",
+   "path": "chars/avatarsample_c.vrm",
+   "type": "vrm",
+   "size": 1186108,
+   "tier": "desktop",
+   "licence": "pixiv VRoidPreset terms (NOT CC0)",
+   "source": "https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/stable/AvatarSample_C.vrm",
+   "notes": "AvatarSample_C (VRoidPreset C). Cool male in black techwear (alt hero / rival). Same pixiv terms as A"
+  },
+  {
+   "key": "base_female",
+   "path": "chars/base_female.vrm",
+   "type": "vrm",
+   "size": 928140,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/base_female.zip",
+   "notes": "VRoid Base_Female (0.14). Blank female base: no hair mesh, default outfit; for recolours"
+  },
+  {
+   "key": "base_male",
+   "path": "chars/base_male.vrm",
+   "type": "vrm",
+   "size": 932572,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/base_male.zip",
+   "notes": "VRoid Base_Male (0.14). Blank male base: no hair mesh, default outfit; for recolours"
+  },
+  {
+   "key": "darkness_shibu",
+   "path": "chars/darkness_shibu.vrm",
+   "type": "vrm",
+   "size": 1501916,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_d_darkness.zip",
+   "notes": "Darkness Shibu (β AvatarSample_1 dark). Ped: gothic dark palette variant of Shibu"
+  },
+  {
+   "key": "hairsample_female",
+   "path": "chars/hairsample_female.vrm",
+   "type": "vrm",
+   "size": 1167116,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/hairsample_female.zip",
+   "notes": "HairSample_Female. Ped: plain young woman, simple outfit"
+  },
+  {
+   "key": "hairsample_male",
+   "path": "chars/hairsample_male.vrm",
+   "type": "vrm",
+   "size": 1159056,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/hairsample_male.zip",
+   "notes": "HairSample_Male. Male hero: black hair, white hoodie, dark trousers"
+  },
+  {
+   "key": "avatarsample_a@lo",
+   "path": "chars/lo/avatarsample_a.vrm",
+   "type": "vrm",
+   "size": 990532,
+   "tier": "phone",
+   "licence": "pixiv VRoidPreset terms (NOT CC0)",
+   "source": "https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/stable/AvatarSample_A.vrm",
+   "notes": "AvatarSample_A (VRoidPreset A). Casual girl: brown bob, cream cardigan. pixiv terms: free use/edit/redistribute, no credit; do not relabel as CC0, no paid redistribution, no character-creation service (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "avatarsample_b@lo",
+   "path": "chars/lo/avatarsample_b.vrm",
+   "type": "vrm",
+   "size": 1152032,
+   "tier": "phone",
+   "licence": "pixiv VRoidPreset terms (NOT CC0)",
+   "source": "https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/stable/AvatarSample_B.vrm",
+   "notes": "AvatarSample_B (VRoidPreset B). Street-fashion girl: long twin-tails, varsity jacket. Same pixiv terms as A (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "avatarsample_c@lo",
+   "path": "chars/lo/avatarsample_c.vrm",
+   "type": "vrm",
+   "size": 993548,
+   "tier": "phone",
+   "licence": "pixiv VRoidPreset terms (NOT CC0)",
+   "source": "https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/stable/AvatarSample_C.vrm",
+   "notes": "AvatarSample_C (VRoidPreset C). Cool male in black techwear (alt hero / rival). Same pixiv terms as A (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "base_female@lo",
+   "path": "chars/lo/base_female.vrm",
+   "type": "vrm",
+   "size": 721592,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/base_female.zip",
+   "notes": "VRoid Base_Female (0.14). Blank female base: no hair mesh, default outfit; for recolours (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "base_male@lo",
+   "path": "chars/lo/base_male.vrm",
+   "type": "vrm",
+   "size": 700940,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/base_male.zip",
+   "notes": "VRoid Base_Male (0.14). Blank male base: no hair mesh, default outfit; for recolours (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "darkness_shibu@lo",
+   "path": "chars/lo/darkness_shibu.vrm",
+   "type": "vrm",
+   "size": 1198400,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_d_darkness.zip",
+   "notes": "Darkness Shibu (β AvatarSample_1 dark). Ped: gothic dark palette variant of Shibu (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "hairsample_female@lo",
+   "path": "chars/lo/hairsample_female.vrm",
+   "type": "vrm",
+   "size": 977456,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/hairsample_female.zip",
+   "notes": "HairSample_Female. Ped: plain young woman, simple outfit (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "hairsample_male@lo",
+   "path": "chars/lo/hairsample_male.vrm",
+   "type": "vrm",
+   "size": 937276,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/hairsample_male.zip",
+   "notes": "HairSample_Male. Male hero: black hair, white hoodie, dark trousers (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "sakurada_fumiriya@lo",
+   "path": "chars/lo/sakurada_fumiriya.vrm",
+   "type": "vrm",
+   "size": 1305936,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/sakurada_fumiriya.zip",
+   "notes": "桜田史利矢 Sakurada Fumiriya. Ped / alt hero: tall young man, light-brown hair, school uniform with vest and tie (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "sendagaya_shibu@lo",
+   "path": "chars/lo/sendagaya_shibu.vrm",
+   "type": "vrm",
+   "size": 1216740,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_d_0.zip",
+   "notes": "千駄ヶ谷渋 Sendagaya Shibu (β AvatarSample_1). Ped: short black bob, school uniform (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "sendagaya_shino@lo",
+   "path": "chars/lo/sendagaya_shino.vrm",
+   "type": "vrm",
+   "size": 1175948,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/sendagaya_shino.zip",
+   "notes": "千駄ヶ谷篠 Sendagaya Shino. Female lead #1: long straight black hair, school uniform (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "victoria_rubin@lo",
+   "path": "chars/lo/victoria_rubin.vrm",
+   "type": "vrm",
+   "size": 1140332,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_g.zip",
+   "notes": "ヴィクトリア・ルービン Victoria Rubin (β AvatarSample_4). Ped: blonde twin-tails, pastel lolita dress (tourist / fashion girl) (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "vita@lo",
+   "path": "chars/lo/vita.vrm",
+   "type": "vrm",
+   "size": 1094304,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_f.zip",
+   "notes": "ヴィータ Vita (β AvatarSample_3). Female lead #2: silver/blue hair, glowing cyber bodysuit (emissive, bloom-friendly) (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "vivi@lo",
+   "path": "chars/lo/vivi.vrm",
+   "type": "vrm",
+   "size": 1055276,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_e.zip",
+   "notes": "ビビ Vivi (β AvatarSample_2). Ped: brunette bob, green apron dress (shop keeper / waitress) (phone: 512 px textures, no morph normals)"
+  },
+  {
+   "key": "sakurada_fumiriya",
+   "path": "chars/sakurada_fumiriya.vrm",
+   "type": "vrm",
+   "size": 1575056,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/sakurada_fumiriya.zip",
+   "notes": "桜田史利矢 Sakurada Fumiriya. Ped / alt hero: tall young man, light-brown hair, school uniform with vest and tie"
+  },
+  {
+   "key": "sendagaya_shibu",
+   "path": "chars/sendagaya_shibu.vrm",
+   "type": "vrm",
+   "size": 1454460,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_d_0.zip",
+   "notes": "千駄ヶ谷渋 Sendagaya Shibu (β AvatarSample_1). Ped: short black bob, school uniform"
+  },
+  {
+   "key": "sendagaya_shino",
+   "path": "chars/sendagaya_shino.vrm",
+   "type": "vrm",
+   "size": 1436848,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/sendagaya_shino.zip",
+   "notes": "千駄ヶ谷篠 Sendagaya Shino. Female lead #1: long straight black hair, school uniform"
+  },
+  {
+   "key": "victoria_rubin",
+   "path": "chars/victoria_rubin.vrm",
+   "type": "vrm",
+   "size": 1363860,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_g.zip",
+   "notes": "ヴィクトリア・ルービン Victoria Rubin (β AvatarSample_4). Ped: blonde twin-tails, pastel lolita dress (tourist / fashion girl)"
+  },
+  {
+   "key": "vita",
+   "path": "chars/vita.vrm",
+   "type": "vrm",
+   "size": 1342284,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_f.zip",
+   "notes": "ヴィータ Vita (β AvatarSample_3). Female lead #2: silver/blue hair, glowing cyber bodysuit (emissive, bloom-friendly)"
+  },
+  {
+   "key": "vivi",
+   "path": "chars/vivi.vrm",
+   "type": "vrm",
+   "size": 1310520,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://opengameart.org/sites/default/files/avatarsample_e.zip",
+   "notes": "ビビ Vivi (β AvatarSample_2). Ped: brunette bob, green apron dress (shop keeper / waitress)"
+  },
+  {
+   "key": "antique_ceramic_vase_01",
+   "path": "furniture/antique_ceramic_vase_01.glb",
+   "type": "glb",
+   "size": 89844,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/antique_ceramic_vase_01",
+   "notes": "tall antique vase (容错斋 shelves); by James Ray Cock (Poly Haven)"
+  },
+  {
+   "key": "ceramic_vase_02",
+   "path": "furniture/ceramic_vase_02.glb",
+   "type": "glb",
+   "size": 149804,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/ceramic_vase_02",
+   "notes": "small ceramic vase (容错斋, 王府); by James Ray Cock (Poly Haven)"
+  },
+  {
+   "key": "chinese_armchair",
+   "path": "furniture/chinese_armchair.glb",
+   "type": "glb",
+   "size": 114880,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_armchair",
+   "notes": "太师椅 armchair (Token 王府, 同 Token 堂, 权重德); by Kirill Sannikov (Poly Haven)"
+  },
+  {
+   "key": "chinese_cabinet",
+   "path": "furniture/chinese_cabinet.glb",
+   "type": "glb",
+   "size": 377216,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_cabinet",
+   "notes": "tall carved cabinet (容错斋, 王府 wardrobe); by Kirill Sannikov (Poly Haven)"
+  },
+  {
+   "key": "chinese_chandelier",
+   "path": "furniture/chinese_chandelier.glb",
+   "type": "glb",
+   "size": 185652,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_chandelier",
+   "notes": "hanging palace lantern / chandelier (王府, 得云社, 权重德); by Kirill Sannikov (Poly Haven)"
+  },
+  {
+   "key": "chinese_commode",
+   "path": "furniture/chinese_commode.glb",
+   "type": "glb",
+   "size": 311124,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_commode",
+   "notes": "long carved sideboard (容错斋, 同 Token 堂 counter back); by Kirill Sannikov (Poly Haven)"
+  },
+  {
+   "key": "chinese_console_table",
+   "path": "furniture/chinese_console_table.glb",
+   "type": "glb",
+   "size": 239524,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_console_table",
+   "notes": "narrow altar / console table (王府, 容错斋); by Kirill Sannikov (Poly Haven)"
+  },
+  {
+   "key": "chinese_screen_panels",
+   "path": "furniture/chinese_screen_panels.glb",
+   "type": "glb",
+   "size": 301692,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_screen_panels",
+   "notes": "folding screen (王府, 道场); by Kirill Sannikov (Poly Haven)"
+  },
+  {
+   "key": "chinese_sofa",
+   "path": "furniture/chinese_sofa.glb",
+   "type": "glb",
+   "size": 231696,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_sofa",
+   "notes": "罗汉床 daybed (王府 bedroom corner, 得云社); by Kirill Sannikov (Poly Haven)"
+  },
+  {
+   "key": "chinese_stool",
+   "path": "furniture/chinese_stool.glb",
+   "type": "glb",
+   "size": 86544,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_stool",
+   "notes": "round-legged stool (得云社, 老北京小吃店); by Kirill Sannikov (Poly Haven)"
+  },
+  {
+   "key": "chinese_tea_table",
+   "path": "furniture/chinese_tea_table.glb",
+   "type": "glb",
+   "size": 81196,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_tea_table",
+   "notes": "square tea table (得云社, 王府); by Kirill Sannikov (Poly Haven)"
+  },
+  {
+   "key": "metal_office_desk",
+   "path": "furniture/metal_office_desk.glb",
+   "type": "glb",
+   "size": 124056,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/metal_office_desk",
+   "notes": "metal office desk (应用科学部, 阿卡姆标注中心); by Ulan Cabanilla (Poly Haven)"
+  },
+  {
+   "key": "modern_arm_chair_01",
+   "path": "furniture/modern_arm_chair_01.glb",
+   "type": "glb",
+   "size": 154196,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/modern_arm_chair_01",
+   "notes": "office armchair (应用科学部, 阿卡姆); by Vibrant Nordic (Poly Haven)"
+  },
+  {
+   "key": "potted_plant_04",
+   "path": "furniture/potted_plant_04.glb",
+   "type": "glb",
+   "size": 206052,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/potted_plant_04",
+   "notes": "potted plant (shops, lab); by James Ray Cock (Poly Haven)"
+  },
+  {
+   "key": "round_wooden_table_02",
+   "path": "furniture/round_wooden_table_02.glb",
+   "type": "glb",
+   "size": 124460,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/round_wooden_table_02",
+   "notes": "round table (老北京小吃店); by Ulan Cabanilla (Poly Haven)"
+  },
+  {
+   "key": "steel_frame_shelves_01",
+   "path": "furniture/steel_frame_shelves_01.glb",
+   "type": "glb",
+   "size": 94112,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/steel_frame_shelves_01",
+   "notes": "steel shelving (老王五金, 海量电子城); by James Ray Cock (Poly Haven)"
+  },
+  {
+   "key": "wooden_bookshelf_worn",
+   "path": "furniture/wooden_bookshelf_worn.glb",
+   "type": "glb",
+   "size": 711712,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/wooden_bookshelf_worn",
+   "notes": "worn bookshelf (王府 study, 应用科学部); by Ulan Cabanilla (Poly Haven)"
+  },
+  {
+   "key": "wooden_crate_02",
+   "path": "furniture/wooden_crate_02.glb",
+   "type": "glb",
+   "size": 152376,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/wooden_crate_02",
+   "notes": "wooden crate (五金, 电子城 stock); by James Ray Cock, Jurita Burger (Poly Haven)"
+  },
+  {
+   "key": "wooden_display_shelves_01",
+   "path": "furniture/wooden_display_shelves_01.glb",
+   "type": "glb",
+   "size": 101204,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/wooden_display_shelves_01",
+   "notes": "wooden display shelves (布鞋店、商场); by James Ray Cock (Poly Haven)"
+  },
+  {
+   "key": "kloofendal_48d_partly_cloudy_puresky_1k",
+   "path": "hdri/kloofendal_48d_partly_cloudy_puresky_1k.hdr",
+   "type": "hdri",
+   "size": 1435119,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
+   "notes": "day, partly cloudy (main midday sky / IBL) (1k: phone + fallback)"
+  },
+  {
+   "key": "kloofendal_misty_morning_puresky_1k",
+   "path": "hdri/kloofendal_misty_morning_puresky_1k.hdr",
+   "type": "hdri",
+   "size": 702293,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/kloofendal_misty_morning_puresky",
+   "notes": "haze / 雾霾 morning (1k: phone + fallback)"
+  },
+  {
+   "key": "kloofendal_overcast_puresky_1k",
+   "path": "hdri/kloofendal_overcast_puresky_1k.hdr",
+   "type": "hdri",
+   "size": 1174053,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/kloofendal_overcast_puresky",
+   "notes": "overcast (1k: phone + fallback)"
+  },
+  {
+   "key": "kloppenheim_02_puresky_1k",
+   "path": "hdri/kloppenheim_02_puresky_1k.hdr",
+   "type": "hdri",
+   "size": 1393622,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/kloppenheim_02_puresky",
+   "notes": "clear night with moon (1k: phone + fallback)"
+  },
+  {
+   "key": "kloppenheim_06_puresky_1k",
+   "path": "hdri/kloppenheim_06_puresky_1k.hdr",
+   "type": "hdri",
+   "size": 1173154,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/kloppenheim_06_puresky",
+   "notes": "sunset / golden hour (1k: phone + fallback)"
+  },
+  {
+   "key": "qwantani_dusk_2_puresky_1k",
+   "path": "hdri/qwantani_dusk_2_puresky_1k.hdr",
+   "type": "hdri",
+   "size": 1166018,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/qwantani_dusk_2_puresky",
+   "notes": "dusk / blue hour (1k: phone + fallback)"
+  },
+  {
+   "key": "shanghai_bund_1k",
+   "path": "hdri/shanghai_bund_1k.hdr",
+   "type": "hdri",
+   "size": 1640377,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/shanghai_bund",
+   "notes": "city night (neon skyline reflections) (1k: phone + fallback)"
+  },
+  {
+   "key": "concrete_road_barrier",
+   "path": "props/concrete_road_barrier.glb",
+   "type": "glb",
+   "size": 154904,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_road_barrier",
+   "notes": "concrete jersey barrier (roadworks, 天安门 security lines); by Amal Kumar (Poly Haven)"
+  },
+  {
+   "key": "fire_hydrant",
+   "path": "props/fire_hydrant.glb",
+   "type": "glb",
+   "size": 284696,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/fire_hydrant",
+   "notes": "red fire hydrant (clean + _aged variants, caps and chain as separate nodes); by Gonçalo Felício (Poly Haven)"
+  },
+  {
+   "key": "metal_trash_can",
+   "path": "props/metal_trash_can.glb",
+   "type": "glb",
+   "size": 384544,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/metal_trash_can",
+   "notes": "metal street bin (clean + _rust variants); by GurJas Studios (Poly Haven)"
+  },
+  {
+   "key": "modular_electricity_poles",
+   "path": "props/modular_electricity_poles.glb",
+   "type": "glb",
+   "size": 1749024,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/modular_electricity_poles",
+   "notes": "modular wooden utility-pole kit: poles, crossarms, insulators, bolts (胡同 overhead wires); by James Ray Cock (Poly Haven)"
+  },
+  {
+   "key": "modular_street_seating",
+   "path": "props/modular_street_seating.glb",
+   "type": "glb",
+   "size": 1238128,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/modular_street_seating",
+   "notes": "modular bench kit: seat, back, legs, armrests, connectors; by Stuart Attenborrow (Poly Haven)"
+  },
+  {
+   "key": "water_manhole_cover",
+   "path": "props/water_manhole_cover.glb",
+   "type": "glb",
+   "size": 161768,
+   "tier": "both",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/water_manhole_cover",
+   "notes": "manhole cover + frame; by Raunox (Poly Haven)"
+  },
+  {
+   "key": "asphalt_wear.albedo",
+   "path": "tex/asphalt_wear/albedo.webp",
+   "type": "texture",
+   "size": 382366,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/aerial_asphalt_01",
+   "notes": "albedo (sRGB); large-scale road wear / tyre marks overlay (blend over asphalt)"
+  },
+  {
+   "key": "asphalt_wear.arm",
+   "path": "tex/asphalt_wear/arm.webp",
+   "type": "texture",
+   "size": 115396,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/aerial_asphalt_01",
+   "notes": "arm (R=AO, G=roughness, B=metalness); large-scale road wear / tyre marks overlay (blend over asphalt)"
+  },
+  {
+   "key": "asphalt_wear.normal",
+   "path": "tex/asphalt_wear/normal.webp",
+   "type": "texture",
+   "size": 228994,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/aerial_asphalt_01",
+   "notes": "normal (OpenGL +Y); large-scale road wear / tyre marks overlay (blend over asphalt)"
+  },
+  {
+   "key": "asphalt.albedo",
+   "path": "tex/asphalt/albedo.webp",
+   "type": "texture",
+   "size": 433072,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/asphalt_02",
+   "notes": "albedo (sRGB); road surface (tileable detail)"
+  },
+  {
+   "key": "asphalt.arm",
+   "path": "tex/asphalt/arm.webp",
+   "type": "texture",
+   "size": 391844,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/asphalt_02",
+   "notes": "arm (R=AO, G=roughness, B=metalness); road surface (tileable detail)"
+  },
+  {
+   "key": "asphalt.normal",
+   "path": "tex/asphalt/normal.webp",
+   "type": "texture",
+   "size": 546764,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/asphalt_02",
+   "notes": "normal (OpenGL +Y); road surface (tileable detail)"
+  },
+  {
+   "key": "bark_hackberry.albedo",
+   "path": "tex/bark_hackberry/albedo.webp",
+   "type": "texture",
+   "size": 134624,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_hackberry_bark",
+   "notes": "albedo (sRGB); broadleaf bark (国槐)"
+  },
+  {
+   "key": "bark_hackberry.arm",
+   "path": "tex/bark_hackberry/arm.webp",
+   "type": "texture",
+   "size": 89236,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_hackberry_bark",
+   "notes": "arm (R=AO, G=roughness, B=metalness); broadleaf bark (国槐)"
+  },
+  {
+   "key": "bark_hackberry.normal",
+   "path": "tex/bark_hackberry/normal.webp",
+   "type": "texture",
+   "size": 222374,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_hackberry_bark",
+   "notes": "normal (OpenGL +Y); broadleaf bark (国槐)"
+  },
+  {
+   "key": "bark_willow.albedo",
+   "path": "tex/bark_willow/albedo.webp",
+   "type": "texture",
+   "size": 204474,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/bark_willow",
+   "notes": "albedo (sRGB); willow bark (柳)"
+  },
+  {
+   "key": "bark_willow.arm",
+   "path": "tex/bark_willow/arm.webp",
+   "type": "texture",
+   "size": 247424,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/bark_willow",
+   "notes": "arm (R=AO, G=roughness, B=metalness); willow bark (柳)"
+  },
+  {
+   "key": "bark_willow.normal",
+   "path": "tex/bark_willow/normal.webp",
+   "type": "texture",
+   "size": 613344,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/bark_willow",
+   "notes": "normal (OpenGL +Y); willow bark (柳)"
+  },
+  {
+   "key": "brick_grey.albedo",
+   "path": "tex/brick_grey/albedo.webp",
+   "type": "texture",
+   "size": 189328,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_wall_08",
+   "notes": "albedo (sRGB); hutong grey brick walls (青砖)"
+  },
+  {
+   "key": "brick_grey.arm",
+   "path": "tex/brick_grey/arm.webp",
+   "type": "texture",
+   "size": 150984,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_wall_08",
+   "notes": "arm (R=AO, G=roughness, B=metalness); hutong grey brick walls (青砖)"
+  },
+  {
+   "key": "brick_grey.normal",
+   "path": "tex/brick_grey/normal.webp",
+   "type": "texture",
+   "size": 421022,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_wall_08",
+   "notes": "normal (OpenGL +Y); hutong grey brick walls (青砖)"
+  },
+  {
+   "key": "concrete_tile_facade.albedo",
+   "path": "tex/concrete_tile_facade/albedo.webp",
+   "type": "texture",
+   "size": 125658,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_tile_facade",
+   "notes": "albedo (sRGB); modern concrete facade tiles"
+  },
+  {
+   "key": "concrete_tile_facade.arm",
+   "path": "tex/concrete_tile_facade/arm.webp",
+   "type": "texture",
+   "size": 58740,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_tile_facade",
+   "notes": "arm (R=AO, G=roughness, B=metalness); modern concrete facade tiles"
+  },
+  {
+   "key": "concrete_tile_facade.normal",
+   "path": "tex/concrete_tile_facade/normal.webp",
+   "type": "texture",
+   "size": 261968,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_tile_facade",
+   "notes": "normal (OpenGL +Y); modern concrete facade tiles"
+  },
+  {
+   "key": "concrete.albedo",
+   "path": "tex/concrete/albedo.webp",
+   "type": "texture",
+   "size": 116400,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_wall_008",
+   "notes": "albedo (sRGB); generic concrete walls, overpasses"
+  },
+  {
+   "key": "concrete.arm",
+   "path": "tex/concrete/arm.webp",
+   "type": "texture",
+   "size": 92288,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_wall_008",
+   "notes": "arm (R=AO, G=roughness, B=metalness); generic concrete walls, overpasses"
+  },
+  {
+   "key": "concrete.normal",
+   "path": "tex/concrete/normal.webp",
+   "type": "texture",
+   "size": 57946,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_wall_008",
+   "notes": "normal (OpenGL +Y); generic concrete walls, overpasses"
+  },
+  {
+   "key": "courtyard_brick.albedo",
+   "path": "tex/courtyard_brick/albedo.webp",
+   "type": "texture",
+   "size": 244918,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/blue_floor_tiles_01",
+   "notes": "albedo (sRGB); courtyard brick floor (砖墁地)"
+  },
+  {
+   "key": "courtyard_brick.arm",
+   "path": "tex/courtyard_brick/arm.webp",
+   "type": "texture",
+   "size": 113478,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/blue_floor_tiles_01",
+   "notes": "arm (R=AO, G=roughness, B=metalness); courtyard brick floor (砖墁地)"
+  },
+  {
+   "key": "courtyard_brick.normal",
+   "path": "tex/courtyard_brick/normal.webp",
+   "type": "texture",
+   "size": 285190,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/blue_floor_tiles_01",
+   "notes": "normal (OpenGL +Y); courtyard brick floor (砖墁地)"
+  },
+  {
+   "key": "dirt.albedo",
+   "path": "tex/dirt/albedo.webp",
+   "type": "texture",
+   "size": 520196,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brown_mud_dry",
+   "notes": "albedo (sRGB); tree pits, dirt lots"
+  },
+  {
+   "key": "dirt.arm",
+   "path": "tex/dirt/arm.webp",
+   "type": "texture",
+   "size": 208616,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brown_mud_dry",
+   "notes": "arm (R=AO, G=roughness, B=metalness); tree pits, dirt lots"
+  },
+  {
+   "key": "dirt.normal",
+   "path": "tex/dirt/normal.webp",
+   "type": "texture",
+   "size": 671560,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brown_mud_dry",
+   "notes": "normal (OpenGL +Y); tree pits, dirt lots"
+  },
+  {
+   "key": "facade_brick_windows.albedo",
+   "path": "tex/facade_brick_windows/albedo.webp",
+   "type": "texture",
+   "size": 180804,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade018A",
+   "notes": "albedo (sRGB); mid-rise brick facade with windows"
+  },
+  {
+   "key": "facade_brick_windows.arm",
+   "path": "tex/facade_brick_windows/arm.webp",
+   "type": "texture",
+   "size": 205660,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade018A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); mid-rise brick facade with windows"
+  },
+  {
+   "key": "facade_brick_windows.normal",
+   "path": "tex/facade_brick_windows/normal.webp",
+   "type": "texture",
+   "size": 311608,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade018A",
+   "notes": "normal (OpenGL +Y); mid-rise brick facade with windows"
+  },
+  {
+   "key": "facade_office_night.albedo",
+   "path": "tex/facade_office_night/albedo.webp",
+   "type": "texture",
+   "size": 237790,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade017",
+   "notes": "albedo (sRGB); office tower facade; emissive.webp = lit windows at night"
+  },
+  {
+   "key": "facade_office_night.arm",
+   "path": "tex/facade_office_night/arm.webp",
+   "type": "texture",
+   "size": 69848,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade017",
+   "notes": "arm (R=AO, G=roughness, B=metalness); office tower facade; emissive.webp = lit windows at night"
+  },
+  {
+   "key": "facade_office_night.emissive",
+   "path": "tex/facade_office_night/emissive.webp",
+   "type": "texture",
+   "size": 99976,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade017",
+   "notes": "emissive; office tower facade; emissive.webp = lit windows at night"
+  },
+  {
+   "key": "facade_office_night.normal",
+   "path": "tex/facade_office_night/normal.webp",
+   "type": "texture",
+   "size": 228044,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade017",
+   "notes": "normal (OpenGL +Y); office tower facade; emissive.webp = lit windows at night"
+  },
+  {
+   "key": "glass_curtain.albedo",
+   "path": "tex/glass_curtain/albedo.webp",
+   "type": "texture",
+   "size": 27680,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade001",
+   "notes": "albedo (sRGB); glass curtain wall (CBD towers); metalness from source"
+  },
+  {
+   "key": "glass_curtain.arm",
+   "path": "tex/glass_curtain/arm.webp",
+   "type": "texture",
+   "size": 25700,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade001",
+   "notes": "arm (R=AO, G=roughness, B=metalness); glass curtain wall (CBD towers); metalness from source"
+  },
+  {
+   "key": "glass_curtain.normal",
+   "path": "tex/glass_curtain/normal.webp",
+   "type": "texture",
+   "size": 20792,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade001",
+   "notes": "normal (OpenGL +Y); glass curtain wall (CBD towers); metalness from source"
+  },
+  {
+   "key": "granite_tile.albedo",
+   "path": "tex/granite_tile/albedo.webp",
+   "type": "texture",
+   "size": 311078,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/granite_tile_04",
+   "notes": "albedo (sRGB); plazas, station forecourts"
+  },
+  {
+   "key": "granite_tile.arm",
+   "path": "tex/granite_tile/arm.webp",
+   "type": "texture",
+   "size": 253426,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/granite_tile_04",
+   "notes": "arm (R=AO, G=roughness, B=metalness); plazas, station forecourts"
+  },
+  {
+   "key": "granite_tile.normal",
+   "path": "tex/granite_tile/normal.webp",
+   "type": "texture",
+   "size": 146704,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/granite_tile_04",
+   "notes": "normal (OpenGL +Y); plazas, station forecourts"
+  },
+  {
+   "key": "grass.albedo",
+   "path": "tex/grass/albedo.webp",
+   "type": "texture",
+   "size": 419036,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/leafy_grass",
+   "notes": "albedo (sRGB); park lawns"
+  },
+  {
+   "key": "grass.arm",
+   "path": "tex/grass/arm.webp",
+   "type": "texture",
+   "size": 296184,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/leafy_grass",
+   "notes": "arm (R=AO, G=roughness, B=metalness); park lawns"
+  },
+  {
+   "key": "grass.normal",
+   "path": "tex/grass/normal.webp",
+   "type": "texture",
+   "size": 637430,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/leafy_grass",
+   "notes": "normal (OpenGL +Y); park lawns"
+  },
+  {
+   "key": "hutong_paving.albedo",
+   "path": "tex/hutong_paving/albedo.webp",
+   "type": "texture",
+   "size": 358694,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_pavement_02",
+   "notes": "albedo (sRGB); hutong lane paving"
+  },
+  {
+   "key": "hutong_paving.arm",
+   "path": "tex/hutong_paving/arm.webp",
+   "type": "texture",
+   "size": 102170,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_pavement_02",
+   "notes": "arm (R=AO, G=roughness, B=metalness); hutong lane paving"
+  },
+  {
+   "key": "hutong_paving.normal",
+   "path": "tex/hutong_paving/normal.webp",
+   "type": "texture",
+   "size": 465486,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_pavement_02",
+   "notes": "normal (OpenGL +Y); hutong lane paving"
+  },
+  {
+   "key": "lacquer_red.albedo",
+   "path": "tex/lacquer_red/albedo.webp",
+   "type": "texture",
+   "size": 298078,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PaintedWood003 + https://polyhaven.com/a/lacquered_cherry_wood (roughness)",
+   "notes": "albedo (sRGB); red lacquered columns, doors, window frames"
+  },
+  {
+   "key": "lacquer_red.arm",
+   "path": "tex/lacquer_red/arm.webp",
+   "type": "texture",
+   "size": 53716,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PaintedWood003 + https://polyhaven.com/a/lacquered_cherry_wood (roughness)",
+   "notes": "arm (R=AO, G=roughness, B=metalness); red lacquered columns, doors, window frames"
+  },
+  {
+   "key": "lacquer_red.normal",
+   "path": "tex/lacquer_red/normal.webp",
+   "type": "texture",
+   "size": 335506,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PaintedWood003 + https://polyhaven.com/a/lacquered_cherry_wood (roughness)",
+   "notes": "normal (OpenGL +Y); red lacquered columns, doors, window frames"
+  },
+  {
+   "key": "leaves_broadleaf.albedo",
+   "path": "tex/leaves_broadleaf/albedo.webp",
+   "type": "texture",
+   "size": 134168,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet024",
+   "notes": "albedo (sRGB); broadleaf leaf cards (国槐, 柳, 银杏); alpha in albedo"
+  },
+  {
+   "key": "leaves_broadleaf.arm",
+   "path": "tex/leaves_broadleaf/arm.webp",
+   "type": "texture",
+   "size": 25100,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet024",
+   "notes": "arm (R=AO, G=roughness, B=metalness); broadleaf leaf cards (国槐, 柳, 银杏); alpha in albedo"
+  },
+  {
+   "key": "leaves_broadleaf.normal",
+   "path": "tex/leaves_broadleaf/normal.webp",
+   "type": "texture",
+   "size": 106128,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet024",
+   "notes": "normal (OpenGL +Y); broadleaf leaf cards (国槐, 柳, 银杏); alpha in albedo"
+  },
+  {
+   "key": "leaves_conifer.albedo",
+   "path": "tex/leaves_conifer/albedo.webp",
+   "type": "texture",
+   "size": 329220,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet019",
+   "notes": "albedo (sRGB); conifer needle cards (桧柏, pine); alpha in albedo"
+  },
+  {
+   "key": "leaves_conifer.arm",
+   "path": "tex/leaves_conifer/arm.webp",
+   "type": "texture",
+   "size": 90322,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet019",
+   "notes": "arm (R=AO, G=roughness, B=metalness); conifer needle cards (桧柏, pine); alpha in albedo"
+  },
+  {
+   "key": "leaves_conifer.normal",
+   "path": "tex/leaves_conifer/normal.webp",
+   "type": "texture",
+   "size": 176454,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet019",
+   "notes": "normal (OpenGL +Y); conifer needle cards (桧柏, pine); alpha in albedo"
+  },
+  {
+   "key": "asphalt_wear.albedo@lo",
+   "path": "tex/lo/asphalt_wear/albedo.webp",
+   "type": "texture",
+   "size": 70364,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/aerial_asphalt_01",
+   "notes": "albedo (sRGB); large-scale road wear / tyre marks overlay (blend over asphalt)"
+  },
+  {
+   "key": "asphalt_wear.arm@lo",
+   "path": "tex/lo/asphalt_wear/arm.webp",
+   "type": "texture",
+   "size": 30514,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/aerial_asphalt_01",
+   "notes": "arm (R=AO, G=roughness, B=metalness); large-scale road wear / tyre marks overlay (blend over asphalt)"
+  },
+  {
+   "key": "asphalt_wear.normal@lo",
+   "path": "tex/lo/asphalt_wear/normal.webp",
+   "type": "texture",
+   "size": 32092,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/aerial_asphalt_01",
+   "notes": "normal (OpenGL +Y); large-scale road wear / tyre marks overlay (blend over asphalt)"
+  },
+  {
+   "key": "asphalt.albedo@lo",
+   "path": "tex/lo/asphalt/albedo.webp",
+   "type": "texture",
+   "size": 94254,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/asphalt_02",
+   "notes": "albedo (sRGB); road surface (tileable detail)"
+  },
+  {
+   "key": "asphalt.arm@lo",
+   "path": "tex/lo/asphalt/arm.webp",
+   "type": "texture",
+   "size": 93838,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/asphalt_02",
+   "notes": "arm (R=AO, G=roughness, B=metalness); road surface (tileable detail)"
+  },
+  {
+   "key": "asphalt.normal@lo",
+   "path": "tex/lo/asphalt/normal.webp",
+   "type": "texture",
+   "size": 99778,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/asphalt_02",
+   "notes": "normal (OpenGL +Y); road surface (tileable detail)"
+  },
+  {
+   "key": "bark_hackberry.albedo@lo",
+   "path": "tex/lo/bark_hackberry/albedo.webp",
+   "type": "texture",
+   "size": 29144,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_hackberry_bark",
+   "notes": "albedo (sRGB); broadleaf bark (国槐)"
+  },
+  {
+   "key": "bark_hackberry.arm@lo",
+   "path": "tex/lo/bark_hackberry/arm.webp",
+   "type": "texture",
+   "size": 25074,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_hackberry_bark",
+   "notes": "arm (R=AO, G=roughness, B=metalness); broadleaf bark (国槐)"
+  },
+  {
+   "key": "bark_hackberry.normal@lo",
+   "path": "tex/lo/bark_hackberry/normal.webp",
+   "type": "texture",
+   "size": 41166,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/chinese_hackberry_bark",
+   "notes": "normal (OpenGL +Y); broadleaf bark (国槐)"
+  },
+  {
+   "key": "bark_willow.albedo@lo",
+   "path": "tex/lo/bark_willow/albedo.webp",
+   "type": "texture",
+   "size": 47972,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/bark_willow",
+   "notes": "albedo (sRGB); willow bark (柳)"
+  },
+  {
+   "key": "bark_willow.arm@lo",
+   "path": "tex/lo/bark_willow/arm.webp",
+   "type": "texture",
+   "size": 70892,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/bark_willow",
+   "notes": "arm (R=AO, G=roughness, B=metalness); willow bark (柳)"
+  },
+  {
+   "key": "bark_willow.normal@lo",
+   "path": "tex/lo/bark_willow/normal.webp",
+   "type": "texture",
+   "size": 157096,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/bark_willow",
+   "notes": "normal (OpenGL +Y); willow bark (柳)"
+  },
+  {
+   "key": "brick_grey.albedo@lo",
+   "path": "tex/lo/brick_grey/albedo.webp",
+   "type": "texture",
+   "size": 45720,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_wall_08",
+   "notes": "albedo (sRGB); hutong grey brick walls (青砖)"
+  },
+  {
+   "key": "brick_grey.arm@lo",
+   "path": "tex/lo/brick_grey/arm.webp",
+   "type": "texture",
+   "size": 48302,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_wall_08",
+   "notes": "arm (R=AO, G=roughness, B=metalness); hutong grey brick walls (青砖)"
+  },
+  {
+   "key": "brick_grey.normal@lo",
+   "path": "tex/lo/brick_grey/normal.webp",
+   "type": "texture",
+   "size": 98988,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_wall_08",
+   "notes": "normal (OpenGL +Y); hutong grey brick walls (青砖)"
+  },
+  {
+   "key": "concrete_tile_facade.albedo@lo",
+   "path": "tex/lo/concrete_tile_facade/albedo.webp",
+   "type": "texture",
+   "size": 16386,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_tile_facade",
+   "notes": "albedo (sRGB); modern concrete facade tiles"
+  },
+  {
+   "key": "concrete_tile_facade.arm@lo",
+   "path": "tex/lo/concrete_tile_facade/arm.webp",
+   "type": "texture",
+   "size": 19566,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_tile_facade",
+   "notes": "arm (R=AO, G=roughness, B=metalness); modern concrete facade tiles"
+  },
+  {
+   "key": "concrete_tile_facade.normal@lo",
+   "path": "tex/lo/concrete_tile_facade/normal.webp",
+   "type": "texture",
+   "size": 40642,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_tile_facade",
+   "notes": "normal (OpenGL +Y); modern concrete facade tiles"
+  },
+  {
+   "key": "concrete.albedo@lo",
+   "path": "tex/lo/concrete/albedo.webp",
+   "type": "texture",
+   "size": 19828,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_wall_008",
+   "notes": "albedo (sRGB); generic concrete walls, overpasses"
+  },
+  {
+   "key": "concrete.arm@lo",
+   "path": "tex/lo/concrete/arm.webp",
+   "type": "texture",
+   "size": 20400,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_wall_008",
+   "notes": "arm (R=AO, G=roughness, B=metalness); generic concrete walls, overpasses"
+  },
+  {
+   "key": "concrete.normal@lo",
+   "path": "tex/lo/concrete/normal.webp",
+   "type": "texture",
+   "size": 6990,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/concrete_wall_008",
+   "notes": "normal (OpenGL +Y); generic concrete walls, overpasses"
+  },
+  {
+   "key": "courtyard_brick.albedo@lo",
+   "path": "tex/lo/courtyard_brick/albedo.webp",
+   "type": "texture",
+   "size": 69384,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/blue_floor_tiles_01",
+   "notes": "albedo (sRGB); courtyard brick floor (砖墁地)"
+  },
+  {
+   "key": "courtyard_brick.arm@lo",
+   "path": "tex/lo/courtyard_brick/arm.webp",
+   "type": "texture",
+   "size": 40708,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/blue_floor_tiles_01",
+   "notes": "arm (R=AO, G=roughness, B=metalness); courtyard brick floor (砖墁地)"
+  },
+  {
+   "key": "courtyard_brick.normal@lo",
+   "path": "tex/lo/courtyard_brick/normal.webp",
+   "type": "texture",
+   "size": 73038,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/blue_floor_tiles_01",
+   "notes": "normal (OpenGL +Y); courtyard brick floor (砖墁地)"
+  },
+  {
+   "key": "dirt.albedo@lo",
+   "path": "tex/lo/dirt/albedo.webp",
+   "type": "texture",
+   "size": 122976,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brown_mud_dry",
+   "notes": "albedo (sRGB); tree pits, dirt lots"
+  },
+  {
+   "key": "dirt.arm@lo",
+   "path": "tex/lo/dirt/arm.webp",
+   "type": "texture",
+   "size": 68006,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brown_mud_dry",
+   "notes": "arm (R=AO, G=roughness, B=metalness); tree pits, dirt lots"
+  },
+  {
+   "key": "dirt.normal@lo",
+   "path": "tex/lo/dirt/normal.webp",
+   "type": "texture",
+   "size": 167910,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brown_mud_dry",
+   "notes": "normal (OpenGL +Y); tree pits, dirt lots"
+  },
+  {
+   "key": "facade_brick_windows.albedo@lo",
+   "path": "tex/lo/facade_brick_windows/albedo.webp",
+   "type": "texture",
+   "size": 41812,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade018A",
+   "notes": "albedo (sRGB); mid-rise brick facade with windows"
+  },
+  {
+   "key": "facade_brick_windows.arm@lo",
+   "path": "tex/lo/facade_brick_windows/arm.webp",
+   "type": "texture",
+   "size": 62920,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade018A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); mid-rise brick facade with windows"
+  },
+  {
+   "key": "facade_brick_windows.normal@lo",
+   "path": "tex/lo/facade_brick_windows/normal.webp",
+   "type": "texture",
+   "size": 75816,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade018A",
+   "notes": "normal (OpenGL +Y); mid-rise brick facade with windows"
+  },
+  {
+   "key": "facade_office_night.albedo@lo",
+   "path": "tex/lo/facade_office_night/albedo.webp",
+   "type": "texture",
+   "size": 82288,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade017",
+   "notes": "albedo (sRGB); office tower facade; emissive.webp = lit windows at night"
+  },
+  {
+   "key": "facade_office_night.arm@lo",
+   "path": "tex/lo/facade_office_night/arm.webp",
+   "type": "texture",
+   "size": 33170,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade017",
+   "notes": "arm (R=AO, G=roughness, B=metalness); office tower facade; emissive.webp = lit windows at night"
+  },
+  {
+   "key": "facade_office_night.emissive@lo",
+   "path": "tex/lo/facade_office_night/emissive.webp",
+   "type": "texture",
+   "size": 39608,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade017",
+   "notes": "emissive; office tower facade; emissive.webp = lit windows at night"
+  },
+  {
+   "key": "facade_office_night.normal@lo",
+   "path": "tex/lo/facade_office_night/normal.webp",
+   "type": "texture",
+   "size": 45668,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade017",
+   "notes": "normal (OpenGL +Y); office tower facade; emissive.webp = lit windows at night"
+  },
+  {
+   "key": "glass_curtain.albedo@lo",
+   "path": "tex/lo/glass_curtain/albedo.webp",
+   "type": "texture",
+   "size": 12850,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade001",
+   "notes": "albedo (sRGB); glass curtain wall (CBD towers); metalness from source"
+  },
+  {
+   "key": "glass_curtain.arm@lo",
+   "path": "tex/lo/glass_curtain/arm.webp",
+   "type": "texture",
+   "size": 10478,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade001",
+   "notes": "arm (R=AO, G=roughness, B=metalness); glass curtain wall (CBD towers); metalness from source"
+  },
+  {
+   "key": "glass_curtain.normal@lo",
+   "path": "tex/lo/glass_curtain/normal.webp",
+   "type": "texture",
+   "size": 10780,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Facade001",
+   "notes": "normal (OpenGL +Y); glass curtain wall (CBD towers); metalness from source"
+  },
+  {
+   "key": "granite_tile.albedo@lo",
+   "path": "tex/lo/granite_tile/albedo.webp",
+   "type": "texture",
+   "size": 57946,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/granite_tile_04",
+   "notes": "albedo (sRGB); plazas, station forecourts"
+  },
+  {
+   "key": "granite_tile.arm@lo",
+   "path": "tex/lo/granite_tile/arm.webp",
+   "type": "texture",
+   "size": 46896,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/granite_tile_04",
+   "notes": "arm (R=AO, G=roughness, B=metalness); plazas, station forecourts"
+  },
+  {
+   "key": "granite_tile.normal@lo",
+   "path": "tex/lo/granite_tile/normal.webp",
+   "type": "texture",
+   "size": 21456,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/granite_tile_04",
+   "notes": "normal (OpenGL +Y); plazas, station forecourts"
+  },
+  {
+   "key": "grass.albedo@lo",
+   "path": "tex/lo/grass/albedo.webp",
+   "type": "texture",
+   "size": 107116,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/leafy_grass",
+   "notes": "albedo (sRGB); park lawns"
+  },
+  {
+   "key": "grass.arm@lo",
+   "path": "tex/lo/grass/arm.webp",
+   "type": "texture",
+   "size": 66070,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/leafy_grass",
+   "notes": "arm (R=AO, G=roughness, B=metalness); park lawns"
+  },
+  {
+   "key": "grass.normal@lo",
+   "path": "tex/lo/grass/normal.webp",
+   "type": "texture",
+   "size": 151194,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/leafy_grass",
+   "notes": "normal (OpenGL +Y); park lawns"
+  },
+  {
+   "key": "hutong_paving.albedo@lo",
+   "path": "tex/lo/hutong_paving/albedo.webp",
+   "type": "texture",
+   "size": 81118,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_pavement_02",
+   "notes": "albedo (sRGB); hutong lane paving"
+  },
+  {
+   "key": "hutong_paving.arm@lo",
+   "path": "tex/lo/hutong_paving/arm.webp",
+   "type": "texture",
+   "size": 26118,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_pavement_02",
+   "notes": "arm (R=AO, G=roughness, B=metalness); hutong lane paving"
+  },
+  {
+   "key": "hutong_paving.normal@lo",
+   "path": "tex/lo/hutong_paving/normal.webp",
+   "type": "texture",
+   "size": 92050,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/brick_pavement_02",
+   "notes": "normal (OpenGL +Y); hutong lane paving"
+  },
+  {
+   "key": "lacquer_red.albedo@lo",
+   "path": "tex/lo/lacquer_red/albedo.webp",
+   "type": "texture",
+   "size": 65222,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PaintedWood003 + https://polyhaven.com/a/lacquered_cherry_wood (roughness)",
+   "notes": "albedo (sRGB); red lacquered columns, doors, window frames"
+  },
+  {
+   "key": "lacquer_red.arm@lo",
+   "path": "tex/lo/lacquer_red/arm.webp",
+   "type": "texture",
+   "size": 12862,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PaintedWood003 + https://polyhaven.com/a/lacquered_cherry_wood (roughness)",
+   "notes": "arm (R=AO, G=roughness, B=metalness); red lacquered columns, doors, window frames"
+  },
+  {
+   "key": "lacquer_red.normal@lo",
+   "path": "tex/lo/lacquer_red/normal.webp",
+   "type": "texture",
+   "size": 59716,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PaintedWood003 + https://polyhaven.com/a/lacquered_cherry_wood (roughness)",
+   "notes": "normal (OpenGL +Y); red lacquered columns, doors, window frames"
+  },
+  {
+   "key": "leaves_broadleaf.albedo@lo",
+   "path": "tex/lo/leaves_broadleaf/albedo.webp",
+   "type": "texture",
+   "size": 37124,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet024",
+   "notes": "albedo (sRGB); broadleaf leaf cards (国槐, 柳, 银杏); alpha in albedo"
+  },
+  {
+   "key": "leaves_broadleaf.arm@lo",
+   "path": "tex/lo/leaves_broadleaf/arm.webp",
+   "type": "texture",
+   "size": 7558,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet024",
+   "notes": "arm (R=AO, G=roughness, B=metalness); broadleaf leaf cards (国槐, 柳, 银杏); alpha in albedo"
+  },
+  {
+   "key": "leaves_broadleaf.normal@lo",
+   "path": "tex/lo/leaves_broadleaf/normal.webp",
+   "type": "texture",
+   "size": 29910,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet024",
+   "notes": "normal (OpenGL +Y); broadleaf leaf cards (国槐, 柳, 银杏); alpha in albedo"
+  },
+  {
+   "key": "leaves_conifer.albedo@lo",
+   "path": "tex/lo/leaves_conifer/albedo.webp",
+   "type": "texture",
+   "size": 105662,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet019",
+   "notes": "albedo (sRGB); conifer needle cards (桧柏, pine); alpha in albedo"
+  },
+  {
+   "key": "leaves_conifer.arm@lo",
+   "path": "tex/lo/leaves_conifer/arm.webp",
+   "type": "texture",
+   "size": 36490,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet019",
+   "notes": "arm (R=AO, G=roughness, B=metalness); conifer needle cards (桧柏, pine); alpha in albedo"
+  },
+  {
+   "key": "leaves_conifer.normal@lo",
+   "path": "tex/lo/leaves_conifer/normal.webp",
+   "type": "texture",
+   "size": 54092,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=LeafSet019",
+   "notes": "normal (OpenGL +Y); conifer needle cards (桧柏, pine); alpha in albedo"
+  },
+  {
+   "key": "marble_white.albedo@lo",
+   "path": "tex/lo/marble_white/albedo.webp",
+   "type": "texture",
+   "size": 42434,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Marble019",
+   "notes": "albedo (sRGB); white marble balustrades / terraces (汉白玉)"
+  },
+  {
+   "key": "marble_white.arm@lo",
+   "path": "tex/lo/marble_white/arm.webp",
+   "type": "texture",
+   "size": 31166,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Marble019",
+   "notes": "arm (R=AO, G=roughness, B=metalness); white marble balustrades / terraces (汉白玉)"
+  },
+  {
+   "key": "marble_white.normal@lo",
+   "path": "tex/lo/marble_white/normal.webp",
+   "type": "texture",
+   "size": 714,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Marble019",
+   "notes": "normal (OpenGL +Y); white marble balustrades / terraces (汉白玉)"
+  },
+  {
+   "key": "paving_stone.albedo@lo",
+   "path": "tex/lo/paving_stone/albedo.webp",
+   "type": "texture",
+   "size": 37254,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PavingStones128",
+   "notes": "albedo (sRGB); big stone paving: Tiananmen Square, palace courtyards"
+  },
+  {
+   "key": "paving_stone.arm@lo",
+   "path": "tex/lo/paving_stone/arm.webp",
+   "type": "texture",
+   "size": 32166,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PavingStones128",
+   "notes": "arm (R=AO, G=roughness, B=metalness); big stone paving: Tiananmen Square, palace courtyards"
+  },
+  {
+   "key": "paving_stone.normal@lo",
+   "path": "tex/lo/paving_stone/normal.webp",
+   "type": "texture",
+   "size": 53150,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PavingStones128",
+   "notes": "normal (OpenGL +Y); big stone paving: Tiananmen Square, palace courtyards"
+  },
+  {
+   "key": "plaster_beige.albedo@lo",
+   "path": "tex/lo/plaster_beige/albedo.webp",
+   "type": "texture",
+   "size": 650,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/beige_wall_001",
+   "notes": "albedo (sRGB); interior plaster walls (tinted per room)"
+  },
+  {
+   "key": "plaster_beige.arm@lo",
+   "path": "tex/lo/plaster_beige/arm.webp",
+   "type": "texture",
+   "size": 6240,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/beige_wall_001",
+   "notes": "arm (R=AO, G=roughness, B=metalness); interior plaster walls (tinted per room)"
+  },
+  {
+   "key": "plaster_beige.normal@lo",
+   "path": "tex/lo/plaster_beige/normal.webp",
+   "type": "texture",
+   "size": 17480,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/beige_wall_001",
+   "notes": "normal (OpenGL +Y); interior plaster walls (tinted per room)"
+  },
+  {
+   "key": "plaster_palace_red.albedo@lo",
+   "path": "tex/lo/plaster_palace_red/albedo.webp",
+   "type": "texture",
+   "size": 13044,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/red_plaster_weathered",
+   "notes": "albedo (sRGB); palace / temple red walls (故宫红)"
+  },
+  {
+   "key": "plaster_palace_red.arm@lo",
+   "path": "tex/lo/plaster_palace_red/arm.webp",
+   "type": "texture",
+   "size": 23008,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/red_plaster_weathered",
+   "notes": "arm (R=AO, G=roughness, B=metalness); palace / temple red walls (故宫红)"
+  },
+  {
+   "key": "plaster_palace_red.normal@lo",
+   "path": "tex/lo/plaster_palace_red/normal.webp",
+   "type": "texture",
+   "size": 11980,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/red_plaster_weathered",
+   "notes": "normal (OpenGL +Y); palace / temple red walls (故宫红)"
+  },
+  {
+   "key": "roof_blue.albedo@lo",
+   "path": "tex/lo/roof_blue/albedo.webp",
+   "type": "texture",
+   "size": 11976,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "albedo (sRGB); blue glazed tiles (天坛 祈年殿)"
+  },
+  {
+   "key": "roof_blue.arm@lo",
+   "path": "tex/lo/roof_blue/arm.webp",
+   "type": "texture",
+   "size": 29004,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); blue glazed tiles (天坛 祈年殿)"
+  },
+  {
+   "key": "roof_green.albedo@lo",
+   "path": "tex/lo/roof_green/albedo.webp",
+   "type": "texture",
+   "size": 12712,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "albedo (sRGB); green glazed tiles (princely mansions, 恭王府)"
+  },
+  {
+   "key": "roof_green.arm@lo",
+   "path": "tex/lo/roof_green/arm.webp",
+   "type": "texture",
+   "size": 29004,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); green glazed tiles (princely mansions, 恭王府)"
+  },
+  {
+   "key": "roof_grey.albedo@lo",
+   "path": "tex/lo/roof_grey/albedo.webp",
+   "type": "texture",
+   "size": 10218,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "albedo (sRGB); grey clay roof tiles (hutong, 四合院)"
+  },
+  {
+   "key": "roof_grey.arm@lo",
+   "path": "tex/lo/roof_grey/arm.webp",
+   "type": "texture",
+   "size": 25512,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); grey clay roof tiles (hutong, 四合院)"
+  },
+  {
+   "key": "roof_tiles.normal@lo",
+   "path": "tex/lo/roof_tiles/normal.webp",
+   "type": "texture",
+   "size": 28606,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "normal (OpenGL +Y); shared normal map of the roof_* tiles"
+  },
+  {
+   "key": "roof_yellow.albedo@lo",
+   "path": "tex/lo/roof_yellow/albedo.webp",
+   "type": "texture",
+   "size": 24766,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "albedo (sRGB); yellow glazed tiles (imperial: 故宫, 天安门); clearcoat ~0.6"
+  },
+  {
+   "key": "roof_yellow.arm@lo",
+   "path": "tex/lo/roof_yellow/arm.webp",
+   "type": "texture",
+   "size": 29004,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); yellow glazed tiles (imperial: 故宫, 天安门); clearcoat ~0.6"
+  },
+  {
+   "key": "sidewalk.albedo@lo",
+   "path": "tex/lo/sidewalk/albedo.webp",
+   "type": "texture",
+   "size": 63918,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/floor_tiles_09",
+   "notes": "albedo (sRGB); sidewalk concrete tiles"
+  },
+  {
+   "key": "sidewalk.arm@lo",
+   "path": "tex/lo/sidewalk/arm.webp",
+   "type": "texture",
+   "size": 39286,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/floor_tiles_09",
+   "notes": "arm (R=AO, G=roughness, B=metalness); sidewalk concrete tiles"
+  },
+  {
+   "key": "sidewalk.normal@lo",
+   "path": "tex/lo/sidewalk/normal.webp",
+   "type": "texture",
+   "size": 38154,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/floor_tiles_09",
+   "notes": "normal (OpenGL +Y); sidewalk concrete tiles"
+  },
+  {
+   "key": "tactile.albedo@lo",
+   "path": "tex/lo/tactile/albedo.webp",
+   "type": "texture",
+   "size": 63634,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=TactilePaving003",
+   "notes": "albedo (sRGB); yellow tactile strip (盲道)"
+  },
+  {
+   "key": "tactile.arm@lo",
+   "path": "tex/lo/tactile/arm.webp",
+   "type": "texture",
+   "size": 88994,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=TactilePaving003",
+   "notes": "arm (R=AO, G=roughness, B=metalness); yellow tactile strip (盲道)"
+  },
+  {
+   "key": "tactile.normal@lo",
+   "path": "tex/lo/tactile/normal.webp",
+   "type": "texture",
+   "size": 80616,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=TactilePaving003",
+   "notes": "normal (OpenGL +Y); yellow tactile strip (盲道)"
+  },
+  {
+   "key": "wood_dark.albedo@lo",
+   "path": "tex/lo/wood_dark/albedo.webp",
+   "type": "texture",
+   "size": 39290,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wood",
+   "notes": "albedo (sRGB); dark hardwood: ceiling beams, wainscot, counters, procedural furniture"
+  },
+  {
+   "key": "wood_dark.arm@lo",
+   "path": "tex/lo/wood_dark/arm.webp",
+   "type": "texture",
+   "size": 20552,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wood",
+   "notes": "arm (R=AO, G=roughness, B=metalness); dark hardwood: ceiling beams, wainscot, counters, procedural furniture"
+  },
+  {
+   "key": "wood_dark.normal@lo",
+   "path": "tex/lo/wood_dark/normal.webp",
+   "type": "texture",
+   "size": 3242,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wood",
+   "notes": "normal (OpenGL +Y); dark hardwood: ceiling beams, wainscot, counters, procedural furniture"
+  },
+  {
+   "key": "wood_floor.albedo@lo",
+   "path": "tex/lo/wood_floor/albedo.webp",
+   "type": "texture",
+   "size": 32384,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wooden_planks",
+   "notes": "albedo (sRGB); room floor planks (王府, 老字号, 道场)"
+  },
+  {
+   "key": "wood_floor.arm@lo",
+   "path": "tex/lo/wood_floor/arm.webp",
+   "type": "texture",
+   "size": 38384,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wooden_planks",
+   "notes": "arm (R=AO, G=roughness, B=metalness); room floor planks (王府, 老字号, 道场)"
+  },
+  {
+   "key": "wood_floor.normal@lo",
+   "path": "tex/lo/wood_floor/normal.webp",
+   "type": "texture",
+   "size": 30484,
+   "tier": "phone",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wooden_planks",
+   "notes": "normal (OpenGL +Y); room floor planks (王府, 老字号, 道场)"
+  },
+  {
+   "key": "marble_white.albedo",
+   "path": "tex/marble_white/albedo.webp",
+   "type": "texture",
+   "size": 136256,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Marble019",
+   "notes": "albedo (sRGB); white marble balustrades / terraces (汉白玉)"
+  },
+  {
+   "key": "marble_white.arm",
+   "path": "tex/marble_white/arm.webp",
+   "type": "texture",
+   "size": 95094,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Marble019",
+   "notes": "arm (R=AO, G=roughness, B=metalness); white marble balustrades / terraces (汉白玉)"
+  },
+  {
+   "key": "marble_white.normal",
+   "path": "tex/marble_white/normal.webp",
+   "type": "texture",
+   "size": 3570,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=Marble019",
+   "notes": "normal (OpenGL +Y); white marble balustrades / terraces (汉白玉)"
+  },
+  {
+   "key": "paving_stone.albedo",
+   "path": "tex/paving_stone/albedo.webp",
+   "type": "texture",
+   "size": 224066,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PavingStones128",
+   "notes": "albedo (sRGB); big stone paving: Tiananmen Square, palace courtyards"
+  },
+  {
+   "key": "paving_stone.arm",
+   "path": "tex/paving_stone/arm.webp",
+   "type": "texture",
+   "size": 144636,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PavingStones128",
+   "notes": "arm (R=AO, G=roughness, B=metalness); big stone paving: Tiananmen Square, palace courtyards"
+  },
+  {
+   "key": "paving_stone.normal",
+   "path": "tex/paving_stone/normal.webp",
+   "type": "texture",
+   "size": 448034,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=PavingStones128",
+   "notes": "normal (OpenGL +Y); big stone paving: Tiananmen Square, palace courtyards"
+  },
+  {
+   "key": "plaster_beige.albedo",
+   "path": "tex/plaster_beige/albedo.webp",
+   "type": "texture",
+   "size": 3050,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/beige_wall_001",
+   "notes": "albedo (sRGB); interior plaster walls (tinted per room)"
+  },
+  {
+   "key": "plaster_beige.arm",
+   "path": "tex/plaster_beige/arm.webp",
+   "type": "texture",
+   "size": 26392,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/beige_wall_001",
+   "notes": "arm (R=AO, G=roughness, B=metalness); interior plaster walls (tinted per room)"
+  },
+  {
+   "key": "plaster_beige.normal",
+   "path": "tex/plaster_beige/normal.webp",
+   "type": "texture",
+   "size": 145740,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/beige_wall_001",
+   "notes": "normal (OpenGL +Y); interior plaster walls (tinted per room)"
+  },
+  {
+   "key": "plaster_palace_red.albedo",
+   "path": "tex/plaster_palace_red/albedo.webp",
+   "type": "texture",
+   "size": 66502,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/red_plaster_weathered",
+   "notes": "albedo (sRGB); palace / temple red walls (故宫红)"
+  },
+  {
+   "key": "plaster_palace_red.arm",
+   "path": "tex/plaster_palace_red/arm.webp",
+   "type": "texture",
+   "size": 84724,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/red_plaster_weathered",
+   "notes": "arm (R=AO, G=roughness, B=metalness); palace / temple red walls (故宫红)"
+  },
+  {
+   "key": "plaster_palace_red.normal",
+   "path": "tex/plaster_palace_red/normal.webp",
+   "type": "texture",
+   "size": 140160,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/red_plaster_weathered",
+   "notes": "normal (OpenGL +Y); palace / temple red walls (故宫红)"
+  },
+  {
+   "key": "roof_blue.albedo",
+   "path": "tex/roof_blue/albedo.webp",
+   "type": "texture",
+   "size": 31490,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "albedo (sRGB); blue glazed tiles (天坛 祈年殿)"
+  },
+  {
+   "key": "roof_blue.arm",
+   "path": "tex/roof_blue/arm.webp",
+   "type": "texture",
+   "size": 77800,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); blue glazed tiles (天坛 祈年殿)"
+  },
+  {
+   "key": "roof_green.albedo",
+   "path": "tex/roof_green/albedo.webp",
+   "type": "texture",
+   "size": 33276,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "albedo (sRGB); green glazed tiles (princely mansions, 恭王府)"
+  },
+  {
+   "key": "roof_green.arm",
+   "path": "tex/roof_green/arm.webp",
+   "type": "texture",
+   "size": 77800,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); green glazed tiles (princely mansions, 恭王府)"
+  },
+  {
+   "key": "roof_grey.albedo",
+   "path": "tex/roof_grey/albedo.webp",
+   "type": "texture",
+   "size": 27766,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "albedo (sRGB); grey clay roof tiles (hutong, 四合院)"
+  },
+  {
+   "key": "roof_grey.arm",
+   "path": "tex/roof_grey/arm.webp",
+   "type": "texture",
+   "size": 64884,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); grey clay roof tiles (hutong, 四合院)"
+  },
+  {
+   "key": "roof_tiles.normal",
+   "path": "tex/roof_tiles/normal.webp",
+   "type": "texture",
+   "size": 94210,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "normal (OpenGL +Y); shared normal map of the roof_* tiles"
+  },
+  {
+   "key": "roof_yellow.albedo",
+   "path": "tex/roof_yellow/albedo.webp",
+   "type": "texture",
+   "size": 72740,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "albedo (sRGB); yellow glazed tiles (imperial: 故宫, 天安门); clearcoat ~0.6"
+  },
+  {
+   "key": "roof_yellow.arm",
+   "path": "tex/roof_yellow/arm.webp",
+   "type": "texture",
+   "size": 77800,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=RoofingTiles014A",
+   "notes": "arm (R=AO, G=roughness, B=metalness); yellow glazed tiles (imperial: 故宫, 天安门); clearcoat ~0.6"
+  },
+  {
+   "key": "sidewalk.albedo",
+   "path": "tex/sidewalk/albedo.webp",
+   "type": "texture",
+   "size": 255406,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/floor_tiles_09",
+   "notes": "albedo (sRGB); sidewalk concrete tiles"
+  },
+  {
+   "key": "sidewalk.arm",
+   "path": "tex/sidewalk/arm.webp",
+   "type": "texture",
+   "size": 111486,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/floor_tiles_09",
+   "notes": "arm (R=AO, G=roughness, B=metalness); sidewalk concrete tiles"
+  },
+  {
+   "key": "sidewalk.normal",
+   "path": "tex/sidewalk/normal.webp",
+   "type": "texture",
+   "size": 203798,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/floor_tiles_09",
+   "notes": "normal (OpenGL +Y); sidewalk concrete tiles"
+  },
+  {
+   "key": "tactile.albedo",
+   "path": "tex/tactile/albedo.webp",
+   "type": "texture",
+   "size": 182102,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=TactilePaving003",
+   "notes": "albedo (sRGB); yellow tactile strip (盲道)"
+  },
+  {
+   "key": "tactile.arm",
+   "path": "tex/tactile/arm.webp",
+   "type": "texture",
+   "size": 255894,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=TactilePaving003",
+   "notes": "arm (R=AO, G=roughness, B=metalness); yellow tactile strip (盲道)"
+  },
+  {
+   "key": "tactile.normal",
+   "path": "tex/tactile/normal.webp",
+   "type": "texture",
+   "size": 182668,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://ambientcg.com/view?id=TactilePaving003",
+   "notes": "normal (OpenGL +Y); yellow tactile strip (盲道)"
+  },
+  {
+   "key": "wood_dark.albedo",
+   "path": "tex/wood_dark/albedo.webp",
+   "type": "texture",
+   "size": 166604,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wood",
+   "notes": "albedo (sRGB); dark hardwood: ceiling beams, wainscot, counters, procedural furniture"
+  },
+  {
+   "key": "wood_dark.arm",
+   "path": "tex/wood_dark/arm.webp",
+   "type": "texture",
+   "size": 83868,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wood",
+   "notes": "arm (R=AO, G=roughness, B=metalness); dark hardwood: ceiling beams, wainscot, counters, procedural furniture"
+  },
+  {
+   "key": "wood_dark.normal",
+   "path": "tex/wood_dark/normal.webp",
+   "type": "texture",
+   "size": 27672,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wood",
+   "notes": "normal (OpenGL +Y); dark hardwood: ceiling beams, wainscot, counters, procedural furniture"
+  },
+  {
+   "key": "wood_floor.albedo",
+   "path": "tex/wood_floor/albedo.webp",
+   "type": "texture",
+   "size": 150014,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wooden_planks",
+   "notes": "albedo (sRGB); room floor planks (王府, 老字号, 道场)"
+  },
+  {
+   "key": "wood_floor.arm",
+   "path": "tex/wood_floor/arm.webp",
+   "type": "texture",
+   "size": 140844,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wooden_planks",
+   "notes": "arm (R=AO, G=roughness, B=metalness); room floor planks (王府, 老字号, 道场)"
+  },
+  {
+   "key": "wood_floor.normal",
+   "path": "tex/wood_floor/normal.webp",
+   "type": "texture",
+   "size": 126438,
+   "tier": "desktop",
+   "licence": "CC0-1.0",
+   "source": "https://polyhaven.com/a/dark_wooden_planks",
+   "notes": "normal (OpenGL +Y); room floor planks (王府, 老字号, 道场)"
+  },
+  {
+   "key": "cypress_impostor",
+   "path": "trees/cypress_impostor.webp",
+   "type": "impostor",
+   "size": 53384,
+   "tier": "both",
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)",
+   "source": "https://github.com/dgreenheck/ez-tree",
+   "notes": "桧柏 Chinese juniper / cypress: 2x2 impostor atlas (views 0/45/90/135 deg, orthographic, alpha)"
+  },
+  {
+   "key": "cypress",
+   "path": "trees/cypress.glb",
+   "type": "glb",
+   "size": 597968,
+   "tier": "both",
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)",
+   "source": "https://github.com/dgreenheck/ez-tree",
+   "notes": "桧柏 Chinese juniper / cypress: nodes lod0 / lod1 (bark, leaves); custom attribute _wind (0 base .. 1 top)"
+  },
+  {
+   "key": "guohuai_impostor",
+   "path": "trees/guohuai_impostor.webp",
+   "type": "impostor",
+   "size": 177408,
+   "tier": "both",
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)",
+   "source": "https://github.com/dgreenheck/ez-tree",
+   "notes": "国槐 Chinese scholar tree: 2x2 impostor atlas (views 0/45/90/135 deg, orthographic, alpha)"
+  },
+  {
+   "key": "guohuai",
+   "path": "trees/guohuai.glb",
+   "type": "glb",
+   "size": 469844,
+   "tier": "both",
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)",
+   "source": "https://github.com/dgreenheck/ez-tree",
+   "notes": "国槐 Chinese scholar tree: nodes lod0 / lod1 (bark, leaves); custom attribute _wind (0 base .. 1 top)"
+  },
+  {
+   "key": "liu_impostor",
+   "path": "trees/liu_impostor.webp",
+   "type": "impostor",
+   "size": 131074,
+   "tier": "both",
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)",
+   "source": "https://github.com/dgreenheck/ez-tree",
+   "notes": "柳 weeping willow: 2x2 impostor atlas (views 0/45/90/135 deg, orthographic, alpha)"
+  },
+  {
+   "key": "liu",
+   "path": "trees/liu.glb",
+   "type": "glb",
+   "size": 697604,
+   "tier": "both",
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)",
+   "source": "https://github.com/dgreenheck/ez-tree",
+   "notes": "柳 weeping willow: nodes lod0 / lod1 (bark, leaves); custom attribute _wind (0 base .. 1 top)"
+  },
+  {
+   "key": "yinxing_impostor",
+   "path": "trees/yinxing_impostor.webp",
+   "type": "impostor",
+   "size": 98066,
+   "tier": "both",
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)",
+   "source": "https://github.com/dgreenheck/ez-tree",
+   "notes": "银杏 ginkgo (autumn gold): 2x2 impostor atlas (views 0/45/90/135 deg, orthographic, alpha)"
+  },
+  {
+   "key": "yinxing",
+   "path": "trees/yinxing.glb",
+   "type": "glb",
+   "size": 451172,
+   "tier": "both",
+   "licence": "MIT (generator + leaf textures) / CC0 (bark: Poly Haven)",
+   "source": "https://github.com/dgreenheck/ez-tree",
+   "notes": "银杏 ginkgo (autumn gold): nodes lod0 / lod1 (bark, leaves); custom attribute _wind (0 base .. 1 top)"
+  }
+ ]
+}

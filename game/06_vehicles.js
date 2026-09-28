@@ -4,70 +4,27 @@
    legal-department chasers (A* on the graph), 共享单车,
    shared arcade driving physics
    ============================================================ */
+// physics per kind (len / wid / h = the body's footprint and roof height: AI gaps, collisions, where a rolled car rests);
+// the looks (lofted bodies, liveries, wheels) live in 06a_vehicle_models.js
 const CAR_KINDS = {
-  sedan: { len: 4.6, wid: 2.1, h: 1.7, maxSpd: 34, accel: 20, brake: 42, maxRev: 11, steer: 2.3, grip: 7, colors: [0xd23c3c, 0x2f6fd6, 0xe8e8e8, 0x222428, 0x3aa35b, 0xf2c14e, 0x8b5cf6, 0x9aa3ad, 0xff7a3d] },
-  taxi: { len: 4.6, wid: 2.1, h: 1.9, maxSpd: 34, accel: 20, brake: 42, maxRev: 11, steer: 2.3, grip: 7, colors: [0xf5c518, 0x2fb36d] },
-  van: { len: 5.4, wid: 2.3, h: 2.6, maxSpd: 28, accel: 15, brake: 36, maxRev: 9, steer: 2.0, grip: 7.5, colors: [0xf0f0f0, 0x6b7280, 0x1e88e5] },
-  sport: { len: 4.5, wid: 2.1, h: 1.4, maxSpd: 48, accel: 32, brake: 50, maxRev: 12, steer: 2.6, grip: 6.5, colors: [0xff2d55, 0xffcc00, 0x00c2ff] },
-  legal: { len: 4.8, wid: 2.15, h: 1.9, maxSpd: 40, accel: 26, brake: 44, maxRev: 12, steer: 2.4, grip: 7.5, colors: [0x15171b] },
+  sedan: { len: 4.6, wid: 2.1, h: 1.47, maxSpd: 34, accel: 20, brake: 42, maxRev: 11, steer: 2.3, grip: 7, colors: [0xc8202a, 0x2a5fc4, 0xeceeef, 0x1b1d21, 0x2f8a52, 0xd9a93a, 0x6d4bd8, 0x9aa3ad, 0x6b7076, 0xe8622c] },
+  hatch: { len: 4.1, wid: 2.0, h: 1.52, maxSpd: 32, accel: 21, brake: 42, maxRev: 11, steer: 2.45, grip: 7.2, colors: [0xf1f2f3, 0xd8282e, 0x3b82d6, 0xf08a24, 0x7fcfb8, 0x2b2d31, 0xe5d3b3] },
+  suv: { len: 4.75, wid: 2.15, h: 1.76, maxSpd: 32, accel: 18, brake: 40, maxRev: 10, steer: 2.1, grip: 7, colors: [0xf4f4f2, 0x17191c, 0x5c6168, 0x1d3557, 0xb7bcc2, 0x7a5c3e, 0x8c1c24] },
+  // 北京出租: gold on top, the company colour below (the paint)
+  taxi: { len: 4.6, wid: 2.1, h: 1.75, maxSpd: 34, accel: 20, brake: 42, maxRev: 11, steer: 2.3, grip: 7, colors: [0x2e8b57, 0x2e8b57, 0x1f5fa8, 0x7a1f2b] },
+  van: { len: 5.4, wid: 2.3, h: 2.52, maxSpd: 28, accel: 15, brake: 36, maxRev: 9, steer: 2.0, grip: 7.5, colors: [0xf2f2f0, 0x6b7280, 0x1e6fd0] },
+  sport: { len: 4.5, wid: 2.1, h: 1.2, maxSpd: 48, accel: 32, brake: 50, maxRev: 12, steer: 2.6, grip: 6.5, colors: [0xe0142e, 0xffc20e, 0x00a8e8, 0xf5f5f5, 0x39d353] },
+  legal: { len: 4.8, wid: 2.15, h: 1.9, maxSpd: 40, accel: 26, brake: 44, maxRev: 12, steer: 2.4, grip: 7.5, colors: [0x121315] },
+  police: { len: 4.7, wid: 2.1, h: 1.62, maxSpd: 40, accel: 26, brake: 44, maxRev: 12, steer: 2.4, grip: 7.5, colors: [0xf3f5f7] },
+  // 公交: long and slow; five probes along the body keep its ends out of the walls
+  bus: { len: 12, wid: 2.6, h: 3.15, maxSpd: 22, accel: 9, brake: 26, maxRev: 6, steer: 1.5, grip: 8, colors: [0xc8161d, 0xc8161d, 0x1f8a4c], colR: 1.3, probes: [4.7, -4.7, 0, 2.35, -2.35] },
   // 共享单车: slow, twitchy, no fireballs
   bike: { len: 1.8, wid: 0.62, h: 1.15, maxSpd: 10, accel: 6.5, brake: 13, maxRev: 2, steer: 3.3, grip: 13, colors: [0xffc400, 0x2f80ed, 0xff7a1a, 0x22c55e], bike: true },
+  // 外卖电驴: a bike you don't pedal (no ride fee: it isn't a shared bike)
+  ebike: { len: 1.8, wid: 0.7, h: 1.3, maxSpd: 15, accel: 9, brake: 16, maxRev: 2, steer: 3.1, grip: 12, colors: [0xffc300, 0x1d8cf8], bike: true, ebike: true },
 };
 const TRUCK_PRM = { maxSpd: 50, accel: 30, brake: 52, maxRev: 14, steer: 2.1, grip: 6.5, boost: 1 };
-const CAR_NAMES = { sedan: '码农小轿车', taxi: 'Token 出租', van: '外卖面包车', sport: '极客跑车', legal: '法务专车', bike: '共享单车' };
-const CAR_LIGHT_GEO = new Map();
-function carLightsGeo(kind) {
-  if (CAR_LIGHT_GEO.has(kind)) return CAR_LIGHT_GEO.get(kind);
-  const k = CAR_KINDS[kind], L = k.len, Wd = k.wid, parts = [];
-  if (k.bike) parts.push(box(0, 0.98, 0.7, 0.14, 0.1, 0.08, 0xfff2c8), box(0, 0.62, -0.78, 0.12, 0.08, 0.04, 0xd11f1f));
-  else for (const sx of [-1, 1]) {
-    parts.push(box(sx * (Wd / 2 - 0.4), kind === 'van' ? 1.0 : 0.85, L / 2 + 0.03, 0.46, 0.24, 0.08, 0xfff2c8));
-    parts.push(box(sx * (Wd / 2 - 0.4), kind === 'van' ? 1.0 : 0.85, -L / 2 - 0.03, 0.46, 0.22, 0.08, 0xd11f1f));
-  }
-  const g = mergeParts(parts); CAR_LIGHT_GEO.set(kind, g); return g;
-}
-const BEAM_GEO = (() => { const g = new THREE.PlaneGeometry(4.4, 9); g.rotateX(-Math.PI / 2); g.translate(0, 0.08, 7); return g; })();
-const CAR_GEO = new Map();
-function carGeo(kind, color) {
-  const key = kind + ':' + color;
-  if (CAR_GEO.has(key)) return CAR_GEO.get(key);
-  const k = CAR_KINDS[kind], L = k.len, Wd = k.wid, parts = [];
-  const dark = 0x1b1e24, glass = 0x2a3a4d;
-  if (k.bike) {
-    const wheel = new THREE.TorusGeometry(0.33, 0.055, 4, 12);
-    parts.push(gpart(wheel, 0x1b1b1b, 0, 0.36, 0.56, 0, Math.PI / 2, 0), gpart(wheel, 0x1b1b1b, 0, 0.36, -0.56, 0, Math.PI / 2, 0));
-    parts.push(box(0, 0.36, 0.56, 0.07, 0.07, 0.07, 0x9aa3ad), box(0, 0.36, -0.56, 0.12, 0.12, 0.12, 0x9aa3ad)); // hubs
-    parts.push(gpart(_BOX, color, 0, 0.6, 0.02, -0.5, 0, 0, 0.09, 0.09, 1.12), box(0, 0.5, -0.3, 0.08, 0.1, 0.55, color)); // frame
-    parts.push(gpart(_BOX, color, 0, 0.72, -0.34, 0.25, 0, 0, 0.08, 0.62, 0.08), box(0, 1.04, -0.42, 0.24, 0.08, 0.36, 0x222222)); // seat post + saddle
-    parts.push(gpart(_BOX, 0x333333, 0, 0.78, 0.5, -0.2, 0, 0, 0.07, 0.8, 0.07), box(0, 1.16, 0.44, 0.62, 0.05, 0.05, 0x333333)); // fork + bar
-    parts.push(box(0, 0.92, 0.72, 0.36, 0.24, 0.28, color), box(0, 0.62, 0.56, 0.1, 0.05, 0.5, color), box(0, 0.62, -0.58, 0.1, 0.05, 0.5, color)); // basket, mudguards
-    parts.push(box(0, 0.5, -0.1, 0.14, 0.18, 0.16, 0x2b2b2b), box(0.11, 0.5, -0.1, 0.02, 0.1, 0.1, 0xffffff)); // chain case + QR sticker
-  } else if (kind === 'van') {
-    parts.push(box(0, 1.5, -0.3, Wd, 2.1, L - 0.8, color), box(0, 1.05, L / 2 - 0.6, Wd - 0.05, 1.2, 1.2, color), box(0, 1.95, L / 2 - 1.0, Wd * 0.94, 0.7, 0.34, glass));
-  } else if (kind === 'sport') {
-    parts.push(box(0, 0.62, 0, Wd, 0.6, L, color), box(0, 1.12, -0.3, Wd * 0.84, 0.46, L * 0.42, glass), box(0, 1.37, -0.3, Wd * 0.8, 0.06, L * 0.34, color), box(0, 1.05, -L / 2 + 0.25, Wd * 0.9, 0.08, 0.5, dark));
-  } else {
-    parts.push(box(0, 0.72, 0, Wd, 0.72, L, color), box(0, 1.3, -0.25, Wd * 0.88, 0.62, L * 0.52, glass), box(0, 1.63, -0.25, Wd * 0.86, 0.1, L * 0.46, color));
-  }
-  if (!k.bike) {
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(box(sx * (Wd / 2 - 0.2), 0.42, sz * (L / 2 - 0.9), 0.44, 0.84, 0.84, dark));
-    parts.push(box(0, 0.45, L / 2, Wd * 0.98, 0.25, 0.14, dark), box(0, 0.45, -L / 2, Wd * 0.98, 0.25, 0.14, dark));
-    for (const sx of [-1, 1]) parts.push(box(sx * (Wd / 2 + 0.08), kind === 'van' ? 1.9 : 1.2, L / 2 - (kind === 'van' ? 0.9 : 1.55), 0.16, 0.12, 0.22, dark)); // mirrors
-  }
-  if (kind === 'taxi') parts.push(box(0, 1.8, -0.25, 0.9, 0.25, 0.4, 0xffffff));
-  const g = mergeParts(parts);
-  CAR_GEO.set(key, g);
-  return g;
-}
-let DECAL_MAT = null;
-function decalMats() {
-  if (!DECAL_MAT) DECAL_MAT = {
-    legal: new THREE.MeshBasicMaterial({ map: TEX.legalDecal }),
-    taxi: new THREE.MeshBasicMaterial({ map: TEX.taxiDecal }),
-    red: new THREE.MeshBasicMaterial({ color: 0xff2233 }), blue: new THREE.MeshBasicMaterial({ color: 0x2266ff }),
-  };
-  return DECAL_MAT;
-}
+const CAR_NAMES = { sedan: '码农小轿车', hatch: '两厢小钢炮', suv: '创业 SUV', taxi: 'Token 出租', van: '外卖面包车', sport: '极客跑车', legal: '法务专车', police: '巡警车', bus: '1 路公交', bike: '共享单车', ebike: '外卖电驴' };
 
 /* ---------------- 京牌: one pre-drawn atlas of number plates, one instanced mesh for every plate in town ---------------- */
 const PLATE_PROV = [['冀', 9], ['津', 3], ['鲁', 2], ['晋', 1.4], ['豫', 1.4], ['蒙', 1], ['辽', 1], ['苏', 1], ['浙', 1], ['川', 0.8], ['粤', 0.8], ['黑', 0.7], ['吉', 0.6], ['沪', 0.6]];
@@ -99,7 +56,7 @@ const Plates = {
     geo.setAttribute('aSlot', this.slot);
     const mat = new THREE.MeshBasicMaterial({ map: t, color: 0xdadada });
     const su = (this.SW / 1024).toFixed(6), sv = (this.SH / 1024).toFixed(6);
-    mat.onBeforeCompile = (sh) => { sh.vertexShader = 'attribute vec2 aSlot;\n' + sh.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>\n  vUv = uv * vec2(${su}, ${sv}) + aSlot;`); };
+    mat.onBeforeCompile = (sh) => { sh.vertexShader = 'attribute vec2 aSlot;\n' + sh.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>\n  vMapUv = uv * vec2(${su}, ${sv}) + aSlot;`); };
     mat.customProgramCacheKey = () => 'plates-v1';
     this.mesh = new THREE.InstancedMesh(geo, mat, this.MAXI); this.mesh.frustumCulled = false; this.mesh.count = 0;
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(this.mesh);
@@ -116,8 +73,9 @@ const Plates = {
     const key = kind + (back ? 'b' : 'f');
     let m = this.loc.get(key);
     if (!m) {
-      const k = CAR_KINDS[kind], z = k.len / 2 + 0.085;
-      m = new THREE.Matrix4().makeRotationY(back ? Math.PI : 0).setPosition(0, kind === 'van' ? 0.62 : 0.5, back ? -z : z);
+      // on the model's bumper faces (06a carModel)
+      const P = carModel(kind).plate, [y, z] = P ? (back ? P.b : P.f) : [0.5, (back ? -1 : 1) * (CAR_KINDS[kind].len / 2 + 0.085)];
+      m = new THREE.Matrix4().makeRotationY(back ? Math.PI : 0).setPosition(0, y, z);
       this.loc.set(key, m);
     }
     return m;
@@ -188,7 +146,7 @@ function vehicleWorldCollide(v, rad, len) {
   if (v.colR) rad = v.colR;
   const fx = Math.sin(v.heading), fz = Math.cos(v.heading);
   let nx = 0, nz = 0, hitB = null, any = false;
-  for (const off of [len * 0.3, -len * 0.3, 0]) {
+  for (const off of (v.k && v.k.probes) || [len * 0.3, -len * 0.3, 0]) {
     _tmpP.x = v.pos.x + fx * off; _tmpP.z = v.pos.z + fz * off;
     const ox = _tmpP.x, oz = _tmpP.z, h = collideCircle(_tmpP, rad);
     if (!h) continue;
@@ -643,27 +601,13 @@ class Car {
     this.id = ++CAR_ID; this.kind = kind; this.k = CAR_KINDS[kind];
     this.color = color ?? pick(this.k.colors);
     this.group = new THREE.Group();
-    this.body = new THREE.Mesh(carGeo(kind, this.color), MAT.vc); this.body.castShadow = true;
-    this.lights = new THREE.Mesh(carLightsGeo(kind), MAT.carLights);
-    this.group.add(this.body, this.lights);
-    this.beamQ = null;
-    if (!this.k.bike) { this.beamQ = new THREE.Mesh(BEAM_GEO, MAT.headBeam); this.beamQ.renderOrder = 2; this.group.add(this.beamQ); }
-    const dm = decalMats();
-    if (kind === 'legal' || kind === 'taxi') {
-      const dec = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), kind === 'legal' ? dm.legal : dm.taxi); dec.geometry.userData.own = true;
-      dec.rotation.x = -Math.PI / 2; dec.rotation.z = Math.PI / 2; dec.position.set(0, 1.695, -0.5); this.group.add(dec);
-    }
-    if (kind === 'legal') {
-      this.lr = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.2, 0.36), dm.red); this.lr.geometry.userData.own = true; this.lr.position.set(-0.36, 1.78, 0.35);
-      this.lb = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.2, 0.36), dm.blue); this.lb.geometry.userData.own = true; this.lb.position.set(0.36, 1.78, 0.35);
-      this.group.add(this.lr, this.lb);
-    }
+    CarLook.dress(this); // body (paint + glass + lamps in one mesh), brake overlay, night beam, light-bar flashers
     scene.add(this.group);
     this.pos = new V3(); this.vel = new V3(); this.heading = 0; this.speed = 0;
     this.y = 0; this.gy = 0; this.rx = 0; this.rz = 0; this.wx = 0; this.wy = 0; this.wz = 0;
     this.hp = kind === 'legal' ? 130 : 100; this.state = 'traffic';
     this.fireT = 0; this.exploded = false; this.burnt = false; this.age = 0; this.settleT = 0;
-    this.radius = this.k.len * 0.45; this.colR = this.k.bike ? 0.42 : 0; this.cruiseK = 1;
+    this.radius = this.k.len * 0.45; this.colR = this.k.bike ? 0.42 : this.k.colR || 0; this.cruiseK = 1;
     this.blockedT = 0; this.ghostT = 0; this.honkT = 0; this.throwCd = rand(1.5, 3); this.ramCd = 0; this.stuckT = 0; this.revT = 0; this.idleT = 0; this.waiting = false;
     this.tr = null; this.path = null; this.navT = 0; this.wd = 99; this.removed = false; this.hasDriver = true; this.flashT = 0;
     this.plateSlot = -1; this.plate = ''; this.local = true;
@@ -723,12 +667,12 @@ class Car {
     if (this.kind === 'legal' || this.k.bike) return;
     const lx = Math.cos(this.heading), lz = -Math.sin(this.heading);
     const p = Peds.spawnAt(this.pos.x + lx * 2.2, this.pos.z + lz * 2.2);
-    if (p) { p.panic(this.pos.x, this.pos.z, 5); Bubble.say(p, stolen ? pick(['我的车！！', '我刚提的车！', '抢车啦！', '车贷还没还完！', '摇了八年号才摇上的！']) : pick(['吓死我了', '救命！', '保险能赔吗？']), 2.2, 'ped'); }
+    if (p) { if (p.panic) p.panic(this.pos.x, this.pos.z, 5); Bubble.say(p, stolen ? pick(['我的车！！', '我刚提的车！', '抢车啦！', '车贷还没还完！', '摇了八年号才摇上的！']) : pick(['吓死我了', '救命！', '保险能赔吗？']), 2.2, 'ped'); }
   }
   explode(noDmg) {
     if (this.exploded) return;
     this.exploded = true; this.burnt = true; this.hp = 0; this.fireT = 0;
-    this.body.material = MAT.burnt; this.lights.visible = false; if (this.beamQ) this.beamQ.visible = false;
+    CarLook.burn(this);
     if (this.lr) { this.lr.visible = this.lb.visible = false; }
     RPG.gainXP(10); G.addMoney(1500);
     const wasPlayer = Player.car === this;
@@ -768,7 +712,11 @@ class Car {
       if (Math.random() < dt * 30) FX.fire(this.pos.x + Math.sin(this.heading) * 1.4, 1.4 + this.y + this.gy, this.pos.z + Math.cos(this.heading) * 1.4, 1);
       if (this.fireT <= 0) this.explode();
     }
-    if (this.lr && !this.burnt) { this.flashT += dt; const on = (this.flashT * 6) % 2 < 1; this.lr.visible = on; this.lb.visible = !on; }
+    if (this.lr && !this.burnt) {
+      // 法务: always flashing; 巡警 on patrol: only once the heat is up
+      const act = this.kind !== 'police' || G.heat > 0.5 || this.state === 'player';
+      this.flashT += dt; const on = (this.flashT * 6) % 2 < 1; this.lr.visible = act && on; this.lb.visible = act && !on;
+    }
     if (this.state !== 'player' && this.state !== 'held') this.sync();
   }
   trafficStep(dt) {
@@ -998,6 +946,8 @@ const Bikes = {
     H.root.visible = true;
     this.ride = { t0: DayNight.clock, g0: G.time, x: c.pos.x, z: c.pos.z, dist: 0, car: c };
     this.lastH = c.heading;
+    // 外卖电驴 aren't shared bikes: no unlock, no ride fee (13b bills bike:start / bike:end)
+    if (c.k.ebike) { this.ride.ebike = true; UI.hint(pick(['外卖电驴 · 拧把就走', '这车电还挺足', '骑手小哥：我的车！！'])); return; }
     Hooks.emit('bike:start', { car: c, x: c.pos.x, z: c.pos.z });
     UI.hint(pick(['扫码成功 · 开锁！', '滴——开锁成功，骑行愉快', '押金？早退了。开骑！']));
   },
@@ -1006,7 +956,7 @@ const Bikes = {
     H.root.rotation.set(0, c.heading, 0);
     for (const k of ['legL', 'legR', 'armL', 'armR']) if (H[k]) H[k].rotation.x = 0;
     c.rz = 0; c.sync();
-    if (R) {
+    if (R && !R.ebike) {
       const minutes = Math.max(1, Math.round((DayNight.clock - R.t0 + 1440) % 1440));
       Hooks.emit('bike:end', { car: c, minutes, seconds: G.time - R.g0, dist: Math.round(R.dist), x: c.pos.x, z: c.pos.z });
     }
@@ -1034,10 +984,11 @@ const Bikes = {
     const yaw = angDiff(this.lastH, c.heading) / dt; this.lastH = c.heading;
     c.rz = damp(c.rz, clamp(-yaw * Math.abs(sp) * 0.045, -0.42, 0.42), 7, dt); c.sync();
     this.ph += dt * sp * 1.9;
-    const gh = c.gy, lean = 0.2, s = Math.sin(this.ph);
+    // the root sits 0.86 m under the saddle, 0.16 m ahead of it (06a carModel seat); an e-bike's rider keeps still feet
+    const gh = c.gy, lean = 0.2, s = c.k.ebike ? 0 : Math.sin(this.ph), st = (c.look && c.look.seat) || [0, 1.06, -0.36], bz = st[2] + 0.16;
     H.root.visible = true;
     H.root.rotation.order = 'YXZ'; H.root.rotation.set(lean, c.heading, c.rz);
-    H.root.position.set(c.pos.x - fx * 0.2, gh + 0.2, c.pos.z - fz * 0.2);
+    H.root.position.set(c.pos.x + fx * bz, gh + st[1] - 0.86, c.pos.z + fz * bz);
     if (H.legL) { H.legL.rotation.x = -0.55 + s * 0.42; H.legR.rotation.x = -0.55 - s * 0.42; }
     if (H.armL) { H.armL.rotation.x = -0.72; H.armR.rotation.x = -0.72; }
     if (H.cape) H.cape.rotation.x = damp(H.cape.rotation.x, 0.3 + Math.abs(sp) * 0.06, 6, dt);
@@ -1123,14 +1074,14 @@ const Cars = {
     if (G.started && this.inView(c.pos.x, c.pos.z)) return false;
     const s = this.trafficSpot(p.x, p.z, 85, 165, false);
     if (!s) return false;
-    c.newPlate(); if (c.kind === 'sedan') { c.color = pick(c.k.colors); c.body.geometry = carGeo('sedan', c.color); }
+    c.newPlate(); if (c.k.colors.length > 1) CarLook.paint(c, pick(c.k.colors));
     c.placeOnRoad(s);
     return true;
   },
   spawnTraffic(fx, fz, minD, maxD, vis) {
     const s = this.trafficSpot(fx, fz, minD, maxD, vis);
     if (!s) return null;
-    const c = new Car(weighted([['sedan', 6], ['taxi', 2], ['van', 1.4], ['sport', 0.9]]));
+    const c = new Car(weighted([['sedan', 5], ['hatch', 2.2], ['suv', 2.6], ['taxi', 2.2], ['van', 1.2], ['sport', 0.8], ['bus', s.e.cls <= 3 ? 0.7 : 0.15], ['police', 0.25]]));
     c.placeOnRoad(s); this.list.push(c);
     return c;
   },
@@ -1166,7 +1117,7 @@ const Cars = {
         for (let gz = Math.floor((z - 4) / PROP_CELL); gz <= Math.floor((z + 4) / PROP_CELL) && !blocked; gz++)
           for (const it of PropHash.get(gx * 100003 + gz) || []) { const px = it.x - x, pz = it.z - z, f = px * tx + pz * tz; if (Math.abs(f) < 3 && Math.abs(px * tz - pz * tx) < 1.6) { blocked = true; break; } }
       if (blocked) continue;
-      const c = new Car(weighted([['sedan', 6], ['taxi', 1], ['van', 1.5], ['sport', 0.8]]));
+      const c = new Car(weighted([['sedan', 5], ['hatch', 2], ['suv', 2.4], ['taxi', 1], ['van', 1.4], ['sport', 0.8], ['ebike', 1.2]]));
       c.hasDriver = false; c.state = 'parked'; c.pos.set(x, 0, z); c.heading = Math.atan2(tx, tz) + (Math.random() < 0.2 ? Math.PI : 0);
       c.gy = VehGround.at(x, z); c.sync(); this.list.push(c);
       return c;
@@ -1200,7 +1151,7 @@ const Cars = {
     this.lastP.set(p.x, 0, p.z);
     this.streamT -= dt;
     if (this.streamT <= 0) { this.streamT = 0.5; this.stream(); }
-    Plates.update();
+    Plates.update(); CarFx.update(dt);
   },
   stream() {
     const p = this.center(), B = W.bounds;

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><title>VRM / VRMA viewer</title>
+<style>html,body{margin:0;background:#20242c;color:#ddd;font:13px system-ui}canvas{display:block}#info{position:fixed;left:8px;top:6px;white-space:pre;pointer-events:none;text-shadow:0 1px 2px #000}</style>
+<!-- Asset check page (dev only). Serve the repo root over http, then open
+     /scripts/assets/viewer/?vrm=../../../assets/runtime/chars/hairsample_male.vrm&anim=../../../assets/runtime/anims/walk.vrma -->
+<script type="importmap">{"imports":{
+ "three":"../node_modules/three/build/three.module.js",
+ "three/addons/":"../node_modules/three/examples/jsm/",
+ "@pixiv/three-vrm":"../node_modules/@pixiv/three-vrm/lib/three-vrm.module.js",
+ "@pixiv/three-vrm-animation":"../node_modules/@pixiv/three-vrm-animation/lib/three-vrm-animation.module.js"}}</script>
+</head><body><div id="info"></div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { VRMAnimationLoaderPlugin, VRMLookAtQuaternionProxy, createVRMAnimationClip } from '@pixiv/three-vrm-animation';
+
+const W = innerWidth, H = innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1); document.body.appendChild(renderer.domElement);
+renderer.setScissorTest(true);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a4150);
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x554433, 1.2));
+const sun = new THREE.DirectionalLight(0xfff2dd, 2.2); sun.position.set(1, 2, 2); scene.add(sun);
+const grid = new THREE.GridHelper(10, 20, 0x88aaff, 0x556070); scene.add(grid);
+const cam = new THREE.PerspectiveCamera(30, 1, 0.05, 50);
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+loader.register((p) => new VRMLoaderPlugin(p)); loader.register((p) => new VRMAnimationLoaderPlugin(p));
+const S = { vrm: null, mixer: null, clip: null, action: null, errors: [] };
+addEventListener('error', (e) => S.errors.push(String(e.message)));
+
+async function loadVRM(url) {
+  if (S.vrm) { scene.remove(S.vrm.scene); VRMUtils.deepDispose(S.vrm.scene); S.vrm = null; }
+  const t0 = performance.now(), gltf = await loader.loadAsync(url), vrm = gltf.userData.vrm;
+  VRMUtils.removeUnnecessaryVertices(gltf.scene); VRMUtils.combineSkeletons(gltf.scene);
+  VRMUtils.rotateVRM0(vrm); vrm.scene.traverse((o) => { o.frustumCulled = false; });
+  if (vrm.lookAt) { const px = new VRMLookAtQuaternionProxy(vrm.lookAt); px.name = 'VRMLookAtQuaternionProxy'; vrm.scene.add(px); }
+  scene.add(vrm.scene); S.vrm = vrm; S.mixer = new THREE.AnimationMixer(vrm.scene);
+  let meshes = 0, mats = new Set(), tris = 0;
+  vrm.scene.traverse((o) => { if (o.isMesh) { meshes++; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => mats.add(m)); tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; } });
+  return { ms: Math.round(performance.now() - t0), meta: vrm.meta.metaVersion, title: vrm.meta.title || vrm.meta.name, bones: Object.keys(vrm.humanoid.humanBones).length,
+    springJoints: vrm.springBoneManager ? vrm.springBoneManager.joints.size : 0, expressions: vrm.expressionManager ? vrm.expressionManager.expressions.length : 0,
+    meshes, materials: mats.size, mtoon: [...mats].filter((m) => m.isMToonMaterial).length, tris, hipsY: +vrm.humanoid.normalizedRestPose.hips.position[1].toFixed(3) };
+}
+async function loadAnim(url) {
+  const gltf = await loader.loadAsync(url), va = gltf.userData.vrmAnimations[0];
+  S.clip = createVRMAnimationClip(va, S.vrm); S.mixer.stopAllAction(); S.action = S.mixer.clipAction(S.clip); S.action.play();
+  return { duration: +S.clip.duration.toFixed(3), tracks: S.clip.tracks.length, restHipsY: +va.restHipsPosition.y.toFixed(3) };
+}
+function pose(t) { if (S.mixer) { S.mixer.setTime(t); } S.vrm.update(0); S.vrm.scene.updateMatrixWorld(true); }
+function bone(n) { const b = S.vrm.humanoid.getRawBoneNode(n); const v = new THREE.Vector3(); b.getWorldPosition(v); return v; }
+// Grid of views: rows = time samples, cols = views (front, side, 3/4). Camera frames the whole body.
+function sheet(times, views = ['front', 'side', 'back']) {
+  document.getElementById('info').style.display = 'none';
+  const rows = times.length, cols = views.length, cw = Math.floor(W / Math.max(cols * rows > 8 ? rows : cols, 1));
+  const n = times.length * views.length, per = Math.ceil(Math.sqrt(n * W / H)), cellW = Math.floor(W / per), cellH = Math.floor(H / Math.ceil(n / per));
+  renderer.setClearColor(0x000000); renderer.clear();
+  let k = 0;
+  for (const t of times) {
+    pose(t); const hips = bone('hips');
+    for (const v of views) {
+      const x = (k % per) * cellW, y = H - (Math.floor(k / per) + 1) * cellH; k++;
+      renderer.setViewport(x, y, cellW, cellH); renderer.setScissor(x, y, cellW, cellH);
+      cam.aspect = cellW / cellH; cam.updateProjectionMatrix();
+      const face = v === 'face', d = face ? 0.75 : 4.2, a = v === 'front' || face ? 0 : v === 'side' ? Math.PI / 2 : v === 'back' ? Math.PI : Math.PI / 4;
+      const c = face ? bone('head').add(new THREE.Vector3(0, 0.06, 0)) : new THREE.Vector3(hips.x, 0.85, hips.z);
+      cam.position.set(c.x + Math.sin(a) * d, face ? c.y : 1.1, c.z + Math.cos(a) * d); cam.lookAt(c);
+      grid.position.set(0, 0, 0);
+      renderer.render(scene, cam);
+    }
+  }
+  return renderer.info.render.calls;
+}
+function feet(dur, n = 60) { // foot heights / hips drift over the clip, used for sliding / root-motion checks
+  const out = [];
+  for (let i = 0; i <= n; i++) { const t = (dur * i) / n; pose(t); const L = bone('leftFoot'), R = bone('rightFoot'), h = bone('hips'); out.push([+t.toFixed(3), +L.x.toFixed(3), +L.y.toFixed(3), +L.z.toFixed(3), +R.x.toFixed(3), +R.y.toFixed(3), +R.z.toFixed(3), +h.x.toFixed(3), +h.y.toFixed(3), +h.z.toFixed(3)]); }
+  return out;
+}
+window.V = { THREE, S, loadVRM, loadAnim, pose, sheet, bone, feet, renderer, scene };
+const q = new URLSearchParams(location.search);
+(async () => {
+  if (q.get('vrm')) { const r = await loadVRM(q.get('vrm')); document.getElementById('info').textContent = JSON.stringify(r, null, 1); }
+  if (q.get('anim')) await loadAnim(q.get('anim'));
+  window.READY = true;
+  if (q.get('live')) { const clock = new THREE.Clock(); renderer.setScissorTest(false); const loop = () => { const dt = clock.getDelta(); S.mixer?.update(dt); S.vrm?.update(dt); cam.aspect = W / H; cam.updateProjectionMatrix(); cam.position.set(2.2, 1.4, 3.2); cam.lookAt(0, 0.9, 0); renderer.setViewport(0, 0, W, H); renderer.render(scene, cam); requestAnimationFrame(loop); }; loop(); }
+})().catch((e) => { S.errors.push(String(e && e.stack || e)); window.READY = true; });
+</script></body></html>

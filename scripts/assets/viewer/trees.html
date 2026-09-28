@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><title>Tree generator</title>
+<style>html,body{margin:0;background:#7f97b0}canvas{display:block}</style>
+<!-- Offline tree baking (driven by scripts/assets/gen_trees.mjs): EZ-Tree (MIT) -> LOD0 / LOD1 GLB + impostor atlas. -->
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/",
+ "ez-tree":"../node_modules/@dgreenheck/ez-tree/build/ez-tree.es.js"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { Tree } from 'ez-tree';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const W = innerWidth, H = innerHeight, R = '../../../assets/runtime/';
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1); renderer.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xdde8ff, 0x4a4030, 1.6));
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.4); sun.position.set(0.6, 1, 0.8); scene.add(sun);
+const errors = []; addEventListener('error', (e) => errors.push(String(e.message)));
+const tl = new THREE.TextureLoader(), tex = (p, srgb) => tl.loadAsync(p).then((t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; });
+let current = null;
+
+// Generate a tree from EZ-Tree options, scaled to `height` metres, with our bark material.
+async function make(spec) {
+  if (current) scene.remove(current.group);
+  const tree = new Tree();
+  tree.loadPreset(spec.preset);
+  const o = tree.options;
+  const merge = (dst, src) => { for (const [k, v] of Object.entries(src)) { if (v && typeof v === 'object' && !Array.isArray(v) && dst[k] && typeof dst[k] === 'object') merge(dst[k], v); else dst[k] = v; } };
+  merge(o, spec.options || {});
+  tree.generate();
+  tree.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(tree), s = spec.height / (box.max.y - box.min.y);
+  // bake into plain geometry (metres, base at origin), drop EZ-Tree shader hooks
+  const bake = (mesh) => { const g = mesh.geometry.clone(); g.applyMatrix4(new THREE.Matrix4().makeScale(s, s, s).multiply(new THREE.Matrix4().makeTranslation(0, -box.min.y, 0)).multiply(mesh.matrixWorld)); return g; };
+  const barkG = bake(tree.branchesMesh), leafG = bake(tree.leavesMesh);
+  const [bmap, bnrm, barm] = await Promise.all([tex(R + `tex/${spec.bark}/albedo.webp`, true), tex(R + `tex/${spec.bark}/normal.webp`), tex(R + `tex/${spec.bark}/arm.webp`)]);
+  for (const t of [bmap, bnrm, barm]) t.repeat.set(spec.barkRepeat?.[0] || 2, spec.barkRepeat?.[1] || 1);
+  const barkM = new THREE.MeshStandardMaterial({ name: 'bark', map: bmap, normalMap: bnrm, roughnessMap: barm, aoMap: barm, color: spec.barkTint ?? 0xffffff, roughness: 1, metalness: 0 });
+  const lm = tree.leavesMesh.material, leafTex = lm.map;
+  const leafM = new THREE.MeshStandardMaterial({ name: 'leaves', map: leafTex, color: new THREE.Color(spec.leafTint ?? 0xffffff), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8, metalness: 0 });
+  const group = new THREE.Group(); group.name = spec.key;
+  const bark = new THREE.Mesh(barkG, barkM); bark.name = 'bark';
+  const leaves = new THREE.Mesh(leafG, leafM); leaves.name = 'leaves';
+  // wind weight for vertex sway: 0 at the base, 1 at the crown top (vertex colour alpha would need a shader; use a custom attribute)
+  for (const g of [barkG, leafG]) { const p = g.attributes.position, w = new Float32Array(p.count); for (let i = 0; i < p.count; i++) w[i] = Math.min(1, Math.max(0, p.getY(i) / spec.height)) ** 2; g.setAttribute('_wind', new THREE.BufferAttribute(w, 1)); if (g.attributes.windFactor) g.deleteAttribute('windFactor'); }
+  group.add(bark, leaves); scene.add(group);
+  current = { group, bark, leaves, spec, tree };
+  const tris = (g) => (g.index ? g.index.count : g.attributes.position.count) / 3;
+  const b2 = new THREE.Box3().setFromObject(group);
+  return { barkTris: tris(barkG), leafTris: tris(leafG), size: b2.getSize(new THREE.Vector3()).toArray().map((v) => +v.toFixed(2)) };
+}
+
+// LOD1: keep 1 of every `keep` leaf cards (scaled up to keep the crown filled); bark simplified later in node.
+function lod1(keep = 3, grow = 1.45) {
+  const g = current.leaves.geometry, idx = g.index ? g.index.array : null, per = 6; // one card = 2 tris
+  const pos = g.attributes.position, out = { pos: [], nrm: [], uv: [], w: [] };
+  const nCards = (idx ? idx.length : pos.count) / per;
+  for (let c = 0; c < nCards; c++) {
+    if (c % keep) continue;
+    const vi = []; for (let k = 0; k < per; k++) vi.push(idx ? idx[c * per + k] : c * per + k);
+    const cen = new THREE.Vector3(); vi.forEach((i) => cen.add(new THREE.Vector3().fromBufferAttribute(pos, i))); cen.multiplyScalar(1 / per);
+    for (const i of vi) {
+      const p = new THREE.Vector3().fromBufferAttribute(pos, i).sub(cen).multiplyScalar(grow).add(cen);
+      out.pos.push(...p.toArray()); out.nrm.push(g.attributes.normal.getX(i), g.attributes.normal.getY(i), g.attributes.normal.getZ(i));
+      out.uv.push(g.attributes.uv.getX(i), g.attributes.uv.getY(i)); out.w.push(g.attributes._wind.getX(i));
+    }
+  }
+  const ng = new THREE.BufferGeometry();
+  ng.setAttribute('position', new THREE.Float32BufferAttribute(out.pos, 3)); ng.setAttribute('normal', new THREE.Float32BufferAttribute(out.nrm, 3));
+  ng.setAttribute('uv', new THREE.Float32BufferAttribute(out.uv, 2)); ng.setAttribute('_wind', new THREE.Float32BufferAttribute(out.w, 1));
+  const merged = mergeVertices(ng);
+  // one exported file per species: <key> { lod0 { bark, leaves }, lod1 { bark_lod1, leaves_lod1 } }, materials shared
+  const root = new THREE.Group(); root.name = current.spec.key;
+  const g0 = new THREE.Group(); g0.name = 'lod0'; const g1 = new THREE.Group(); g1.name = 'lod1';
+  const l = new THREE.Mesh(merged, current.leaves.material); l.name = 'leaves_lod1';
+  const b = new THREE.Mesh(current.bark.geometry.clone(), current.bark.material); b.name = 'bark_lod1';
+  const b0 = new THREE.Mesh(current.bark.geometry, current.bark.material); b0.name = 'bark';
+  const l0 = new THREE.Mesh(current.leaves.geometry, current.leaves.material); l0.name = 'leaves';
+  g0.add(b0, l0); g1.add(b, l); root.add(g0, g1);
+  return root;
+}
+
+async function exportGLB(obj) {
+  const buf = await new GLTFExporter().parseAsync(obj, { binary: true, maxTextureSize: 1024 });
+  let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+// Impostor atlas: 2x2 views (0, 45, 90, 135 deg) of the whole tree, orthographic, transparent background.
+function impostor(size = 1024) {
+  const g = current.group, box = new THREE.Box3().setFromObject(g), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const half = Math.max(sz.x, sz.z, sz.y) / 2 * 1.02, cam = new THREE.OrthographicCamera(-half, half, half, -half, 0.1, 200);
+  renderer.setSize(size, size); renderer.setScissorTest(true); renderer.setClearColor(0x000000, 0); renderer.clear();
+  const bg = scene.background; scene.background = null;
+  const cell = size / 2;
+  [0, 45, 90, 135].forEach((deg, k) => {
+    const a = (deg * Math.PI) / 180, x = (k % 2) * cell, y = size - (Math.floor(k / 2) + 1) * cell;
+    renderer.setViewport(x, y, cell, cell); renderer.setScissor(x, y, cell, cell);
+    cam.position.set(c.x + Math.sin(a) * 50, c.y, c.z + Math.cos(a) * 50); cam.lookAt(c.x, c.y, c.z); cam.updateProjectionMatrix();
+    renderer.render(scene, cam);
+  });
+  renderer.setScissorTest(false); scene.background = bg;
+  const url = renderer.domElement.toDataURL('image/png');
+  renderer.setSize(W, H);
+  return { png: url.split(',')[1], extent: +half.toFixed(3), centerY: +c.y.toFixed(3) };
+}
+
+function view(dist = 2.1) { // preview render: front + side
+  const g = current.group, box = new THREE.Box3().setFromObject(g), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const cam = new THREE.PerspectiveCamera(35, W / 2 / H, 0.1, 500), d = Math.max(sz.y, sz.x) * dist + 2;
+  renderer.setScissorTest(true); scene.background = new THREE.Color(0x8fa6bd);
+  [0, Math.PI / 2].forEach((a, k) => { renderer.setViewport(k * W / 2, 0, W / 2, H); renderer.setScissor(k * W / 2, 0, W / 2, H); cam.position.set(c.x + Math.sin(a) * d, c.y * 0.6, c.z + Math.cos(a) * d); cam.lookAt(c); renderer.render(scene, cam); });
+  renderer.setScissorTest(false);
+  return renderer.info.render.calls;
+}
+window.T = { THREE, make, lod1, exportGLB, impostor, view, errors, scene };
+window.READY = true;
+</script></body></html>

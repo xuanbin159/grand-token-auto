@@ -20,6 +20,27 @@ const HeroFace = {
   // stored: { v: 2, img: data URL of the 300×364 crop | 'default' (the built-in face, re-aligned), eyes: [[x,y],[x,y]] in the crop, yaw: radians,
   //   cut: the picture is a clean cut-out (made from the built-in face) — else the 3D head fades out the background around the head }
   KEY: 'gta-hero-face', custom: false, cut: true,
+  // look: 'anime' = the VRoid hero's own face (default), 'photo' = the 3D photo head on the VRM body
+  LOOK: 'gta-hero-look', look: 'anime',
+  setLook(v) { v = v === 'photo' ? 'photo' : 'anime'; if (v === this.look) return; this.look = v; Store.set(this.LOOK, v); this.refresh(); },
+  // the HUD portrait: a render of the anime face, or the photo sticker
+  portraitURL() {
+    if (this.look !== 'photo' && typeof CharLib !== 'undefined' && CharLib.ready) {
+      const c = CharPortrait.get('hud:hero:' + RPG.outfit, heroSpec(), { w: 160, h: 160, turn: 0.25, bg: ['#465068', '#161a22'] }); if (c) return c.toDataURL();
+    }
+    return faceSticker(160, 6).toDataURL();
+  },
+  // the anime portraits (HUD + title bust), once their studio programs have compiled in the background (started with the
+  // opening's shaders); portraitsNow() renders them at once (the loading screen does, if you start before they're in)
+  async refreshPortraits() {
+    if (this.look === 'photo' || typeof CharLib === 'undefined' || !CharLib.ready) return;
+    await (this._pw || (this._pw = CharPortrait.warm(heroSpec()).then(() => { this._pwOk = true; })));
+    this.portraitsNow();
+  },
+  portraitsNow() {
+    if (this.look === 'photo' || typeof CharLib === 'undefined' || !CharLib.ready) return;
+    UI.portraitH = this.portraitURL(); UI.last.portrait = null; this.titleArt(); this._pOk = true;
+  },
   stored() { const d = Store.get(this.KEY); return d && typeof d.img === 'string' && (d.img === 'default' || d.img.startsWith('data:image/')) ? d : null; },
   async load(url) {
     FACE_IMG.src = url;
@@ -33,7 +54,8 @@ const HeroFace = {
     this.cut = def || !!d.cut;
   },
   // at boot, before any texture is made from the face
-  async boot() { const d = this.stored(); if (!d) return; this.apply(d); if (d.img !== 'default') { this.custom = true; await this.load(d.img); } },
+  // (installs from before the look switch never wrote LOOK: a face they uploaded means they want it on)
+  async boot() { const d = this.stored(), lk = Store.get(this.LOOK); this.look = lk === 'photo' || (lk == null && d && d.img !== 'default') ? 'photo' : 'anime'; if (!d) return; this.apply(d); if (d.img !== 'default') { this.custom = true; await this.load(d.img); } },
   async set(url, eyes = FACE_EYES_CENTRED, yaw = 0, cut = false) {
     const d = { v: 2, img: url, eyes, yaw, cut }, saved = Store.set(this.KEY, d);
     this.apply(d); this.custom = url !== 'default'; await this.load(this.custom ? url : FACE_DATA); this.refresh();
@@ -42,9 +64,13 @@ const HeroFace = {
   async reset() { Store.del(this.KEY); this.custom = false; this.cut = true; FACE_EYES = FACE_EYES_DEFAULT; FACE_YAW = FACE_YAW_DEFAULT; await this.load(FACE_DATA); this.refresh(); },
   // everything that has the face baked in: the 3D head (rebuilt with the body), sticker + portraits, helmet, title art
   refresh() { TEX.face = tex(faceSticker(256, 9)); Head3D.invalidateHero(); Player.rebuildHuman(); Robot.repaint(RPG.paint); this.titleArt(); },
-  titleArt() {
-    const bust = this.custom ? heroBustCanvas().toDataURL('image/jpeg', 0.9) : BUST_DATA;
-    $('t-bust').src = bust; $('ld-bust').src = bust;
+  // early: at boot, before the models are in: the anime bust from the last visit (kept in this browser), else an empty panel
+  titleArt(early) {
+    let bust = this.custom ? heroBustCanvas().toDataURL('image/jpeg', 0.9) : BUST_DATA;
+    const anime = this.look !== 'photo' && typeof CharLib !== 'undefined', key = 'gta-title-bust:' + RPG.outfit;
+    if (anime && early) bust = (Store.get(key) || [])[0] || '';
+    else if (anime && CharLib.ready) { const c = CharPortrait.get('bust:hero:' + RPG.outfit, heroSpec(), { w: 300, h: 380, bust: true, turn: 0.35, bg: ['#5a4a3a', '#15120f'] }); if (c) { bust = c.toDataURL('image/jpeg', 0.86); Store.set(key, [bust]); } }
+    for (const id of ['t-bust', 'ld-bust']) { const im = $(id); if (bust) im.src = bust; im.style.visibility = bust ? '' : 'hidden'; }
     const th = $('t-helmet'), g = th.getContext('2d'); g.clearRect(0, 0, th.width, th.height); g.drawImage(TEX.helmet.image, 0, 0, th.width, th.height);
   },
 };
@@ -87,11 +113,12 @@ const UI = {
     this.radar.addEventListener('click', () => { if (G.started && !Cutscene.active && !G.paused && !UI.panelOpen && !UI.shopId) { Sfx.click(); this.openPanel('map'); } });
     const pz = $('pause'), pm = $('pause-map');
     if (pz && pm && window.MutationObserver) new MutationObserver(() => { if (!pz.hidden) BigMap.mount(pm); else if (BigMap.host === pm) BigMap.unmount(); }).observe(pz, { attributes: true, attributeFilter: ['hidden'] });
-    setTimeout(() => guard('MapGfx.build', () => { MapGfx.ready(); MapLabels.build(); }), 400);
+    // (~0.5 s of canvas work: painted by the boot once the opening's shaders are warm, or behind the loading screen: warmShaders / beginPlay)
     setTimeout(() => { if (window.GTA) Object.assign(window.GTA, { GPS, BigMap, MapGfx, MapLabels, Radar }); }, 0);
     this.resize();
   },
   resize() {
+    if (!this.radar) return; // (boot sets the renderer up before the HUD exists)
     const r = this.radar.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
     this.radar.width = Math.max(10, Math.round(r.width * dpr)); this.radar.height = Math.max(10, Math.round(r.height * dpr)); this.rdpr = dpr;
   },
@@ -280,6 +307,12 @@ const UI = {
     const crop = mkCanvas(300, 364), cg = crop.getContext('2d');
     const cropNow = () => { cg.clearRect(0, 0, 300, 364); cg.save(); cg.beginPath(); cg.ellipse(150, 182, 150, 182, 0, 0, TAU); cg.clip(); paint(cg); cg.restore(); return crop; };
     const pv = Head3D.preview($('fp-3d'));
+    // 主角的脸: 动漫脸 (the VRoid face) / 我的图片 (this picture as a 3D head on the anime body)
+    const lk = document.createElement('div'); lk.className = 'fp-row fp-look';
+    lk.innerHTML = '<span style="align-self:center;font:900 14px/1 var(--cn)">主角的脸</span><button type="button" data-look="anime">动漫脸</button><button type="button" data-look="photo">我的图片</button>';
+    const side = document.querySelector('#facepick .fp-side'); if (side) side.insertBefore(lk, side.firstChild);
+    const lookBtns = () => { for (const b of lk.querySelectorAll('button')) { const on = b.dataset.look === HeroFace.look; b.style.background = on ? 'var(--gold)' : ''; b.style.color = on ? '#111' : ''; } };
+    for (const b of lk.querySelectorAll('button')) b.addEventListener('click', () => { HeroFace.setLook(b.dataset.look); lookBtns(); Sfx.click(); this.toast(HeroFace.look === 'photo' ? '主角换上了你的图片脸' : '主角用回动漫脸', 1.8); });
     const sliders = () => {
       $('fp-zoom').value = String(Math.round((st.s / st.fit) * 100)); $('fp-rot').value = String(Math.round((st.r * 180) / Math.PI));
       const d = Math.round((st.yaw * 180) / Math.PI); $('fp-yaw').value = String(d); $('fp-yaw-v').textContent = Math.abs(d) < 3 ? '正脸' : `脸朝${d < 0 ? '左' : '右'} ${Math.abs(d)}°`;
@@ -341,7 +374,7 @@ const UI = {
       try { c.getContext('2d').drawImage(FACE_IMG, 0, 0, w, h); } catch (e) { /* not decoded */ }
       useImage(c, !HeroFace.custom, !HeroFace.custom || HeroFace.cut); st.gen++; $('fp-busy').hidden = true;
       st.eyes = FACE_EYES.map((p) => [(p[0] * w) / 300, (p[1] * h) / 364]); st.yaw = FACE_YAW;
-      sliders(); draw(); pv.start();
+      sliders(); draw(); pv.start(); lookBtns();
     };
     const close = () => { st.gen++; pv.stop(); };
     $('fp-input').addEventListener('change', (e) => { pick(e.target.files && e.target.files[0]); e.target.value = ''; });
@@ -386,6 +419,7 @@ const UI = {
       const E = st.eyes.map((p) => toCrop(p).map((v) => Math.round(v * 10) / 10));
       let url = 'default'; // the built-in face only re-aligned: keep it as is
       if (!st.def || st.moved) { const out = cropNow(); url = out.toDataURL('image/webp', 0.9); if (!url.startsWith('data:image/webp')) url = out.toDataURL('image/png'); }
+      if (HeroFace.look !== 'photo') { HeroFace.look = 'photo'; Store.set(HeroFace.LOOK, 'photo'); }
       const saved = await HeroFace.set(url, E, Math.round(st.yaw * 1000) / 1000, st.cut);
       this.closeFacePicker(); Sfx.buy();
       this.toast(saved ? '换好了：3D 脑袋按这张脸生成了（只存在这个浏览器里）' : '头像换好了，但浏览器存不下，刷新后会恢复默认', 3);

@@ -4,35 +4,101 @@
    ============================================================ */
 let RC = { red: 0xd7263d, arm: 0xd7263d, blue: 0x1f4fd1, silver: 0xbac3cd, dark: 0x2a2f38, glass: 0x8fd8ff, gold: 0xffc940, black: 0x15171b };
 function setPaintColors(pid) { const P = PAINTS[pid] || PAINTS.classic; RC = Object.assign({}, RC, { red: P.chest, arm: P.arm, blue: P.leg, silver: P.trim }); }
+// ---- armour kit: every part is a bevelled panel (rounded box) or a turned piece in vehicle PBR (06a VB / carMat):
+// metallic clearcoat paint, chrome, dark steel, tinted glass; lamps and cores glow through the bloom. Parts are
+// { geo, c | s, m, r }: box() parts from 02_assets work too (a unit box becomes a rounded one, bevel r automatic) ----
+let RS = null;
+const rglow = (hex, k = 1.6, grp = 2) => vsurf(hex, [0.25, 0, 0.6, 0], hex, k, grp);
+function robotSurfs() {
+  const paint = (c) => vsurf(c, [0.26, 0.5, 1, 0]);
+  return RS = { red: paint(RC.red), arm: paint(RC.arm), blue: paint(RC.blue), silver: vsurf(RC.silver, [0.22, 0.9, 0.5, 0]), chrome: SF.chrome,
+    dark: vsurf(RC.dark, [0.4, 0.75, 0.3, 0]), black: vsurf(RC.black, [0.55, 0.3, 0.15, 0]), glass: vsurf(0x1b2a3a, [0.03, 0.1, 1, 0]), gold: vsurf(RC.gold, [0.2, 1, 0.7, 0]),
+    lamp: rglow(0xfff4dc, 1.1, 0), eye: rglow(0x7fdcff, 2.2), amber: rglow(0xffa21a, 1.2, 0), core: rglow(0xffc940, 1.8) };
+}
+function robotSurf(c, lit) {
+  if (lit) return rglow(c, 1.6);
+  const S = RS; for (const k of ['red', 'arm', 'blue', 'silver', 'dark', 'black', 'gold']) if (c === RC[k]) return S[k];
+  return c === RC.glass ? S.glass : vsurf(c, [0.35, 0.5, 0.6, 0]);
+}
+const _dp = new V3(), _dq = new THREE.Quaternion(), _ds = new V3(), _rOne = new V3(1, 1, 1);
+function armorGeo(parts, lit) {
+  const vb = new VB();
+  for (const p of parts) {
+    const s = p.s || robotSurf(p.c, lit);
+    if (p.vb) { vb.addG(p.geo, p.m); continue; }
+    if (p.geo === _BOX) {
+      p.m.decompose(_dp, _dq, _ds);
+      const w = Math.abs(_ds.x), h = Math.abs(_ds.y), d = Math.abs(_ds.z), mn = Math.min(w, h, d);
+      vb.add(rboxGeo(w, h, d, p.r ?? Math.min(0.14, mn * 0.22), mn > 0.4 ? 2 : 1), new THREE.Matrix4().compose(_dp, _dq, _rOne), s);
+    } else vb.add(p.geo, p.m, s);
+  }
+  return vb.geometry();
+}
+// a bevelled panel / a turned piece (axis y unless rotated)
+const rbx = (x, y, z, w, h, d, s, r, rx = 0, ry = 0, rz = 0) => ({ geo: _BOX, s, r, m: MX(x, y, z, rx, ry, rz, w, h, d) });
+const rcyl = (x, y, z, rad, h, s, rx = 0, ry = 0, rz = 0, n = 14) => ({ geo: cylGeo(rad, rad, h, n), s, m: MX(x, y, z, rx, ry, rz) });
+const robotMat = () => carMat(0xffffff, { dirt: false });
 const Robot = {
-  root: null, parts: {}, list: [], morph: null, pose: 'robot', paint: 'classic',
+  root: null, parts: {}, list: [], morph: null, pose: 'robot', paint: 'classic', head3d: true, spin: 0, steer: 0, _lh: null,
   build(paint = 'classic') {
     this.paint = paint; setPaintColors(paint); this.parts = {}; this.list = [];
     const root = new THREE.Group(); root.visible = false; root.scale.setScalar(1.2); scene.add(root); this.root = root;
-    const mk = (parts) => { const m = new THREE.Mesh(mergeParts(parts), MAT.vc); m.geometry._robot = true; m.castShadow = true; return m; };
+    const S = robotSurfs(), PI = Math.PI, H = PI / 2;
+    const mk = (parts, lit) => { const m = new THREE.Mesh(armorGeo(parts, lit), robotMat()); m.geometry._robot = true; m.castShadow = true; m.receiveShadow = true; return m; };
     const grp = (name, mesh) => { const g = new THREE.Group(); if (mesh) g.add(mesh); root.add(g); this.parts[name] = g; this.list.push(g); g.userData.name = name; return g; };
-    grp('chest', mk([
-      box(0, 0, 0, 3.4, 2.0, 1.7, RC.red),
-      box(-0.8, 0.25, 0.86, 1.3, 1.0, 0.08, RC.glass), box(0.8, 0.25, 0.86, 1.3, 1.0, 0.08, RC.glass),
-      box(0, -0.62, 0.87, 0.75, 0.5, 0.08, RC.gold),
-      box(0, -1.35, 0, 1.9, 0.8, 1.3, RC.silver), box(0, -1.35, 0.66, 1.6, 0.5, 0.06, RC.dark),
-      box(-2.2, 0.55, 0, 1.1, 1.1, 1.6, RC.red), box(2.2, 0.55, 0, 1.1, 1.1, 1.6, RC.red),
-      box(-1.25, 1.4, -0.7, 0.35, 2.2, 0.35, RC.silver), box(1.25, 1.4, -0.7, 0.35, 2.2, 0.35, RC.silver),
-      box(0, 1.08, 0, 1.3, 0.2, 1.1, RC.blue),
+    const both = (f) => [...f(-1), ...f(1)];
+    // chest = the cab: broad chest over a narrower waist, windscreens in chrome frames, the radiator grille and headlamps,
+    // shoulder pods with roof-marker lamps, chrome exhaust stacks, a vented back pack
+    const chest = grp('chest', mk([
+      rbx(0, 0.28, 0, 3.4, 1.45, 1.7, S.red, 0.22), rbx(0, -0.62, -0.05, 3.0, 0.72, 1.5, S.red, 0.16),
+      ...both((s) => [rbx(s * 0.8, 0.28, 0.86, 1.44, 1.12, 0.06, S.silver, 0.05), rbx(s * 0.8, 0.28, 0.9, 1.3, 1.0, 0.06, S.glass, 0.06), rbx(s * 0.8, -0.26, 0.93, 1.0, 0.03, 0.03, S.black, 0.01, 0, 0, s * 0.1)]),
+      rbx(0, 0.28, 0.9, 0.2, 1.2, 0.12, S.silver, 0.05),
+      { geo: cylGeo(0.34, 0.34, 0.08, 6), s: S.gold, m: MX(0, -0.62, 0.74, H, 0, 0) },
+      rbx(0, -1.35, 0, 1.9, 0.8, 1.3, S.silver, 0.14), rbx(0, -1.35, 0.64, 1.6, 0.52, 0.06, S.dark, 0.03),
+      ...Array.from({ length: 7 }, (_, k) => rbx(-0.66 + k * 0.22, -1.35, 0.68, 0.07, 0.5, 0.05, S.chrome, 0.02)),
+      ...both((s) => [rbx(s * 1.25, -0.72, 0.72, 0.62, 0.3, 0.08, S.silver, 0.04), rbx(s * 1.2, -0.62, 0.72, 0.03, 0.66, 0.06, S.black, 0.01)]),
+      ...both((s) => [rbx(s * 2.2, 0.55, 0, 1.1, 1.1, 1.6, S.red, 0.24), rbx(s * 2.2, 1.12, 0, 0.96, 0.1, 1.4, S.silver, 0.04), rbx(s * 2.72, 0.5, 0, 0.1, 0.7, 1.2, S.silver, 0.04)]),
+      ...both((s) => [rcyl(s * 1.25, 1.4, -0.7, 0.17, 2.2, S.chrome), rcyl(s * 1.25, 2.52, -0.7, 0.2, 0.1, S.dark), rbx(s * 1.25, 1.1, -0.5, 0.3, 1.1, 0.05, S.silver, 0.02)]),
+      rbx(0, 1.08, 0, 1.3, 0.2, 1.1, S.blue, 0.07),
+      rbx(0, 0.2, -0.95, 2.2, 1.4, 0.3, S.dark, 0.12), ...Array.from({ length: 4 }, (_, k) => rbx(0, -0.2 + k * 0.26, -1.12, 1.6, 0.07, 0.05, S.black, 0.02)),
     ]));
-    grp('pelvis', mk([box(0, 0, 0, 2.4, 0.8, 1.3, RC.blue), box(0, 0, 0.66, 1.0, 0.5, 0.06, RC.silver)]));
-    grp('head', mk([box(0, 0, 0, 1.2, 1.2, 1.2, RC.blue), box(0, 0.75, 0, 0.25, 0.5, 0.9, RC.silver), box(-0.7, 0.3, 0, 0.2, 1.0, 0.3, RC.blue), box(0.7, 0.3, 0, 0.2, 1.0, 0.3, RC.blue)]));
+    chest.add(mk([{ geo: cylGeo(0.2, 0.2, 0.1, 6), s: S.core, m: MX(0, -0.62, 0.78, H, 0, 0) }, ...both((s) => [rbx(s * 1.25, -0.72, 0.77, 0.52, 0.2, 0.06, S.lamp, 0.03), rbx(s * 2.2, 1.18, 0.62, 0.34, 0.06, 0.08, S.amber, 0.02)])]));
+    // pelvis: armoured hips with a glowing buckle
+    const pel = grp('pelvis', mk([rbx(0, 0, 0, 2.4, 0.8, 1.3, S.blue, 0.18), rbx(0, 0, 0.66, 1.0, 0.5, 0.06, S.silver, 0.05), rcyl(0, -0.12, 0, 0.3, 2.62, S.dark, 0, 0, H)]));
+    pel.add(mk([rbx(0, 0, 0.7, 0.54, 0.08, 0.04, S.eye, 0.02)]));
+    // head: helmet, silver face plate, a glowing visor, crest fin, ear antennas
+    const head = grp('head', mk([
+      rbx(0, 0, 0, 1.2, 1.2, 1.2, S.blue, 0.28), rbx(0, -0.28, 0.56, 0.8, 0.52, 0.12, S.silver, 0.1), rbx(0, 0.12, 0.6, 0.94, 0.24, 0.06, S.black, 0.05),
+      rbx(0, 0.75, 0.05, 0.2, 0.5, 0.95, S.silver, 0.08), rbx(0, 0.52, 0.56, 0.16, 0.3, 0.14, S.silver, 0.05),
+      ...both((s) => [rbx(s * 0.7, 0.3, 0, 0.2, 1.0, 0.3, S.blue, 0.08), rcyl(s * 0.7, 0.95, 0, 0.05, 0.4, S.chrome), rbx(s * 0.3, -0.3, 0.63, 0.12, 0.3, 0.02, S.dark, 0.01)]),
+    ]));
+    head.add(mk([rbx(0, 0.12, 0.635, 0.8, 0.09, 0.03, S.eye, 0.02)]));
     for (const s of [-1, 1]) {
-      const arm = grp(s < 0 ? 'armL' : 'armR', mk([box(0, -0.85, 0, 0.85, 1.7, 0.85, RC.silver)]));
+      // arms: shoulder joint, silver upper arm with a piston; elbow joint, forearm (paint) with chrome trim, wrist band, a heavy fist
+      const arm = grp(s < 0 ? 'armL' : 'armR', mk([rcyl(0, 0, 0, 0.46, 1.0, S.dark, 0, 0, H), rbx(0, -0.85, 0, 0.85, 1.7, 0.85, S.silver, 0.14), rcyl(0, -0.9, 0.46, 0.07, 1.2, S.chrome)]));
       const elbow = new THREE.Group(); elbow.position.y = -1.7; arm.add(elbow);
-      elbow.add(mk([box(0, -0.9, 0, 1.05, 1.8, 1.05, RC.arm), box(0, -2.2, 0, 1.12, 0.9, 1.12, RC.dark), box(s * 0.56, -0.9, 0, 0.1, 1.2, 0.6, RC.silver)]));
+      elbow.add(mk([
+        rcyl(0, 0, 0, 0.38, 1.12, S.dark, 0, 0, H), rbx(0, -0.9, 0, 1.05, 1.8, 1.05, S.arm, 0.18), rbx(s * 0.56, -0.9, 0, 0.1, 1.2, 0.6, S.silver, 0.04),
+        rbx(0, -0.5, 0.54, 0.6, 0.04, 0.03, S.black, 0.01), rbx(0, -1.72, 0, 1.12, 0.18, 1.12, S.dark, 0.05), rbx(0, -2.2, 0, 1.12, 0.9, 1.12, S.dark, 0.22),
+        rbx(0, -1.25, 0.53, 0.46, 0.05, 0.03, S.eye, 0.01), rbx(s * 0.53, -1.25, 0.2, 0.03, 0.05, 0.36, S.eye, 0.01),
+        ...Array.from({ length: 4 }, (_, k) => rbx(-0.39 + k * 0.26, -2.42, 0.44, 0.22, 0.26, 0.3, S.silver, 0.07)),
+      ]));
       arm.userData.j = elbow;
-      const leg = grp(s < 0 ? 'legL' : 'legR', mk([box(0, -0.9, 0, 1.1, 1.8, 1.2, RC.silver)]));
+      // legs: silver thigh with twin pistons; knee joint, shin (paint) with a front plate and the side tyre, foot with a toe cap
+      const leg = grp(s < 0 ? 'legL' : 'legR', mk([rcyl(0, 0, 0, 0.5, 1.12, S.dark, 0, 0, H), rbx(0, -0.9, 0, 1.1, 1.8, 1.2, S.silver, 0.16), rcyl(-0.3, -0.9, 0.62, 0.07, 1.4, S.chrome), rcyl(0.3, -0.9, 0.62, 0.07, 1.4, S.chrome)]));
       const knee = new THREE.Group(); knee.position.y = -1.8; leg.add(knee);
-      knee.add(mk([box(0, -0.95, 0, 1.3, 1.9, 1.4, RC.blue), box(s * 0.7, -0.9, 0, 0.22, 1.0, 1.0, RC.black), box(0, -2.1, 0.25, 1.4, 0.45, 2.0, RC.blue), box(0, -0.4, 0.71, 0.8, 0.6, 0.06, RC.silver)]));
+      knee.add(mk([
+        rcyl(0, 0, 0, 0.52, 1.24, S.dark, 0, 0, H), rbx(0, -0.95, 0, 1.3, 1.9, 1.4, S.blue, 0.2), rbx(0, -0.85, 0.72, 1.0, 1.2, 0.12, S.blue, 0.08, -0.06),
+        { geo: wheelGeo('steel'), vb: true, m: MX(s * 0.66, -0.9, 0, 0, 0, 0, s * 0.3, 0.5, 0.5) },
+        rbx(0, -2.1, 0.25, 1.4, 0.45, 2.0, S.blue, 0.16), rbx(0, -2.12, 1.2, 1.3, 0.36, 0.3, S.silver, 0.1), rbx(0, -2.02, -0.72, 1.2, 0.3, 0.3, S.dark, 0.08),
+        rbx(0, -0.4, 0.71, 0.8, 0.6, 0.1, S.silver, 0.08), rcyl(0, -0.4, 0.77, 0.08, 0.04, S.gold, H, 0, 0, 8),
+        rbx(0, -1.24, 0.815, 0.56, 0.05, 0.03, S.eye, 0.01), rbx(0, -1.34, 0.82, 0.4, 0.05, 0.03, S.eye, 0.01),
+      ]));
       leg.userData.j = knee;
     }
-    for (let k = 0; k < 6; k++) grp('w' + k, mk([box(0, 0, 0, 0.6, 1.25, 1.25, RC.black), box(0, 0, 0, 0.64, 0.5, 0.5, RC.silver)]));
+    // the truck's six wheels (hidden in robot pose): tyres on steel rims, rims facing out
+    const wx = [-1, 1, -1, 1, -1, 1];
+    for (let k = 0; k < 6; k++) grp('w' + k, mk([{ geo: wheelGeo('steel'), vb: true, m: MX(0, 0, 0, 0, 0, 0, wx[k] * 0.6, 0.62, 0.62) }])).rotation.order = 'YXZ';
     this.gear(mk);
     // pose tables: [x,y,z, rx,ry,rz, sx,sy,sz]
     const R = {
@@ -56,9 +122,8 @@ const Robot = {
   // everything bought at Kodex's lab / 中关村 (and the big gold chain) is bolted onto the mech
   gear(mk) {
     const P = this.parts, own = (id) => RPG.owns(id), cnt = (id) => RPG.count(id);
-    const glow = (parts) => new THREE.Mesh(mergeParts(parts), MAT.glowVC);
-    const add = (g, parts, lit) => { if (parts.length) g.add(lit ? glow(parts) : mk(parts)); };
-    const hex = (x, y, z, r, c) => gpart(new THREE.CylinderGeometry(r, r, 0.06, 6), c, x, y, z, Math.PI / 2, 0, 0);
+    const add = (g, parts, lit) => { if (parts.length) g.add(mk(parts, lit)); };
+    const hex = (x, y, z, r, c) => gpart(cylGeo(r, r, 0.06, 6), c, x, y, z, Math.PI / 2, 0, 0);
     const chest = [], chestLit = [], pel = [], pelLit = [];
     if (own('plate1')) for (const s of [-1, 1]) chest.push(box(s * 2.25, 1.22, 0, 1.45, 0.28, 1.95, RC.silver), box(s * 2.25, 1.03, 0, 1.52, 0.12, 2.0, RC.dark), box(s * 2.93, 0.72, 0, 0.14, 0.75, 1.9, RC.silver));
     if (own('plate3')) {
@@ -70,14 +135,14 @@ const Robot = {
       for (const x of [-0.72, 0.72]) { pel.push(hex(x, 0, 0.68, 0.3, RC.dark)); pelLit.push(hex(x, 0, 0.72, 0.22, 0x22d3ee)); }
     }
     if (own('nos')) for (const s of [-1, 1]) {
-      chest.push(gpart(new THREE.CylinderGeometry(0.22, 0.26, 2.6, 10), RC.silver, s * 0.95, 1.1, -1.05), gpart(new THREE.CylinderGeometry(0.27, 0.27, 0.2, 10), RC.dark, s * 0.95, 2.45, -1.05));
-      chestLit.push(gpart(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 10), 0x60a5fa, s * 0.95, 2.57, -1.05));
+      chest.push(gpart(cylGeo(0.22, 0.26, 2.6, 10), RC.silver, s * 0.95, 1.1, -1.05), gpart(cylGeo(0.27, 0.27, 0.2, 10), RC.dark, s * 0.95, 2.45, -1.05));
+      chestLit.push(gpart(cylGeo(0.2, 0.2, 0.08, 10), 0x60a5fa, s * 0.95, 2.57, -1.05));
     }
     if (own('rtx')) {
       chest.push(box(0, -0.15, -1.3, 2.3, 1.9, 0.8, 0x111318));
       chestLit.push(box(0, 0.83, -1.71, 2.2, 0.06, 0.04, 0xef4444), box(0, -1.13, -1.71, 2.2, 0.06, 0.04, 0x3b82f6), box(-1.12, -0.15, -1.71, 0.06, 1.9, 0.04, 0x22c55e), box(1.12, -0.15, -1.71, 0.06, 1.9, 0.04, 0xa855f7));
       for (const [x, y] of [[-0.55, 0.32], [0.55, 0.32], [-0.55, -0.6], [0.55, -0.6]]) {
-        chest.push(gpart(new THREE.CylinderGeometry(0.34, 0.34, 0.06, 12), 0x1f2937, x, y, -1.71, Math.PI / 2, 0, 0));
+        chest.push(gpart(cylGeo(0.34, 0.34, 0.06, 12), 0x1f2937, x, y, -1.71, Math.PI / 2, 0, 0));
         chestLit.push(gpart(new THREE.TorusGeometry(0.33, 0.035, 4, 16), pick([0xf472b6, 0x22d3ee, 0xfacc15]), x, y, -1.74));
       }
     }
@@ -86,7 +151,7 @@ const Robot = {
     if (RPG.equip && RPG.equip.neck === 'chain') {
       // 大金链子 hangs across the chest (and on the truck's grille)
       for (let k = 0; k <= 16; k++) { const u = k / 16 * 2 - 1, x = u * 1.15, y = 1.02 - (1 - u * u) * 1.0; chest.push(box(x, y, 0.93, 0.2, 0.14, 0.1, 0xf5c542, k % 2 ? 0 : 0.6)); }
-      chest.push(gpart(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 16), 0xf5c542, 0, -0.18, 0.96, Math.PI / 2, 0, 0), gpart(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 4), 0x8a6a10, 0, -0.18, 0.98, Math.PI / 2, 0, 0));
+      chest.push(gpart(cylGeo(0.34, 0.34, 0.08, 16), 0xf5c542, 0, -0.18, 0.96, Math.PI / 2, 0, 0), gpart(cylGeo(0.16, 0.16, 0.1, 4), 0x8a6a10, 0, -0.18, 0.98, Math.PI / 2, 0, 0));
     }
     add(P.chest, chest); add(P.chest, chestLit, true); add(P.pelvis, pel); add(P.pelvis, pelLit, true);
     const tubes = Math.min(3, cnt('cooler'));
@@ -184,6 +249,14 @@ const Robot = {
   },
   // procedural animation of limbs in robot pose
   animate(dt, st) {
+    if (!this.morph && this.pose === 'truck' && dt > 0) {
+      const h = Player.heading, sp = Player.speed || 0; if (this._lh === null) this._lh = h;
+      const yr = angDiff(this._lh, h) / dt; this._lh = h;
+      this.spin = (this.spin + sp * dt / 0.744) % TAU;
+      this.steer = damp(this.steer, Math.abs(sp) > 0.5 ? clamp(Math.atan(yr * 4.6 / Math.abs(sp)) * Math.sign(sp), -0.5, 0.5) : this.steer, 8, dt);
+      for (let k = 0; k < 6; k++) this.parts['w' + k].rotation.set(this.spin, k < 2 ? this.steer : 0, 0);
+      return;
+    }
     if (this.morph || this.pose !== 'robot') return;
     const P = this.parts, walk = st.walk, ph = st.ph;
     const sw = Math.sin(ph) * 0.62 * walk, kneeL = Math.max(0, -Math.sin(ph)) * 0.9 * walk, kneeR = Math.max(0, Math.sin(ph)) * 0.9 * walk;

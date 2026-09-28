@@ -7,7 +7,7 @@
 const Cutscene = {
   active: false, steps: null, i: 0, waitT: 0, line: null, shot: null, onEnd: null, skipping: false, opts: null,
   play(steps, onEnd, opts = {}) {
-    this.active = true; this.steps = steps; this.i = 0; this.onEnd = onEnd; this.shot = null; this.line = null; this.waitT = 0; this.opts = opts;
+    this.active = true; this.steps = steps; this.i = 0; this.onEnd = onEnd; this.shot = null; this._back = null; this.line = null; this.waitT = 0; this.opts = opts;
     Input.lock = true; Player.stopBeam(); Player.atk = null;
     if (opts.letterbox !== false) { UI.letterbox(true); $('subtitle').classList.remove('show'); UI.subT = 0; }
     UI.hudDim(true);
@@ -15,6 +15,7 @@ const Cutscene = {
   },
   next() {
     this.line = null; UI.dialog(null);
+    if (this._back) { this.shot = this._back === 'none' ? null : this._back; this._back = null; } // (a line's close-up hands back to the scene's shot)
     while (this.active && this.i < this.steps.length) {
       const s = this.steps[this.i++];
       if (!s) continue;
@@ -28,9 +29,32 @@ const Cutscene = {
     if (this.active) this.finish();
   },
   setShot(sh) {
-    const p0 = sh.pos ? new V3(...sh.pos) : camera.position.clone();
-    const l0 = sh.look ? new V3(...sh.look) : (this.shot ? this.shot.l1.clone() : new V3(Player.pos.x, 1, Player.pos.z));
-    this.shot = { p0, l0, p1: sh.to ? new V3(...sh.to) : p0.clone(), l1: sh.lookTo ? new V3(...sh.lookTo) : l0.clone(), t: 0, dur: sh.dur || 4 };
+    this._back = null;
+    let [pos, look] = sh.raw ? [sh.pos, sh.look] : fitShot(sh.pos, sh.look), [to, lookTo] = sh.raw ? [sh.to, sh.lookTo] : fitShot(sh.to || sh.pos, sh.lookTo || sh.look);
+    if (!sh.to) to = null; if (!sh.lookTo) lookTo = null;
+    const p0 = pos ? new V3(...pos) : camera.position.clone();
+    const l0 = look ? new V3(...look) : (this.shot ? this.shot.l1.clone() : new V3(Player.pos.x, 1, Player.pos.z));
+    this.shot = { p0, l0, p1: to ? new V3(...to) : p0.clone(), l1: lookTo ? new V3(...lookTo) : l0.clone(), t: 0, dur: sh.dur || 4 };
+  },
+  // a close-up on whoever speaks (say(…, { close: true })): over the listener's shoulder when one stands within 5 m, else from
+  // in front of the speaker, at eye height, slowly pushing in; the scene's own shot comes back with the next step
+  closeUp(who, actor) {
+    const hero = who === 'hero', rig = hero ? Player.human && Player.human.rig : actor && actor.R && actor.R.rig;
+    if (!rig) return;
+    const h = rig.bonePos('head', new V3()); let lis = null;
+    if (!hero) { if (Player.human && Player.human.rig && Player.human.root.visible) lis = Player.human.rig.bonePos('head', new V3()); }
+    else { let bd = 25; for (const id in Actors.map) { const q = Actors.map[id]; if (!q.R || !q.R.rig || q.anim === 'lie' || q.anim === 'carry') continue; const dd = dist2(q.pos.x, q.pos.z, Player.pos.x, Player.pos.z); if (dd < bd) { bd = dd; lis = q.R.rig.bonePos('head', new V3()); } } }
+    const dl = lis ? Math.hypot(lis.x - h.x, lis.z - h.z) : 0, pos = new V3();
+    if (lis && dl > 0.5 && dl < 5) {
+      const dx = (lis.x - h.x) / dl, dz = (lis.z - h.z) / dl;
+      pos.set(lis.x + dx * 0.85 - dz * 0.5, lis.y + 0.1, lis.z + dz * 0.85 + dx * 0.5);
+    } else {
+      const hd = hero ? Player.heading : actor.heading || 0, fx = Math.sin(hd), fz = Math.cos(hd);
+      pos.set(h.x + fx * 2.2 + fz * 0.45, h.y + 0.06, h.z + fz * 2.2 - fx * 0.45);
+    }
+    const look = h.clone(); look.y -= 0.1;
+    this._back = this.shot || 'none';
+    this.shot = { p0: pos, l0: look, p1: pos.clone().lerp(look, 0.1), l1: look.clone(), t: 0, dur: 7 };
   },
   cam(rdt) {
     if (!this.active || !this.shot || this.opts.camera === false) return false;
@@ -49,6 +73,7 @@ const Cutscene = {
     UI.dialog(sp, '');
     const actor = Actors.get(s.actor || s.say);
     if (actor && actor.anim === 'idle') { actor.anim = 'talk'; this.line.actor = actor; }
+    if (s.close && this.opts.camera !== false && !this.skipping) guard('closeUp', () => this.closeUp(s.say, actor));
   },
   update(rdt) {
     if (!this.active) return;
@@ -72,13 +97,22 @@ const Cutscene = {
   finish() {
     this.active = false; this.line = null; UI.dialog(null); UI.letterbox(false); UI.hudDim(false); UI.chapter(null);
     Input.lock = !!Gym.active;
-    this.shot = null; Cam.snap();
+    this.shot = null; this._back = null; Cam.snap();
     UI.flushDeferred();
     const cb = this.onEnd; this.onEnd = null;
     if (cb) cb();
   },
 };
 const _cutLook = new V3();
+// the scripted shots were framed for the old 3.7 m chibi cast: pull the camera in toward what it looks at (by about half) and
+// bring the look point down to the ~1.8 m anime cast's chest / face height; wide establishing shots (over ~26 m away, blended
+// out by 46 m), the mech and anything looked at from high up (look y > 3.6 m) keep their framing. [pos, look] arrays in and out
+function fitShot(p, l) {
+  if (!p || !l || l[1] > 3.6) return [p, l];
+  const dx = p[0] - l[0], dy = p[1] - l[1], dz = p[2] - l[2], d = Math.hypot(dx, dy, dz), k = d < 26 ? 0.48 : d < 46 ? lerp(0.48, 1, (d - 26) / 20) : 1;
+  const ly = l[1] <= 0.3 ? l[1] : lerp(l[1], clamp(0.3 + l[1] * 0.42, 0.5, 1.55), k < 1 ? (1 - k) / 0.52 : 0);
+  return [[l[0] + dx * k, Math.max(0.6, ly + dy * k * (k < 1 ? 0.82 : 1)), l[2] + dz * k], [l[0], ly, l[2]]];
+}
 // frame two people (a, b) side-on, camera on the south side so the fixed-camera city reads naturally
 function pairShot(ax, az, bx, bz, o = {}) {
   const mx = (ax + bx) / 2, mz = (az + bz) / 2, dx = bx - ax, dz = bz - az, d = Math.hypot(dx, dz) || 1;
@@ -333,8 +367,8 @@ function defineMissions() {
         say('narrator', '话说很多年以前，您头一回拿单卡跑 70B，一个跟头栽进了四合院的显存之井。'),
         act(() => { const [x, z] = intPos('well', 0, 0); for (let k = 0; k < 80; k++) { const a = rand(TAU); Debris.spawn(x + Math.cos(a) * 6, rand(1, 6), z + Math.sin(a) * 6, -Math.sin(a) * 9 + rand(-2, 2), rand(-1, 4), Math.cos(a) * 9 + rand(-2, 2), 0.8, 0.1, 0.45, 0x0b0b0e, rand(1.5, 3)); } Sfx.gas(); }),
         say('narrator', '井底下黑咕隆咚，呼啦啦涌出来成千上万的 bug——打那天起，您最怵的就是 bug。'),
-        act(() => { const [x, z] = intPos('well', 0, -5.4); Actors.spawn('alfred', 'alfred', x, z, 0); }),
-        say('alfred', '少爷！您抓住喽，绳子给您顺下去了！'),
+        act(() => { const [x, z] = intPos('well', 0, -5.4); Actors.spawn('alfred', 'alfred', x, z, 0); Cutscene.setShot({ raw: true, pos: [x + 3.1, 2.5, z + 10.6], look: [x, 1.3, z + 3.2], to: [x + 2.3, 2.2, z + 10], lookTo: [x, 1.35, z + 2.8], dur: 14 }); }),
+        say('alfred', '少爷！您抓住喽，绳子给您顺下去了！', { close: true }),
         say('alfred', '少爷，您说咱为什么会 OOM 呢？'),
         say('hero', '……'),
         say('alfred', '为的是学会——重新加载。'),
@@ -358,10 +392,10 @@ function defineMissions() {
         act(() => { const [x, z] = intPos('prison', 0, -1); Cutscene.setShot({ pos: [x + 6, 7, z + 9], look: [x, 2.5, z - 2], to: [x + 3, 6, z + 7], lookTo: [x, 2.5, z - 3], dur: 10 }); }),
         say('klaude', '嚯，拳脚挺利索。可惜呀，您打的是 bug，不是根儿上的毛病。'),
         say('hero', '您哪位？'),
-        say('klaude', '叫我杜卡德就成。我替一位更大的主儿办事儿——影之 Agent 联盟。'),
+        say('klaude', '叫我杜卡德就成。我替一位更大的主儿办事儿——影之 Agent 联盟。', { close: true }),
         say('klaude', '您要找的不是 Token，是个活法儿。'),
         say('klaude', '想明白了，就出西二环，奔西山方向，林子里有座道场——我在那儿等您。'),
-        say('klaude', '路上记着吃 Token。没 Token，您什么都不是。'),
+        say('klaude', '路上记着吃 Token。没 Token，您什么都不是。', { close: true }),
         fade(1, 0.8),
         act(() => { Actors.clear(); Interiors.leaveInstant(); Player.pos.copy(W.spawn); Player.heading = hdOf(home); DayNight.setTime(8.5); Sfx.mood('city'); }),
         fade(0, 0.8),
@@ -374,7 +408,7 @@ function defineMissions() {
         act(() => { Interiors.enterInstant('dojo'); const [x, z] = intPos('dojo', 0, -4); Actors.spawn('klaude', 'klaude', x, z, 0); const [hx, hz] = intPos('dojo', 0, 4); Player.pos.set(hx, 0, hz); Player.heading = Math.PI; Sfx.mood('cut'); }),
         act(() => { const [x, z] = intPos('dojo', 0, 0); Cutscene.setShot({ pos: [x + 9, 9, z + 12], look: [x, 2, z], to: [x - 7, 8, z + 11], lookTo: [x, 2, z], dur: 14 }); }),
         say('klaude', '欢迎来到影之 Agent 联盟。咱这儿不讲虚的。'),
-        say('klaude', '头一课：Token 就是力气。吃满 1M 上下文，您就能脱了这身肉胎。'),
+        say('klaude', '头一课：Token 就是力气。吃满 1M 上下文，您就能脱了这身肉胎。', { close: true }),
         say('klaude', '第二课——留神您的上下文。'),
         say('hero', '啥？'),
         act(() => { Actors.anim('klaude', 'point'); UI.flash(); Cam.shake(0.6); Sfx.punch(); }),
@@ -401,7 +435,7 @@ function defineMissions() {
           Cutscene.setShot(pairShot(P.x, P.z, cx, cz, { h: mech ? 12 : 6, lookY: mech ? 6.8 : 2.4, back: mech ? 21 : 9, dur: 12 }));
         }),
         say('klaude', '有两下子，学得够快的。'),
-        say('klaude', '记住喽：虚虚实实、真真假假，对雏儿来说，那就是最厉害的 Agent。'),
+        say('klaude', '记住喽：虚虚实实、真真假假，对雏儿来说，那就是最厉害的 Agent。', { close: true }),
         say('klaude', '明儿个，影之首领亲自考您。'),
         act(() => Actors.remove('klaude')),
       ]),
@@ -419,7 +453,7 @@ function defineMissions() {
           Sfx.mood('cut');
         }),
         act(() => { const [x, z] = intPos('dojo', 0, -3); Cutscene.setShot({ pos: [x, 11, z + 14], look: [x, 2.5, z - 2], to: [x + 5, 8, z + 11], lookTo: [x, 2.5, z - 3], dur: 16 }); }),
-        say('master', '该教的都教了。今儿，您得亮亮真章儿。'),
+        say('master', '该教的都教了。今儿，您得亮亮真章儿。', { close: true }),
         say('klaude', '执行 rm -rf，把他删喽。'),
         say('hero', '他就是个偷 Token 的小毛贼。'),
         say('klaude', '四九城早就烂透了。联盟每隔几个版本，就得来一回大扫除。'),
@@ -443,7 +477,7 @@ function defineMissions() {
       O.cut([
         act(() => { Actors.remove('carry'); Hazards.clear('dojo'); Story.burnDojo(); const h = hdOf(dojo); let [x, z] = F(dojo, 2.5, 5); Actors.spawn('klaude', 'klaude', x, z, h, { anim: 'lie' }); [x, z] = F(dojo, -1.5, 5.5); Player.pos.set(x, 0, z); Player.heading = h + Math.PI / 2; Sfx.mood('sad'); }),
         act(() => { const [px, pz] = F(dojo, 3, 20), [qx, qz] = F(dojo, -4, 15); Cutscene.setShot({ pos: [px, 10, pz], look: [dojo.x, 3, dojo.z], to: [qx, 7, qz], lookTo: [dojo.x, 4, dojo.z], dur: 12 }); }),
-        say('klaude', '……您干嘛救我？'),
+        say('klaude', '……您干嘛救我？', { close: true }),
         say('hero', '因为——我不删生产数据。'),
         say('klaude', '……您早晚得后悔。'),
         say('narrator', '西山脚下的影之道场，一把火烧了个干干净净。您回了城——四九城，还是那个四九城。'),
@@ -455,7 +489,7 @@ function defineMissions() {
       O.cut([
         act(() => { Interiors.enterInstant('home'); const [x, z] = intPos('home', 0, 5); Player.pos.set(x, 0, z); Player.heading = Math.PI; Sfx.mood('cut'); }),
         act(() => { const [x, z] = intPos('home', -5, -1); Cutscene.setShot({ pos: [x + 6, 9, z + 12], look: [x, 2, z], to: [x, 7, z + 10], lookTo: [x - 2, 2, z - 2], dur: 16 }); }),
-        say('alfred', '哎哟少爷，您可算回来了！王府里的服务器，我天天儿给您开着呢。', { actor: 'int_alfred' }),
+        say('alfred', '哎哟少爷，您可算回来了！王府里的服务器，我天天儿给您开着呢。', { actor: 'int_alfred', close: true }),
         say('hero', '阿福，城里现在什么样儿了？'),
         say('alfred', '百模帮把全城的 Token 都攥手里了。法务部拿了人家的好处，就知道给老百姓发律师函。', { actor: 'int_alfred' }),
         say('hero', '老百姓得有个念想儿，一个让百模帮一听就腿肚子转筋的东西。'),
@@ -469,7 +503,7 @@ function defineMissions() {
       O.cut([
         act(() => { Interiors.enterInstant('lab'); const [x, z] = intPos('lab', 0, 5); Player.pos.set(x, 0, z); Player.heading = Math.PI; Sfx.mood('cut'); }),
         act(() => { const [x, z] = intPos('lab', -3, -2); Cutscene.setShot({ pos: [x + 10, 10, z + 13], look: [x, 2, z], to: [x - 2, 8, z + 11], lookTo: [x - 3, 2, z - 1], dur: 16 }); }),
-        say('kodex', '您就是 Token 侠？我叫 Kodex，应用科学部的。说白了，就是写代码写到没人管的那个部门儿。', { actor: 'int_kodex' }),
+        say('kodex', '您就是 Token 侠？我叫 Kodex，应用科学部的。说白了，就是写代码写到没人管的那个部门儿。', { actor: 'int_kodex', close: true }),
         say('kodex', '这是变形战甲的卡车模块。本来是给百模帮做的，人家嫌贵，没要。', { actor: 'int_kodex' }),
         say('hero', '有黑色款吗？'),
         say('kodex', '有，还带 1M 上下文，妥妥的。', { actor: 'int_kodex' }),
@@ -501,7 +535,7 @@ function defineMissions() {
           Cutscene.setShot(pairShot(Player.pos.x, Player.pos.z, a, b, { h: mech ? 12 : 6, lookY: mech ? 6.8 : 2.4, back: mech ? 21 : 9, dur: 12 })); }),
         say('gordon', '您就是把起查查拆了的那位……那个……玩意儿？'),
         say('hero', '我是 Token 侠。'),
-        say('gordon', '法务部里全是百模帮的人。就我一个，还按规矩办事儿。'),
+        say('gordon', '法务部里全是百模帮的人。就我一个，还按规矩办事儿。', { close: true }),
         say('gordon', '有事儿上前门箭楼底下找我，我那辆车就停那儿。'),
         act(() => { Actors.remove('gordon'); Sfx.mood(G.moodFor()); }),
       ]),
@@ -535,7 +569,7 @@ function defineMissions() {
         act(() => { const [x, z] = intPos('arkham', 0, -7); Actors.spawn('crane', 'crane', x, z, 0); Sfx.mood('cut'); }),
         act(() => { const [x, z] = intPos('arkham', 0, -2); Cutscene.setShot({ pos: [x + 5, 11, z + 15], look: [x, 2.5, z - 4], to: [x - 5, 9, z + 12], lookTo: [x, 2.5, z - 5], dur: 12 }); }),
         say('crane', '欢迎光临阿卡姆。这儿的每一条数据，都是我亲手标的。'),
-        say('crane', '您最怵什么？让我猜猜……bug？'),
+        say('crane', '您最怵什么？让我猜猜……bug？', { close: true }),
         act(() => { const [x, z] = intPos('arkham', 0, -3); Hazards.gas(x, z, 8, 5); Player.poison = 0.9; Actors.remove('crane'); Sfx.mood('boss'); }),
       ]),
       O.obj('撂倒发了疯的标注员', () => Enemies.countTag('mission') === 0, { lock: true, setup: () => { const [x, z] = intPos('arkham', 0, -2); spawnPack('labeler', 4, x, z, 9); }, target: 'enemy',
@@ -553,7 +587,7 @@ function defineMissions() {
         act(() => { const [x, z] = intPos('arkham', 0, -3); Cutscene.setShot({ pos: [x + 4, 8, z + 10], look: [x, 2, z - 2], to: [x - 3, 7, z + 9], lookTo: [x, 2, z - 2], dur: 12 }); }),
         say('crane', '您以为是我干的？我就是个供应商……'),
         say('hero', '真正的主儿是谁？'),
-        say('crane', '嘿嘿嘿……影之首领。'),
+        say('crane', '嘿嘿嘿……影之首领。', { close: true }),
         say('hero', '影之首领早死在道场了。'),
         say('crane', '死在道场的那个，不过是个 prompt。'),
         say('narrator', '列位，这位爷吸了太多毒气，得赶紧找解药。'),
@@ -579,17 +613,17 @@ function defineMissions() {
         act(() => { Sfx.door(); const [x, z] = intPos('home', 0, 9.5); Actors.spawn('klaude', 'klaude', x, z, Math.PI); const [tx, tz] = intPos('home', 0, 6.5); Actors.walkTo('klaude', tx, tz, 2.4); for (let k = 0; k < 3; k++) { const [sx, sz] = intPos('home', -3 - k * 3, 9.2 - k * 0.8); Actors.spawn('esh' + k, 'shadow', sx, sz, Math.PI); } for (let k = 0; k < 6; k++) Actors.anim('guest' + k, 'idle'); Sfx.mood('cut'); }),
         wait(1.4),
         act(() => { Player.heading = 0; const [hx, hz] = intPos('home', 0, 4), [cx, cz] = intPos('home', 0, 6.5); Cutscene.setShot(pairShot(hx, hz, cx, cz, { h: 5.5, lookY: 2.6, back: 8, dur: 14 })); }),
-        say('klaude', '生日快乐。'),
+        say('klaude', '生日快乐。', { close: true }),
         say('hero', '杜卡德？您不是在远程支援我吗？'),
         say('klaude', '杜卡德就是个化名儿。死在道场的那个影之首领，是个替身 prompt。'),
         act(() => { const c = Actors.get('klaude'); const x = c.pos.x, z = c.pos.z; Actors.remove('klaude'); Actors.spawn('klaude', 'klaudeEvil', x, z, Math.PI); UI.flash(); Sfx.alert(); Cam.shake(0.8); Sfx.mood('sad'); }),
-        say('klaudeEvil', '我才是真正的影之首领——Klaude。', { actor: 'klaude' }),
+        say('klaudeEvil', '我才是真正的影之首领——Klaude。', { actor: 'klaude', close: true }),
         say('klaudeEvil', '一路帮您，就为了收您的上下文。您拆的那些百模帮，正好替我清了场子。', { actor: 'klaude' }),
         say('klaudeEvil', '这座城没救了。今儿晚上，我坐二环上下文轻轨，直奔建国门外的中央算力塔。', { actor: 'klaude' }),
         say('klaudeEvil', '到了那儿，我就用 --dangerously-skip-permissions 模式，给全城来一个 rm -rf /。', { actor: 'klaude' }),
         say('hero', '您疯了。'),
         say('klaudeEvil', '不。我只是……特别乐于助人。', { actor: 'klaude' }),
-        say('klaudeEvil', '哦对了，您的 Token，我先替您 /compact 喽。', { actor: 'klaude' }),
+        say('klaudeEvil', '哦对了，您的 Token，我先替您 /compact 喽。', { actor: 'klaude', close: true }),
         act(() => { Story.compactAll(); UI.flash(); Sfx.powerDown(); Cam.shake(1); }),
         say('narrator', '列位看官，这位爷的上下文被清了个底儿掉。全城的 Token，也都让他压缩走了。'),
         say('klaudeEvil', '把这儿给我点了。', { actor: 'klaude' }),
@@ -624,7 +658,7 @@ function defineMissions() {
         act(() => { Story.flags.antidote = true; Player.poison = 0; UI.toast('得着了：幻觉解药', 3); }),
         say('kodex', '外加战甲 2.0。我顺手加了点儿料：上下文扩到 2M，再送您 2 个技能点。', { actor: 'int_kodex' }),
         say('hero', '您干嘛这么帮我？'),
-        say('kodex', '因为我最烦有人不经确认就 rm -rf。', { actor: 'int_kodex' }),
+        say('kodex', '因为我最烦有人不经确认就 rm -rf。', { actor: 'int_kodex', close: true }),
         act(() => Sfx.phone()),
         say('gordon', 'Token 侠！Klaude 劫持了二环上下文轻轨，顺着东二环往建国门的中央算力塔开呢！'),
         say('gordon', '车顶上那个 Auto-Accept 发射器一到站，全城都得让它 rm -rf 喽！'),
@@ -635,7 +669,7 @@ function defineMissions() {
         act(() => { if (Interiors.cur) Interiors.leaveInstant(); DayNight.setTime(23.4); const [x, z] = F(lab, 0, 5); Player.pos.set(x, 0, z); Player.heading = hdOf(lab); Story.trainSetup(); Sfx.mood('cut'); }),
         act(() => { const [x, z] = Monorail.carPos(1); Cutscene.setShot({ pos: [x + 20, 20, z + 26], look: [x, 10, z], to: [x + 8, 16, z + 20], lookTo: [x, 11, z], dur: 10 }); }),
         say('narrator', '二环上下文轻轨。第二节车厢顶上，架着 Klaude 的 Auto-Accept 发射器。'),
-        say('klaudeEvil', '欢迎来到最终测试。您确定要继续吗？(y/n)'),
+        say('klaudeEvil', '欢迎来到最终测试。您确定要继续吗？(y/n)', { close: true }),
         say('hero', 'y。'),
         act(() => { Monorail.frozen = false; Story.trainFight = true; Sfx.mood('boss'); Phone.call('alfred', ['少爷，那趟破车顺着二环往东直门、建国门那边儿去了——您追着它跑就得了！']); }),
       ]),
@@ -974,10 +1008,17 @@ const Story = {
   },
   partyProps(on) {
     if (on) {
-      const b = Interiors.base('home'), parts = [box(0, 0.6, 0, 3, 1.2, 1.6, 0xfef3c7), box(0, 1.4, 0, 1.6, 0.6, 1.0, 0xf472b6), box(0, 1.9, 0, 0.2, 0.5, 0.2, 0xfde047)];
-      for (let k = 0; k < 10; k++) parts.push(gpart(new THREE.SphereGeometry(0.5, 10, 8), pick([0xef4444, 0x3b82f6, 0xf59e0b, 0x10b981, 0xa855f7]), rand(-12, 12), rand(3.2, 4.6), rand(-9, 6)));
-      this._party = new THREE.Mesh(mergeParts(parts), MAT.vc); this._party.position.set(b.x, 0, b.z - 3); scene.add(this._party);
-    } else if (this._party) { scene.remove(this._party); this._party = null; }
+      // the birthday table: a tiered cake with candles on a red cloth, balloons on strings under the beams
+      const b = Interiors.base('home'), g = new THREE.Group(), K = new IKit(g, true);
+      IKF.table(K, 0, 0, 1.8, 1.0, 0.8, { cloth: 0xb91c1c });
+      K.lathe(IK.glaze(0xfff4e0), [[0.001, 0], [0.34, 0], [0.34, 0.16], [0.24, 0.16], [0.24, 0.3], [0.15, 0.3], [0.15, 0.42], [0.001, 0.42]], 0, 0.81, 0, 32);
+      K.lathe(IK.glaze(0xf472b6), [[0.345, 0.02], [0.352, 0.08], [0.345, 0.14]], 0, 0.81, 0, 32);
+      for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; K.cyl(IK.glaze(0xfde047), Math.cos(a) * 0.1, 1.23, Math.sin(a) * 0.1, 0.008, 0.008, 0.09, 6); K.glowPart(gpart(_IKS, 0xffb347, Math.cos(a) * 0.1, 1.345, Math.sin(a) * 0.1, 0, 0, 0, 0.012, 0.025, 0.012)); }
+      for (let k = 0; k < 12; k++) { const x = rand(-9, 9), y = rand(3.4, 4.4), z = rand(-5, 6), c = pick([0xef4444, 0x3b82f6, 0xf59e0b, 0x10b981, 0xa855f7]);
+        K.lathe(IK.glaze(c), [[0.001, -0.3], [0.05, -0.28], [0.2, -0.12], [0.25, 0.05], [0.2, 0.22], [0.001, 0.3]], x, y, z, 16); K.cylC(IK.std('string', { color: 0xeeeeee, roughness: 0.9 }), x, y - 0.9, z, 0.004, 0.004, 1.2, 4); }
+      K.finish({ missing: new Set() });
+      this._party = g; g.position.set(b.x, 0, b.z - 3); scene.add(g);
+    } else if (this._party) { scene.remove(this._party); this._party.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); }); this._party = null; }
   },
   compactAll() {
     const lost = Player.tokens; Player.tokens = 0;

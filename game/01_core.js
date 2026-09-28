@@ -55,19 +55,27 @@ const LOWQ = IS_TOUCH || Math.min(screen.width, screen.height) < 600;
 const CAP = 1000000;              // tokens needed to transform
 const UP = new V3(0, 1, 0);
 
-// ---- renderer ----
+// ---- renderer (three r186, WebGL2 only) ----
+// Light units: r155+ lights are physical (no ×π on punctual / hemisphere lights). The day/night tables stay in the old r128
+// units; LIGHT_K is the factor where a table value becomes a light intensity (and divides back where code reads one).
+const LIGHT_K = Math.PI;
 const canvasEl = document.getElementById('gta-canvas');
 let renderer = null;
 try {
-  // MSAA always: the low tier drops the post chain (and its FXAA), and the med / high post chain renders into its own target anyway
-  renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOWQ ? 1.5 : 1.5));
+  // the med / high tiers render through the HDR post chain with its own MSAA target: canvas MSAA only for the no-post tier
+  let q0 = null; try { q0 = JSON.parse(localStorage.getItem('gta-q')); } catch (e) { /* no storage */ }
+  renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: LOWQ || q0 === 'low', stencil: false, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-} catch (e) { renderer = null; }
+  renderer.shadowMap.type = THREE.PCFShadowMap; // soft since r182 (Vogel disk, shadow.radius); PCFSoft is gone
+} catch (e) { renderer = null; console.warn('[render] no WebGL2: ' + (e && e.message)); }
 const MAX_ANISO = renderer ? renderer.capabilities.getMaxAnisotropy() : 1;
 const scene = new THREE.Scene();
+// the scene root never moves: with auto-update on, every render recomposes its matrix, flags it dirty and so forces the world
+// matrix of all ~18k objects (static chunks included) to be recomputed. Off, only objects that moved (or updateMatrix()) are.
+// Code that writes an object's .matrix by hand must set matrixWorldNeedsUpdate (or call updateMatrix()).
+scene.matrixAutoUpdate = false;
 const camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 1, 1100);
 
 // ---- input ----
@@ -79,7 +87,8 @@ const Input = {
   clear() { for (const k in this.down) this.down[k] = false; this.joy.on = false; this.joy.x = this.joy.y = 0; this.look.dx = this.look.dy = 0; Touch && Touch.release && Touch.release(); },
   addLook(dx, dy) { this.look.dx += dx; this.look.dy += dy; this.look.t = performance.now(); },
   // short haptic tick on phones (hits, crashes); throttled so a brawl doesn't turn into one long buzz
-  buzz(ms = 12) { if (!IS_TOUCH || !navigator.vibrate || Input.noBuzz) return; const n = performance.now(); if (n - this.buzzT < 90) return; this.buzzT = n; try { navigator.vibrate(Math.round(clamp(ms, 5, 80))); } catch (e) { /* not allowed yet */ } },
+  buzz(ms = 12) { if (!IS_TOUCH || !navigator.vibrate || Input.noBuzz || (navigator.userActivation && !navigator.userActivation.hasBeenActive)) return; // before the first tap Chrome blocks it (and logs an error)
+    const n = performance.now(); if (n - this.buzzT < 90) return; this.buzzT = n; try { navigator.vibrate(Math.round(clamp(ms, 5, 80))); } catch (e) { /* not allowed yet */ } },
   get locked() { return document.pointerLockElement === canvasEl; },
 };
 let onTyped = null;

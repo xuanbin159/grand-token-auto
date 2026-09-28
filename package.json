@@ -1,0 +1,19 @@
+{
+  "name": "grand-token-auto",
+  "private": true,
+  "version": "3.0.0",
+  "description": "Grand Token Auto: 四九城 — browser open-world game (three.js)",
+  "license": "UNLICENSED",
+  "scripts": {
+    "vendor": "node vendor/build.mjs",
+    "build": "python3 scripts/build.py --no-osa"
+  },
+  "devDependencies": {
+    "@pixiv/three-vrm": "3.5.5",
+    "@pixiv/three-vrm-animation": "3.5.5",
+    "esbuild": "0.28.2",
+    "n8ao": "2.0.1",
+    "postprocessing": "6.39.5",
+    "three": "0.186.1"
+  }
+}

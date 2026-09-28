@@ -8,14 +8,16 @@ const ENEMY_TYPES = {
   qbot: { hp: 80, r: 1.3, label: 'Kwen', bg: '#5b3df5', dmg: 9, bubbleH: 2.4, xp: 20, lines: ['让我想想……', 'Kwen 为您服务', '正在思考中……', '这个问题很有深度', '<think>'] },
   cha: { hp: 70, r: 1.5, label: '查查', bg: '#0b57d0', dmg: 10, bubbleH: 5, xp: 20, lines: ['查一下你的底细！', '风险提示！', '发现 999+ 条关联信息', '已为你生成报告', '查查查查'] },
   kefu: { hp: 75, r: 1.0, label: null, bg: null, dmg: 8, bubbleH: 0.3, xp: 15, lines: ['亲～', '请问有什么可以帮您？', '正在为您转接人工……', '您的问题我已记录', '感谢您的耐心等待', '亲，这边建议您冷静'] },
-  gang: { hp: 60, r: 0.8, dmg: 7, bubbleH: 1.2, xp: 18, human: true, speed: 6.2, lines: ['这片儿是我们百模帮的地盘！', '刷榜刷到您家门口了', '哪个模型的？报上名来！', '我们家模型全球第一，不服啊？', '瞅什么瞅？'] },
-  shadow: { hp: 70, r: 0.8, dmg: 6, cd: 1.4, bubbleH: 1.2, xp: 30, human: true, speed: 7.6, dash: true, lines: ['影之联盟，从不失手', '您的上下文，我收下了', '……'] },
-  bugthug: { hp: 40, r: 0.8, dmg: 4, cd: 1.7, bubbleH: 1.2, xp: 10, human: true, speed: 4.4, lines: ['新来的？把 Token 交出来！', '嘿嘿，bug 永远修不完', '我这是 feature！', '懂不懂规矩？'] },
-  labeler: { hp: 60, r: 0.8, dmg: 7, bubbleH: 1.2, xp: 20, human: true, speed: 5.5, thrower: true, lines: ['这张图是猫！是猫！', '标完了吗？还有十万条呢……', '我标的都对！', '哈哈哈哈哈'] },
-  decoy: { hp: 1, r: 1.0, dmg: 5, bubbleH: 1.8, xp: 0, human: true, speed: 4, lines: ['我才是真的！', '猜猜哪个是我？'] },
+  gang: { hp: 60, r: 0.42, dmg: 7, bubbleH: 1.2, xp: 18, human: true, speed: 6.2, lines: ['这片儿是我们百模帮的地盘！', '刷榜刷到您家门口了', '哪个模型的？报上名来！', '我们家模型全球第一，不服啊？', '瞅什么瞅？'] },
+  shadow: { hp: 70, r: 0.42, dmg: 6, cd: 1.4, bubbleH: 1.2, xp: 30, human: true, speed: 7.6, dash: true, lines: ['影之联盟，从不失手', '您的上下文，我收下了', '……'] },
+  bugthug: { hp: 40, r: 0.42, dmg: 4, cd: 1.7, bubbleH: 1.2, xp: 10, human: true, speed: 4.4, lines: ['新来的？把 Token 交出来！', '嘿嘿，bug 永远修不完', '我这是 feature！', '懂不懂规矩？'] },
+  labeler: { hp: 60, r: 0.42, dmg: 7, bubbleH: 1.2, xp: 20, human: true, speed: 5.5, thrower: true, lines: ['这张图是猫！是猫！', '标完了吗？还有十万条呢……', '我标的都对！', '哈哈哈哈哈'] },
+  decoy: { hp: 1, r: 0.55, dmg: 5, bubbleH: 1.8, xp: 0, human: true, speed: 4, lines: ['我才是真的！', '猜猜哪个是我？'] },
   dummy: { hp: 150, r: 1.2, dmg: 0, bubbleH: 0.5, xp: 12, static: true, lines: [] },
   drone: { hp: 50, r: 1.0, label: '子 Agent', bg: '#c2410c', dmg: 7, bubbleH: 2, xp: 15, lines: ['子任务已派发', 'Task(描述: 消灭你)', '正在并行执行'] },
 };
+// human mobs' swings: [clip, striking limb] (the damage lands on the clip's impact frame: Enemy.swing)
+const ENEMY_SWINGS = [['punch_jab', 'leftHand'], ['hook', 'rightHand'], ['punch_cross', 'rightHand']]; // jab = lead (left) hand
 const DEATH_LINES = ['已下线', '转人工中…', '服务繁忙', '请稍后再试', 'Token 已退还', '404', '连接已断开'];
 const ENEMY_GEO = new Map(), LABEL_MAT = new Map();
 function enemyGeo(type, color) {
@@ -111,8 +113,13 @@ class Enemy {
       const castKey = o.cast || (type === 'gang' ? 'guest' : type === 'bugthug' ? 'bug' : type === 'decoy' ? 'crane' : type);
       const def = CAST[castKey]();
       if (type === 'gang' && hq) { def.shirt = new THREE.Color(hq.c1).getHex(); def.head = HEADS[pick(['clerk1', 'clerk2', 'clerk3'])]; }
+      // mobs wear the crowd look (compact VRM); a gang member is a townsperson in the HQ's colour
+      def.full = false;
+      if (type === 'gang' && typeof randomPedSpec === 'function' && CharLib.ready) { def.vrm = randomPedSpec(Math.random() < 0.75 ? 'm' : 'f', { full: false }); if (hq) def.vrm.pal.top = hq.c1; }
+      if (type === 'shadow' && CharLib.ready && Math.random() < 0.5) def.vrm = { body: 'base_male', hair: 'avatarsample_c', pal: { top: '#141418', bottom: '#141418', hair: '#1a1a1e', shoe: '#0b0b0b' } };
       this.R = buildCharacter(def); this.mesh = this.R.root; scene.add(this.mesh);
-      if (type === 'decoy') this.mesh.scale.setScalar(1.35);
+      if (type === 'decoy') this.mesh.scale.setScalar(1.25);
+      if (this.R.rig) this.R.rig.needSnap = true;
     } else {
       const color = type === 'kefu' && hq ? new THREE.Color(hq.c1).getHex() : 0;
       this.mesh = new THREE.Mesh(enemyGeo(type, color), MAT.vc); this.mesh.castShadow = true; scene.add(this.mesh);
@@ -124,7 +131,7 @@ class Enemy {
     if (!o.raw) [sx, sz] = openSpot(sx, sz, T.r * 0.8, 30);
     this.pos = new V3(sx, 0, sz); this.vel = new V3();
     this.y = type === 'qbot' || type === 'drone' ? 3.2 : type === 'cha' ? 6 : 0; this.vy = 0;
-    this.hp = T.hp * (o.hpMul || 1); this.maxHp = this.hp; this.r = T.r; this.bubbleH = T.bubbleH;
+    this.hp = T.hp * (o.hpMul || 1); this.maxHp = this.hp; this.r = T.r; this.bubbleH = this.R && this.R.rig ? this.R.bubbleH : T.bubbleH;
     this.atkCd = rand(1, 2.2); this.talkT = rand(1, 5); this.hopT = rand(0.4); this.ang = rand(TAU); this.orbitDir = Math.random() < 0.5 ? 1 : -1;
     this.flash = 0; this.stun = 0; this.dead = false; this.doomT = 0; this.ph = rand(TAU); this.heading = o.heading ?? 0; this.squash = 0;
     this.windup = 0; this.aggro = o.aggro ?? !['gang'].includes(type); this.tag = o.tag || null; this.home = new V3(sx, 0, sz);
@@ -143,7 +150,8 @@ class Enemy {
   die(kind) {
     if (this.dead) return;
     this.dead = true;
-    scene.remove(this.mesh); if (this.label) scene.remove(this.label); if (this.T.human) disposeOwn(this.mesh);
+    if (this.label) scene.remove(this.label);
+    if (!(this.T.human && Corpses.add(this))) { scene.remove(this.mesh); if (this.T.human) { disposeOwn(this.mesh); if (this.R.rig) this.R.rig.dispose(); } }
     const c = this.type === 'bun' ? [1, 0.95, 0.85] : this.type === 'qbot' ? [0.55, 0.45, 1] : this.type === 'cha' ? [0.3, 0.6, 1] : this.type === 'drone' || this.type === 'shadow' ? [1, 0.55, 0.3] : [0.9, 0.95, 1];
     for (let k = 0; k < 14; k++) FX.glowSys.spawn(this.pos.x, this.y + 1.2, this.pos.z, rand(-8, 8), rand(2, 10), rand(-8, 8), rand(0.8, 1.6), -0.6, c[0], c[1], c[2], 1, rand(0.3, 0.6), 2, 10);
     FX.chunks(this.pos.x, this.y + 1, this.pos.z, 5, this.type === 'dummy' ? [0x8a5a34, 0x5a3a22] : [0x2b2f36, 0x9aa3ad, 0xe5e7eb]);
@@ -157,13 +165,14 @@ class Enemy {
     if (this.hq) this.hq.minions = Math.max(0, this.hq.minions - 1);
     Story.event('kill', this);
   }
-  remove() { const was = this.dead; this.dead = true; scene.remove(this.mesh); if (this.label) scene.remove(this.label); if (!was && this.T.human) disposeOwn(this.mesh); if (this.hq) this.hq.minions = Math.max(0, this.hq.minions - 1); }
+  remove() { const was = this.dead; this.dead = true; scene.remove(this.mesh); if (this.label) scene.remove(this.label); if (!was && this.T.human) { disposeOwn(this.mesh); if (this.R.rig) this.R.rig.dispose(); } if (this.hq) this.hq.minions = Math.max(0, this.hq.minions - 1); }
   update(dt) {
     if (this.doomT > 0) { this.doomT -= dt; this.flash = 0.1; if (this.doomT <= 0) { this.die('doom'); return; } }
     const P = Player, alive = P.mode !== 'dead' && !Cutscene.active;
     let dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z;
     const d = hyp(dx, dz) || 0.01; dx /= d; dz /= d;
-    const reach = this.r + P.radius() + 0.6;
+    // melee reach: a VRM arm is ~0.65 m, so people swing from about a metre off (and step in with the punch)
+    const reach = this.r + P.radius() + (this.T.human ? 0.05 : 0.6);
     if (!this.aggro && d < 10 && (P.mode === 'human' || P.isMech())) this.aggro = true;
     const engaged = alive && d < 70 && this.aggro;
     const kv = Math.exp(-4 * dt);
@@ -200,12 +209,15 @@ class Enemy {
       } else if (T.human) {
         const spd = T.speed * (Player.isMech() ? 1.1 : 1);
         if (this.windup > 0) {
+          // step in with the swing so the fist meets the body on the impact frame (not into a car / the mech)
+          const close = P.mode === 'human' ? this.r + 0.3 : reach;
+          if (d > close) { const v = Math.min(spd, (d - close) / Math.max(this.windup, dt)); mvx = dx * v; mvz = dz * v; }
           this.windup -= dt; anim = 'fight';
-          if (this.windup <= 0 && d < reach + 1.2) { P.hurt(T.dmg * (G.inMission ? 1 : 0.9), this.type); Sfx.smallHit(); this.vel.x -= dx * 3; this.vel.z -= dz * 3; }
+          if (this.windup <= 0 && d < reach + 0.4) { P.hurt(T.dmg * (G.inMission ? 1 : 0.9), this.type); Sfx.smallHit(); this.vel.x -= dx * 3; this.vel.z -= dz * 3; }
         } else if (T.dash && d > 5 && d < 10 && this.atkCd <= 0) { this.vel.x += dx * 22; this.vel.z += dz * 22; this.atkCd = 1.6; FX.dust(this.pos.x, this.pos.z, 3, 1.6); Sfx.whoosh(); }
         else if (T.thrower && d > 6 && d < 22 && this.atkCd <= 0) { this.atkCd = rand(2, 3); Projectiles.label(this.pos.x, 2, this.pos.z); anim = 'fight'; }
         else if (d > reach + (this.waiting ? 1.8 : 0)) { mvx = dx * spd; mvz = dz * spd; anim = 'walk'; }
-        else if (this.atkCd <= 0 && Enemies.melee < Enemies.meleeMax()) { this.windup = 0.32; this.atkCd = T.cd || 1.1; this.waiting = false; Enemies.melee++; }
+        else if (this.atkCd <= 0 && Enemies.melee < Enemies.meleeMax()) { this.windup = this.swing(); this.atkCd = T.cd || 1.1; this.waiting = false; Enemies.melee++; }
         else if (this.atkCd <= 0 || this.waiting) {
           // SA-style crowd etiquette: only a couple swing at once, the rest circle and wait their turn
           this.waiting = true; anim = 'walk';
@@ -231,7 +243,8 @@ class Enemy {
     // visuals
     const gh = gh0(this.pos.x, this.pos.z);
     if (!T.static) this.heading = dampA(this.heading, engaged || anim === 'walk' ? Math.atan2(engaged ? dx : mvx, engaged ? dz : mvz) : this.heading, 8, dt);
-    if (T.human) {
+    if (T.human && this.R.rig) this.visual(anim, engaged, dt);
+    else if (T.human) {
       Actors.sync({ R: this.R, pos: this.pos, heading: this.heading, anim, ph: this.ph * (anim === 'walk' ? 4 : 1.5), y: this.y }, dt);
       if (this.flash > 0) this.mesh.scale.setScalar((this.type === 'decoy' ? 1.35 : 1) * 1.08); else this.mesh.scale.setScalar(this.type === 'decoy' ? 1.35 : 1);
     } else {
@@ -244,11 +257,60 @@ class Enemy {
     }
     this.flash = Math.max(0, this.flash - dt);
     if (this.label) {
-      const top = this.type === 'bun' ? 3.4 : this.type === 'qbot' || this.type === 'drone' ? 2.6 : this.type === 'cha' ? 2.2 : T.human ? 4.6 : 3.6;
+      const top = this.type === 'bun' ? 3.4 : this.type === 'qbot' || this.type === 'drone' ? 2.6 : this.type === 'cha' ? 2.2 : T.human ? (this.R.rig ? this.R.rig.height * this.mesh.scale.y + 0.45 : 4.6) : 3.6;
       this.label.position.set(this.pos.x, gh + this.y + top, this.pos.z);
     }
   }
 }
+
+// a swing: one of the punch clips, its wind-up (= when the damage lands) from the clip's own impact time at a sane rate
+Enemy.prototype.swing = function () {
+  const rig = this.R && this.R.rig, c = (this.sw = pick(ENEMY_SWINGS));
+  return rig ? clamp(CharLib.hitTime(rig.T, c[0], c[1]) / 1.5, 0.26, 0.5) : 0.32;
+};
+// a human mob's VRM (07b_vrm CharRig): walk / run by speed, fight stance when engaged, the wind-up swings a punch that lands
+// when the damage does, hits flinch, a hard hit throws them down and they get up again
+Enemy.prototype.visual = function (anim, engaged, dt) {
+  const rig = this.R.rig, P = this.pos, gh = gh0(P.x, P.z);
+  const m = dt > 0 && this._lx !== undefined ? hyp(P.x - this._lx, P.z - this._lz) / dt : 0; this._lx = P.x; this._lz = P.z;
+  this._sv = dt > 0 ? damp(this._sv || 0, Math.min(m, 14), 8, dt) : this._sv || 0;
+  if (this.windup > 0 && !this._wu) {
+    // the clip held through its impact (then a quick blend back), timed so the impact is the damage frame
+    const c = this.sw || ENEMY_SWINGS[0], ti = CharLib.hitTime(rig.T, c[0], c[1]), clip = CharLib.clip(rig.T, c[0]);
+    rig.once(c[0], { rate: clamp(ti / Math.max(0.1, this.windup), 0.8, 3), fade: 0.08, back: 0.1, end: clip ? clamp((ti + 0.3) / clip.duration, 0.3, 1) : 1 }); rig.expr('angry', 1);
+  }
+  this._wu = this.windup > 0;
+  if (this.flash > 0.1 && !this._fl) { if (this.vy > 5) { rig.once('knockdown', { rate: 1.5, fade: 0.05, then: 'getup' }); this._down = G.time; } else rig.once(Math.random() < 0.5 ? 'hit_front' : 'hit_head', { rate: 1.4, fade: 0.04 }); }
+  this._fl = this.flash > 0.1;
+  const busy = rig.busy || (this._down && G.time - this._down < 2.6);
+  if (!busy) Actors.loco(rig, this._sv, { idleK: engaged ? 'fight_idle' : 'idle' });
+  this.mesh.position.set(P.x, gh + Math.max(0, this.y), P.z); this.mesh.rotation.set(0, this.heading, 0);
+  const s0 = this.type === 'decoy' ? 1.25 : 1; this.mesh.scale.setScalar(s0 * (this.flash > 0 ? 1.04 : 1));
+  if (engaged) rig.look(_enLook.set(Player.pos.x, Player.human.root.position.y + 1.5, Player.pos.z)); else rig.look(null);
+};
+const _enLook = new V3();
+// knocked out for good: the VRM falls (death clip), lies there a moment, then goes up in a puff (visual only: the enemy is gone)
+const Corpses = {
+  list: [],
+  add(e) {
+    const rig = e.R && e.R.rig; if (!rig || rig.disposed || e.type === 'decoy' || !e.mesh.parent) return false;
+    rig.stopOnce(0); rig.look(null); rig.over = null;
+    rig.play(Math.random() < 0.5 ? 'death' : 'death_b', { fade: 0.1, rate: 1.25, restart: true });
+    const d = rig.cur ? rig.cur.getClip().duration / 1.25 : 1.2;
+    this.list.push({ e, rig, t: 0, end: Math.min(d, 2.4) + 1.1 });
+    return true;
+  },
+  update(dt) {
+    for (let i = this.list.length - 1; i >= 0; i--) {
+      const c = this.list[i]; c.t += dt;
+      if (c.t < c.end && c.e.mesh.parent && !c.rig.disposed) continue;
+      const m = c.e.mesh, p = m.position;
+      if (m.parent && c.t >= c.end) { FX.smoke(p.x, p.y + 0.3, p.z, 3, 1.3, 0.7); FX.sparkle(p.x, p.y + 0.5, p.z, 6); }
+      scene.remove(m); disposeOwn(m); if (!c.rig.disposed) c.rig.dispose();
+      this.list.splice(i, 1);
+    }
+  },
+};
 
 const Enemies = {
   list: [], gangT: 2,
@@ -256,7 +318,21 @@ const Enemies = {
   melee: 0,
   meleeMax() { return Player.isMech() ? 3 : 2; },
   update(dt) {
+    Corpses.update(dt);
     this.melee = 0; for (const e of this.list) if (!e.dead && e.windup > 0) this.melee++;
+    // human mobs don't stand inside each other: a soft push apart (three of them used to stack on one spot in front of you)
+    const L = this.list, sk = Math.min(1, dt * 10);
+    for (let i = 0; i < L.length; i++) {
+      const a = L[i]; if (a.dead || !a.T.human || a.T.static) continue;
+      for (let j = i + 1; j < L.length; j++) {
+        const b = L[j]; if (b.dead || !b.T.human || b.T.static) continue;
+        let dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z; const m = a.r + b.r + 0.12, d2 = dx * dx + dz * dz;
+        if (d2 >= m * m) continue;
+        if (d2 < 1e-6) { dx = Math.random() - 0.5; dz = Math.random() - 0.5; }
+        const d = hyp(dx, dz), k = (sk * (m - Math.sqrt(d2))) / d * 0.5;
+        a.pos.x -= dx * k; a.pos.z -= dz * k; b.pos.x += dx * k; b.pos.z += dz * k;
+      }
+    }
     for (const e of this.list) if (!e.dead) e.update(dt);
     for (let k = this.list.length - 1; k >= 0; k--) if (this.list[k].dead) this.list.splice(k, 1);
     // 百模帮 gangs roam their turf (SA gang territories)
@@ -334,7 +410,8 @@ const Projectiles = {
   letter(x, y, z) { this.lob('letter', x, y, z); Sfx.letter(); G.stats.letters++; },
   grenade(x, y, z) { this.lob('grenade', x, y, z, 1.1, 4); Sfx.gas(); },
   update(dt) {
-    const P = Player, pr = P.radius() + 0.9, ph = P.isMech() ? 11 : 3.4;
+    // hit box: the mech / a car as before, a person their own size (the VRM hero: ~0.9 m round, rig height + 0.2 m)
+    const P = Player, hum = P.mode === 'human', rig = hum && P.human && P.human.rig, pr = P.radius() + (hum ? 0.3 : 0.9), ph = P.isMech() ? 11 : rig ? rig.height + 0.2 : 3.4;
     for (const o of this.list) {
       if (o.dead) continue;
       o.t += dt;
@@ -419,7 +496,7 @@ const Boss = {
   start(kind, x, z, onDefeat) {
     this.end();
     if (kind === 'crane') {
-      const R = buildCharacter(CAST.crane()); R.root.scale.setScalar(1.35); scene.add(R.root);
+      const R = buildCharacter(CAST.crane()); R.root.scale.setScalar(R.rig ? 1.2 : 1.35); scene.add(R.root);
       this.cur = { kind, name: '幻觉博士', R, hp: 340, maxHp: 340, pos: new V3(x, 0, z), heading: 0, t: 0, throwT: 2, teleT: 6, barkT: 3, decoys: false, r: 1.6, ph: 0, onDefeat };
     } else {
       const M = buildMech();
@@ -434,7 +511,7 @@ const Boss = {
   },
   end() {
     const b = this.cur; if (!b) return;
-    if (b.R) { scene.remove(b.R.root); disposeOwn(b.R.root); }
+    if (b.R) { scene.remove(b.R.root); disposeOwn(b.R.root); if (b.R.rig) b.R.rig.dispose(); }
     if (b.M) scene.remove(b.M.g);
     if (b.ring) scene.remove(b.ring);
     if (this.beamMesh) this.beamMesh.visible = false;
@@ -505,8 +582,9 @@ const Boss = {
     // up close he sprays a puff of gas in your face and shoves you off (instead of constant touch damage)
     b.meleeT = (b.meleeT || 0) - dt;
     if (d < 2.8 && b.meleeT <= 0) { b.meleeT = 1.5; P.hurt(9, 'crane'); P.vel.x += (dx / d) * 9; P.vel.z += (dz / d) * 9; P.poison = Math.min(1.2, P.poison + 0.25); FX.smoke(P.pos.x, 1.6, P.pos.z, 5, 2, 0.3); Sfx.gas(); }
-    Actors.sync({ R: b.R, pos: b.pos, heading: b.heading, anim: still ? 'cheer' : radial ? 'walk' : 'talk', ph: b.ph * 4, y: 0 }, dt);
-    b.R.root.scale.setScalar(1.35 * (b.flash > 0 ? 1.06 : 1)); b.flash = Math.max(0, (b.flash || 0) - dt);
+    const bm = dt > 0 && b._lx !== undefined ? hyp(b.pos.x - b._lx, b.pos.z - b._lz) / dt : 0; b._lx = b.pos.x; b._lz = b.pos.z; b._sv = dt > 0 ? damp(b._sv || 0, Math.min(bm, 12), 8, dt) : b._sv || 0;
+    Actors.sync({ R: b.R, pos: b.pos, heading: b.heading, anim: still ? 'cheer' : radial ? 'walk' : 'talk', ph: b.ph * 4, y: 0, sp: b._sv }, dt);
+    b.R.root.scale.setScalar((b.R.rig ? 1.2 : 1.35) * (b.flash > 0 ? 1.06 : 1)); b.flash = Math.max(0, (b.flash || 0) - dt);
   },
   pickAttack(b) {
     const opts = ['compact', 'rmrf', 'beam', 'summon'].filter((a) => a !== b.last);

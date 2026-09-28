@@ -1,0 +1,857 @@
+[
+ {
+  "key": "idle",
+  "bytes": 24048,
+  "dur": 3.125,
+  "frames": 95,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "idle_alt",
+  "bytes": 21536,
+  "dur": 2.583,
+  "frames": 78,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "idle_listen",
+  "bytes": 22132,
+  "dur": 1.708,
+  "frames": 52,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "idle_arms",
+  "bytes": 23496,
+  "dur": 2.5,
+  "frames": 76,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "idle_soft",
+  "bytes": 157664,
+  "copied": true
+ },
+ {
+  "key": "walk",
+  "bytes": 30196,
+  "dur": 1.667,
+  "frames": 51,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "walk_female",
+  "bytes": 34828,
+  "dur": 1.375,
+  "frames": 42,
+  "travel": [
+   -0.001,
+   0
+  ]
+ },
+ {
+  "key": "walk_formal",
+  "bytes": 28244,
+  "dur": 1.667,
+  "frames": 51,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "walk_back",
+  "bytes": 27484,
+  "dur": 1,
+  "frames": 31,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "jog",
+  "bytes": 29992,
+  "dur": 1.167,
+  "frames": 36,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "run",
+  "bytes": 27504,
+  "dur": 0.75,
+  "frames": 24,
+  "travel": [
+   0,
+   -0.002
+  ]
+ },
+ {
+  "key": "run_female",
+  "bytes": 26252,
+  "dur": 0.833,
+  "frames": 26,
+  "travel": [
+   0,
+   -0.006
+  ]
+ },
+ {
+  "key": "sprint",
+  "bytes": 27600,
+  "dur": 0.833,
+  "frames": 26,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "strafe_l",
+  "bytes": 27196,
+  "dur": 1,
+  "frames": 31,
+  "travel": [
+   0.001,
+   0
+  ]
+ },
+ {
+  "key": "strafe_r",
+  "bytes": 27232,
+  "dur": 1,
+  "frames": 31,
+  "travel": [
+   -0.001,
+   0
+  ]
+ },
+ {
+  "key": "crouch_idle",
+  "bytes": 26416,
+  "dur": 3.667,
+  "frames": 111,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "crouch_walk",
+  "bytes": 29132,
+  "dur": 2.5,
+  "frames": 76,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "flee",
+  "bytes": 34144,
+  "dur": 1.667,
+  "frames": 51,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "jump_start",
+  "bytes": 34244,
+  "dur": 1.667,
+  "frames": 51,
+  "travel": [
+   -0.028,
+   0.078
+  ]
+ },
+ {
+  "key": "jump_air",
+  "bytes": 23212,
+  "dur": 3.125,
+  "frames": 95,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "jump_land",
+  "bytes": 34188,
+  "dur": 1.583,
+  "frames": 49,
+  "travel": [
+   0.03,
+   0.004
+  ]
+ },
+ {
+  "key": "run_jump",
+  "bytes": 22724,
+  "dur": 1.25,
+  "frames": 39,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "roll",
+  "bytes": 46612,
+  "dur": 1.833,
+  "frames": 56,
+  "travel": [
+   0.017,
+   0.098
+  ]
+ },
+ {
+  "key": "fight_idle",
+  "bytes": 23844,
+  "dur": 1.708,
+  "frames": 52,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "punch_jab",
+  "bytes": 25364,
+  "dur": 1.083,
+  "frames": 34,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "punch_cross",
+  "bytes": 27124,
+  "dur": 1.25,
+  "frames": 39,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "hook",
+  "bytes": 24032,
+  "dur": 0.458,
+  "frames": 15,
+  "travel": [
+   -0.058,
+   0.288
+  ]
+ },
+ {
+  "key": "hook_rec",
+  "bytes": 24192,
+  "dur": 0.583,
+  "frames": 18,
+  "travel": [
+   0.009,
+   -0.331
+  ]
+ },
+ {
+  "key": "jab_l",
+  "bytes": 29848,
+  "dur": 0.917,
+  "frames": 29,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "jab_r",
+  "bytes": 27156,
+  "dur": 0.917,
+  "frames": 29,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "kick",
+  "bytes": 24208,
+  "dur": 1.35,
+  "frames": 41,
+  "travel": [
+   0,
+   1.129
+  ]
+ },
+ {
+  "key": "kick_breach",
+  "bytes": 35908,
+  "dur": 1.833,
+  "frames": 56,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "kick_jump",
+  "bytes": 32976,
+  "dur": 2,
+  "frames": 61,
+  "travel": [
+   0,
+   2.542
+  ]
+ },
+ {
+  "key": "kick_spin",
+  "bytes": 26316,
+  "dur": 1.5,
+  "frames": 46,
+  "travel": [
+   0,
+   1.088
+  ]
+ },
+ {
+  "key": "defend",
+  "bytes": 22480,
+  "dur": 0.958,
+  "frames": 30,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "dodge_back",
+  "bytes": 30860,
+  "dur": 1,
+  "frames": 31,
+  "travel": [
+   -0.001,
+   0
+  ]
+ },
+ {
+  "key": "power_up",
+  "bytes": 21404,
+  "dur": 0.75,
+  "frames": 24,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "ground_pound",
+  "bytes": 40180,
+  "dur": 2.708,
+  "frames": 82,
+  "travel": [
+   0.003,
+   -0.013
+  ]
+ },
+ {
+  "key": "land_hero",
+  "bytes": 32564,
+  "dur": 0.955,
+  "frames": 30,
+  "travel": [
+   -0.035,
+   0.249
+  ]
+ },
+ {
+  "key": "throw",
+  "bytes": 43880,
+  "dur": 1.333,
+  "frames": 41,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "throw_object",
+  "bytes": 36152,
+  "dur": 1.875,
+  "frames": 57,
+  "travel": [
+   -0.008,
+   0.031
+  ]
+ },
+ {
+  "key": "hit_front",
+  "bytes": 27428,
+  "dur": 0.417,
+  "frames": 13,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "hit_head",
+  "bytes": 27596,
+  "dur": 0.542,
+  "frames": 17,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "knockdown",
+  "bytes": 32644,
+  "dur": 0.833,
+  "frames": 26,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "getup",
+  "bytes": 40944,
+  "dur": 1.5,
+  "frames": 46,
+  "travel": [
+   0.002,
+   0.153
+  ]
+ },
+ {
+  "key": "death",
+  "bytes": 48176,
+  "dur": 4.5,
+  "frames": 136,
+  "travel": [
+   0.005,
+   0.733
+  ]
+ },
+ {
+  "key": "death_b",
+  "bytes": 40016,
+  "dur": 1.875,
+  "frames": 57,
+  "travel": [
+   -0.074,
+   -0.172
+  ]
+ },
+ {
+  "key": "dizzy",
+  "bytes": 27264,
+  "dur": 2.417,
+  "frames": 74,
+  "travel": [
+   0,
+   -0.002
+  ]
+ },
+ {
+  "key": "hurt_idle",
+  "bytes": 22900,
+  "dur": 1.667,
+  "frames": 51,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "fear",
+  "bytes": 20044,
+  "dur": 0.25,
+  "frames": 9,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "sit_idle",
+  "bytes": 21628,
+  "dur": 2.083,
+  "frames": 63,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "sit_talk",
+  "bytes": 36696,
+  "dur": 3.667,
+  "frames": 111,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "sit_enter",
+  "bytes": 39280,
+  "dur": 1.625,
+  "frames": 50,
+  "travel": [
+   -0.003,
+   -0.245
+  ]
+ },
+ {
+  "key": "sit_exit",
+  "bytes": 41928,
+  "dur": 1.292,
+  "frames": 40,
+  "travel": [
+   0.003,
+   0.245
+  ]
+ },
+ {
+  "key": "drive",
+  "bytes": 20004,
+  "dur": 2.083,
+  "frames": 63,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "phone_call",
+  "bytes": 30820,
+  "dur": 2.917,
+  "frames": 89,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "talk",
+  "bytes": 37252,
+  "dur": 3.667,
+  "frames": 111,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "wave",
+  "bytes": 42040,
+  "dur": 4.833,
+  "frames": 146,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "nod",
+  "bytes": 18620,
+  "dur": 0.875,
+  "frames": 27,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "yes",
+  "bytes": 28384,
+  "dur": 2.5,
+  "frames": 76,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "reject",
+  "bytes": 40260,
+  "dur": 3.792,
+  "frames": 115,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "angry",
+  "bytes": 26832,
+  "dur": 0.833,
+  "frames": 26,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "confused",
+  "bytes": 34336,
+  "dur": 2.917,
+  "frames": 89,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "insult",
+  "bytes": 38740,
+  "dur": 2.783,
+  "frames": 84,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "bow",
+  "bytes": 24412,
+  "dur": 3.75,
+  "frames": 114,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "salute",
+  "bytes": 30692,
+  "dur": 4.383,
+  "frames": 132,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "cheer",
+  "bytes": 27788,
+  "dur": 1.583,
+  "frames": 49,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "cheer_one",
+  "bytes": 29772,
+  "dur": 2.167,
+  "frames": 66,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "victory",
+  "bytes": 36512,
+  "dur": 1.667,
+  "frames": 51,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "fist_pump",
+  "bytes": 34840,
+  "dur": 2.25,
+  "frames": 69,
+  "travel": [
+   -0.003,
+   0.001
+  ]
+ },
+ {
+  "key": "dance",
+  "bytes": 28844,
+  "dur": 1.25,
+  "frames": 39,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "dance_charleston",
+  "bytes": 39848,
+  "dur": 2.333,
+  "frames": 71,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "dance_bodyroll",
+  "bytes": 69184,
+  "dur": 6.5,
+  "frames": 196,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "dance_chicken",
+  "bytes": 95124,
+  "dur": 8,
+  "frames": 241,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "jumping_jacks",
+  "bytes": 28596,
+  "dur": 1.25,
+  "frames": 39,
+  "travel": [
+   0,
+   -0.001
+  ]
+ },
+ {
+  "key": "taichi",
+  "bytes": 157672,
+  "dur": 20,
+  "frames": 601,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "walk_carry",
+  "bytes": 28840,
+  "dur": 2,
+  "frames": 61,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "push",
+  "bytes": 30468,
+  "dur": 3.333,
+  "frames": 101,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "pickup",
+  "bytes": 28228,
+  "dur": 1.042,
+  "frames": 32,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "interact",
+  "bytes": 25268,
+  "dur": 2.5,
+  "frames": 76,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "swim",
+  "bytes": 32272,
+  "dur": 1.667,
+  "frames": 51,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "swim_idle",
+  "bytes": 28752,
+  "dur": 4.167,
+  "frames": 126,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "meditate",
+  "bytes": 20004,
+  "dur": 1.5,
+  "frames": 46,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "sleep",
+  "bytes": 19728,
+  "dur": 1.667,
+  "frames": 51,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "pushup",
+  "bytes": 26720,
+  "dur": 1.542,
+  "frames": 47,
+  "travel": [
+   0,
+   0
+  ]
+ },
+ {
+  "key": "fishing",
+  "bytes": 28376,
+  "dur": 1.45,
+  "frames": 45,
+  "travel": [
+   0,
+   0
+  ]
+ }
+]

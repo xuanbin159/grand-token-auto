@@ -1,0 +1,450 @@
+[
+ {
+  "key": "hairsample_male",
+  "tier": 1024,
+  "rawMB": 18.95,
+  "MB": 2.41,
+  "tris": 24858,
+  "materials": 14,
+  "prims": "131->14",
+  "morphTargets": "54->16",
+  "springGroups": 10,
+  "texKB": {
+   "color": 298,
+   "normal": 37,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "hairsample_male",
+  "tier": 512,
+  "rawMB": 18.95,
+  "MB": 1.8,
+  "tris": 24858,
+  "materials": 14,
+  "prims": "131->14",
+  "morphTargets": "54->16",
+  "springGroups": 10,
+  "texKB": {
+   "color": 117,
+   "normal": 15,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "sendagaya_shino",
+  "tier": 1024,
+  "rawMB": 14.87,
+  "MB": 2.83,
+  "tris": 31211,
+  "materials": 17,
+  "prims": "67->17",
+  "morphTargets": "41->15",
+  "springGroups": 17,
+  "texKB": {
+   "color": 376,
+   "normal": 50,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "sendagaya_shino",
+  "tier": 512,
+  "rawMB": 14.87,
+  "MB": 2.19,
+  "tris": 31211,
+  "materials": 17,
+  "prims": "67->17",
+  "morphTargets": "41->15",
+  "springGroups": 17,
+  "texKB": {
+   "color": 165,
+   "normal": 19,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "vita",
+  "tier": 1024,
+  "rawMB": 14.2,
+  "MB": 2.61,
+  "tris": 27002,
+  "materials": 16,
+  "prims": "82->16",
+  "morphTargets": "41->15",
+  "springGroups": 18,
+  "texKB": {
+   "color": 390,
+   "normal": 50,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "vita",
+  "tier": 512,
+  "rawMB": 14.2,
+  "MB": 1.98,
+  "tris": 27002,
+  "materials": 16,
+  "prims": "82->16",
+  "morphTargets": "41->15",
+  "springGroups": 18,
+  "texKB": {
+   "color": 192,
+   "normal": 19,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "sendagaya_shibu",
+  "tier": 1024,
+  "rawMB": 16.85,
+  "MB": 2.95,
+  "tris": 34395,
+  "materials": 17,
+  "prims": "65->17",
+  "morphTargets": "41->15",
+  "springGroups": 16,
+  "texKB": {
+   "color": 348,
+   "normal": 50,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "sendagaya_shibu",
+  "tier": 512,
+  "rawMB": 16.85,
+  "MB": 2.33,
+  "tris": 34395,
+  "materials": 17,
+  "prims": "65->17",
+  "morphTargets": "41->15",
+  "springGroups": 16,
+  "texKB": {
+   "color": 160,
+   "normal": 19,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "darkness_shibu",
+  "tier": 1024,
+  "rawMB": 21.04,
+  "MB": 3.06,
+  "tris": 33750,
+  "materials": 15,
+  "prims": "63->15",
+  "morphTargets": "56->18",
+  "springGroups": 17,
+  "texKB": {
+   "color": 425,
+   "normal": 50,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "darkness_shibu",
+  "tier": 512,
+  "rawMB": 21.04,
+  "MB": 2.33,
+  "tris": 33750,
+  "materials": 15,
+  "prims": "63->15",
+  "morphTargets": "56->18",
+  "springGroups": 17,
+  "texKB": {
+   "color": 174,
+   "normal": 20,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "vivi",
+  "tier": 1024,
+  "rawMB": 17.94,
+  "MB": 2.57,
+  "tris": 26706,
+  "materials": 16,
+  "prims": "95->16",
+  "morphTargets": "41->15",
+  "springGroups": 22,
+  "texKB": {
+   "color": 376,
+   "normal": 50,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "vivi",
+  "tier": 512,
+  "rawMB": 17.94,
+  "MB": 1.94,
+  "tris": 26706,
+  "materials": 16,
+  "prims": "95->16",
+  "morphTargets": "41->15",
+  "springGroups": 22,
+  "texKB": {
+   "color": 170,
+   "normal": 19,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "victoria_rubin",
+  "tier": 1024,
+  "rawMB": 15.32,
+  "MB": 2.69,
+  "tris": 29800,
+  "materials": 16,
+  "prims": "77->16",
+  "morphTargets": "41->15",
+  "springGroups": 16,
+  "texKB": {
+   "color": 344,
+   "normal": 50,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "victoria_rubin",
+  "tier": 512,
+  "rawMB": 15.32,
+  "MB": 2.09,
+  "tris": 29800,
+  "materials": 16,
+  "prims": "77->16",
+  "morphTargets": "41->15",
+  "springGroups": 16,
+  "texKB": {
+   "color": 169,
+   "normal": 19,
+   "thumb": 1
+  }
+ },
+ {
+  "key": "hairsample_female",
+  "tier": 1024,
+  "rawMB": 17.95,
+  "MB": 2.57,
+  "tris": 27068,
+  "materials": 14,
+  "prims": "124->14",
+  "morphTargets": "56->18",
+  "springGroups": 10,
+  "texKB": {
+   "color": 265,
+   "normal": 38,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "hairsample_female",
+  "tier": 512,
+  "rawMB": 17.95,
+  "MB": 1.95,
+  "tris": 27068,
+  "materials": 14,
+  "prims": "124->14",
+  "morphTargets": "56->18",
+  "springGroups": 10,
+  "texKB": {
+   "color": 118,
+   "normal": 15,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "sakurada_fumiriya",
+  "tier": 1024,
+  "rawMB": 19.59,
+  "MB": 3.56,
+  "tris": 39548,
+  "materials": 17,
+  "prims": "102->17",
+  "morphTargets": "39->13",
+  "springGroups": 13,
+  "texKB": {
+   "color": 381,
+   "normal": 48,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "sakurada_fumiriya",
+  "tier": 512,
+  "rawMB": 19.59,
+  "MB": 2.98,
+  "tris": 39548,
+  "materials": 17,
+  "prims": "102->17",
+  "morphTargets": "39->13",
+  "springGroups": 13,
+  "texKB": {
+   "color": 158,
+   "normal": 19,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "base_male",
+  "tier": 1024,
+  "rawMB": 17.91,
+  "MB": 1.92,
+  "tris": 15176,
+  "materials": 15,
+  "prims": "19->15",
+  "morphTargets": "54->16",
+  "springGroups": 0,
+  "texKB": {
+   "color": 321,
+   "normal": 43,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "base_male",
+  "tier": 512,
+  "rawMB": 17.91,
+  "MB": 1.31,
+  "tris": 15176,
+  "materials": 15,
+  "prims": "19->15",
+  "morphTargets": "54->16",
+  "springGroups": 0,
+  "texKB": {
+   "color": 135,
+   "normal": 18,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "base_female",
+  "tier": 1024,
+  "rawMB": 16.32,
+  "MB": 2,
+  "tris": 14804,
+  "materials": 15,
+  "prims": "19->15",
+  "morphTargets": "56->18",
+  "springGroups": 2,
+  "texKB": {
+   "color": 298,
+   "normal": 45,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "base_female",
+  "tier": 512,
+  "rawMB": 16.32,
+  "MB": 1.36,
+  "tris": 14804,
+  "materials": 15,
+  "prims": "19->15",
+  "morphTargets": "56->18",
+  "springGroups": 2,
+  "texKB": {
+   "color": 139,
+   "normal": 18,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "avatarsample_a",
+  "tier": 1024,
+  "rawMB": 15.1,
+  "MB": 2.55,
+  "tris": 24854,
+  "materials": 17,
+  "prims": "90->17",
+  "morphTargets": "56->18",
+  "springGroups": 10,
+  "texKB": {
+   "color": 311,
+   "normal": 38,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "avatarsample_a",
+  "tier": 512,
+  "rawMB": 15.1,
+  "MB": 1.91,
+  "tris": 24854,
+  "materials": 17,
+  "prims": "90->17",
+  "morphTargets": "56->18",
+  "springGroups": 10,
+  "texKB": {
+   "color": 147,
+   "normal": 15,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "avatarsample_b",
+  "tier": 1024,
+  "rawMB": 15.43,
+  "MB": 2.83,
+  "tris": 28292,
+  "materials": 19,
+  "prims": "94->19",
+  "morphTargets": "56->18",
+  "springGroups": 11,
+  "texKB": {
+   "color": 457,
+   "normal": 38,
+   "thumb": 3
+  }
+ },
+ {
+  "key": "avatarsample_b",
+  "tier": 512,
+  "rawMB": 15.43,
+  "MB": 2.12,
+  "tris": 28292,
+  "materials": 19,
+  "prims": "94->19",
+  "morphTargets": "56->18",
+  "springGroups": 11,
+  "texKB": {
+   "color": 221,
+   "normal": 15,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "avatarsample_c",
+  "tier": 1024,
+  "rawMB": 13.13,
+  "MB": 2.46,
+  "tris": 26988,
+  "materials": 14,
+  "prims": "135->14",
+  "morphTargets": "54->16",
+  "springGroups": 8,
+  "texKB": {
+   "color": 291,
+   "normal": 37,
+   "thumb": 2
+  }
+ },
+ {
+  "key": "avatarsample_c",
+  "tier": 512,
+  "rawMB": 13.13,
+  "MB": 1.89,
+  "tris": 26988,
+  "materials": 14,
+  "prims": "135->14",
+  "morphTargets": "54->16",
+  "springGroups": 8,
+  "texKB": {
+   "color": 139,
+   "normal": 15,
+   "thumb": 1
+  }
+ }
+]

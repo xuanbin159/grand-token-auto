@@ -1,0 +1,550 @@
+{
+ "idle": {
+  "dur": 3.125,
+  "tracks": 53,
+  "footMin": 0.102,
+  "footMinAvg": 0.104
+ },
+ "idle_alt": {
+  "dur": 2.583,
+  "tracks": 53,
+  "footMin": 0.125,
+  "footMinAvg": 0.126
+ },
+ "idle_listen": {
+  "dur": 1.708,
+  "tracks": 53,
+  "footMin": 0.131,
+  "footMinAvg": 0.132
+ },
+ "idle_arms": {
+  "dur": 2.5,
+  "tracks": 53,
+  "footMin": 0.102,
+  "footMinAvg": 0.105
+ },
+ "idle_soft": {
+  "dur": 10.375,
+  "tracks": 22,
+  "footMin": 0.116,
+  "footMinAvg": 0.117
+ },
+ "walk": {
+  "dur": 1.667,
+  "tracks": 53,
+  "footMin": 0.108,
+  "footMinAvg": 0.14,
+  "speed": 0.681,
+  "speedPerHipsY": 0.675
+ },
+ "walk_female": {
+  "dur": 1.375,
+  "tracks": 53,
+  "footMin": 0.124,
+  "footMinAvg": 0.136,
+  "speed": 0.784,
+  "speedPerHipsY": 0.777
+ },
+ "walk_formal": {
+  "dur": 1.667,
+  "tracks": 53,
+  "footMin": 0.108,
+  "footMinAvg": 0.139,
+  "speed": 0.685,
+  "speedPerHipsY": 0.679
+ },
+ "walk_back": {
+  "dur": 1,
+  "tracks": 53,
+  "footMin": 0.115,
+  "footMinAvg": 0.127,
+  "speed": -0.919,
+  "speedPerHipsY": -0.911
+ },
+ "jog": {
+  "dur": 1.167,
+  "tracks": 53,
+  "footMin": 0.108,
+  "footMinAvg": 0.275,
+  "speed": 3.865,
+  "speedPerHipsY": 3.833
+ },
+ "run": {
+  "dur": 0.75,
+  "tracks": 53,
+  "footMin": 0.081,
+  "footMinAvg": 0.134,
+  "speed": 3.181,
+  "speedPerHipsY": 3.155
+ },
+ "run_female": {
+  "dur": 0.833,
+  "tracks": 53,
+  "footMin": 0.112,
+  "footMinAvg": 0.204,
+  "speed": 2.393,
+  "speedPerHipsY": 2.374
+ },
+ "sprint": {
+  "dur": 0.833,
+  "tracks": 53,
+  "footMin": 0.126,
+  "footMinAvg": 0.236,
+  "speed": 3.486,
+  "speedPerHipsY": 3.458
+ },
+ "strafe_l": {
+  "dur": 1,
+  "tracks": 53,
+  "footMin": 0.111,
+  "footMinAvg": 0.122,
+  "speed": -0.781,
+  "speedPerHipsY": -0.774
+ },
+ "strafe_r": {
+  "dur": 1,
+  "tracks": 53,
+  "footMin": 0.111,
+  "footMinAvg": 0.129,
+  "speed": 0.802,
+  "speedPerHipsY": 0.795
+ },
+ "crouch_idle": {
+  "dur": 3.667,
+  "tracks": 53,
+  "footMin": 0.067,
+  "footMinAvg": 0.071,
+  "speed": -0.003,
+  "speedPerHipsY": -0.003
+ },
+ "crouch_walk": {
+  "dur": 2.5,
+  "tracks": 53,
+  "footMin": 0.07,
+  "footMinAvg": 0.094,
+  "speed": 0.376,
+  "speedPerHipsY": 0.372
+ },
+ "flee": {
+  "dur": 1.667,
+  "tracks": 53,
+  "footMin": 0.126,
+  "footMinAvg": 0.236,
+  "speed": 3.546,
+  "speedPerHipsY": 3.517
+ },
+ "jump_start": {
+  "dur": 1.667,
+  "tracks": 53,
+  "footMin": 0.055,
+  "footMinAvg": 0.247
+ },
+ "jump_air": {
+  "dur": 3.125,
+  "tracks": 53,
+  "footMin": 0.096,
+  "footMinAvg": 0.123
+ },
+ "jump_land": {
+  "dur": 1.583,
+  "tracks": 53,
+  "footMin": 0.071,
+  "footMinAvg": 0.103
+ },
+ "run_jump": {
+  "dur": 1.25,
+  "tracks": 53,
+  "footMin": 0.161,
+  "footMinAvg": 0.233
+ },
+ "roll": {
+  "dur": 1.833,
+  "tracks": 53,
+  "footMin": -0.014,
+  "footMinAvg": 0.434
+ },
+ "fight_idle": {
+  "dur": 1.708,
+  "tracks": 53,
+  "footMin": 0.105,
+  "footMinAvg": 0.111
+ },
+ "punch_jab": {
+  "dur": 1.083,
+  "tracks": 53,
+  "footMin": 0.091,
+  "footMinAvg": 0.093
+ },
+ "punch_cross": {
+  "dur": 1.25,
+  "tracks": 53,
+  "footMin": 0.092,
+  "footMinAvg": 0.093
+ },
+ "hook": {
+  "dur": 0.458,
+  "tracks": 53,
+  "footMin": 0.086,
+  "footMinAvg": 0.099
+ },
+ "hook_rec": {
+  "dur": 0.583,
+  "tracks": 53,
+  "footMin": 0.074,
+  "footMinAvg": 0.081
+ },
+ "jab_l": {
+  "dur": 0.917,
+  "tracks": 53,
+  "footMin": 0.113,
+  "footMinAvg": 0.124
+ },
+ "jab_r": {
+  "dur": 0.917,
+  "tracks": 53,
+  "footMin": 0.102,
+  "footMinAvg": 0.11
+ },
+ "kick": {
+  "dur": 1.35,
+  "tracks": 23,
+  "footMin": 0.084,
+  "footMinAvg": 0.129
+ },
+ "kick_breach": {
+  "dur": 1.833,
+  "tracks": 53,
+  "footMin": 0.109,
+  "footMinAvg": 0.134
+ },
+ "kick_jump": {
+  "dur": 2,
+  "tracks": 23,
+  "footMin": 0.104,
+  "footMinAvg": 0.258
+ },
+ "kick_spin": {
+  "dur": 1.5,
+  "tracks": 23,
+  "footMin": 0.137,
+  "footMinAvg": 0.354
+ },
+ "defend": {
+  "dur": 0.958,
+  "tracks": 53,
+  "footMin": 0.091,
+  "footMinAvg": 0.092
+ },
+ "dodge_back": {
+  "dur": 1,
+  "tracks": 53,
+  "footMin": 0.084,
+  "footMinAvg": 0.137
+ },
+ "power_up": {
+  "dur": 0.75,
+  "tracks": 53,
+  "footMin": 0.077,
+  "footMinAvg": 0.078
+ },
+ "ground_pound": {
+  "dur": 2.708,
+  "tracks": 53,
+  "footMin": 0.076,
+  "footMinAvg": 0.117
+ },
+ "land_hero": {
+  "dur": 0.955,
+  "tracks": 53,
+  "footMin": 0.046,
+  "footMinAvg": 0.091
+ },
+ "throw": {
+  "dur": 1.333,
+  "tracks": 53,
+  "footMin": 0.106,
+  "footMinAvg": 0.138
+ },
+ "throw_object": {
+  "dur": 1.875,
+  "tracks": 53,
+  "footMin": 0.115,
+  "footMinAvg": 0.136
+ },
+ "hit_front": {
+  "dur": 0.417,
+  "tracks": 53,
+  "footMin": 0.096,
+  "footMinAvg": 0.099
+ },
+ "hit_head": {
+  "dur": 0.542,
+  "tracks": 53,
+  "footMin": 0.102,
+  "footMinAvg": 0.103
+ },
+ "knockdown": {
+  "dur": 0.833,
+  "tracks": 53,
+  "footMin": -0.363,
+  "footMinAvg": 0.157
+ },
+ "getup": {
+  "dur": 1.5,
+  "tracks": 53,
+  "footMin": -0.037,
+  "footMinAvg": 0.011
+ },
+ "death": {
+  "dur": 4.5,
+  "tracks": 53,
+  "footMin": 0.115,
+  "footMinAvg": 0.186
+ },
+ "death_b": {
+  "dur": 1.875,
+  "tracks": 53,
+  "footMin": 0.137,
+  "footMinAvg": 0.314
+ },
+ "dizzy": {
+  "dur": 2.417,
+  "tracks": 53,
+  "footMin": 0.145,
+  "footMinAvg": 0.155
+ },
+ "hurt_idle": {
+  "dur": 1.667,
+  "tracks": 53,
+  "footMin": 0.129,
+  "footMinAvg": 0.131
+ },
+ "fear": {
+  "dur": 0.25,
+  "tracks": 53,
+  "footMin": 0.117,
+  "footMinAvg": 0.117
+ },
+ "sit_idle": {
+  "dur": 2.083,
+  "tracks": 53,
+  "footMin": 0.061,
+  "footMinAvg": 0.061
+ },
+ "sit_talk": {
+  "dur": 3.667,
+  "tracks": 53,
+  "footMin": 0.059,
+  "footMinAvg": 0.06
+ },
+ "sit_enter": {
+  "dur": 1.625,
+  "tracks": 53,
+  "footMin": 0.06,
+  "footMinAvg": 0.091
+ },
+ "sit_exit": {
+  "dur": 1.292,
+  "tracks": 53,
+  "footMin": 0.061,
+  "footMinAvg": 0.098
+ },
+ "drive": {
+  "dur": 2.083,
+  "tracks": 53,
+  "footMin": 0.047,
+  "footMinAvg": 0.047
+ },
+ "phone_call": {
+  "dur": 2.917,
+  "tracks": 53,
+  "footMin": 0.102,
+  "footMinAvg": 0.104
+ },
+ "talk": {
+  "dur": 3.667,
+  "tracks": 53,
+  "footMin": 0.102,
+  "footMinAvg": 0.104
+ },
+ "wave": {
+  "dur": 4.833,
+  "tracks": 53,
+  "footMin": 0.124,
+  "footMinAvg": 0.126
+ },
+ "nod": {
+  "dur": 0.875,
+  "tracks": 53,
+  "footMin": 0.134,
+  "footMinAvg": 0.134
+ },
+ "yes": {
+  "dur": 2.5,
+  "tracks": 53,
+  "footMin": 0.099,
+  "footMinAvg": 0.103
+ },
+ "reject": {
+  "dur": 3.792,
+  "tracks": 53,
+  "footMin": 0.127,
+  "footMinAvg": 0.129
+ },
+ "angry": {
+  "dur": 0.833,
+  "tracks": 53,
+  "footMin": 0.116,
+  "footMinAvg": 0.12
+ },
+ "confused": {
+  "dur": 2.917,
+  "tracks": 53,
+  "footMin": 0.127,
+  "footMinAvg": 0.132
+ },
+ "insult": {
+  "dur": 2.783,
+  "tracks": 53,
+  "footMin": 0.115,
+  "footMinAvg": 0.118
+ },
+ "bow": {
+  "dur": 3.75,
+  "tracks": 53,
+  "footMin": 0.131,
+  "footMinAvg": 0.131
+ },
+ "salute": {
+  "dur": 4.383,
+  "tracks": 53,
+  "footMin": 0.119,
+  "footMinAvg": 0.122
+ },
+ "cheer": {
+  "dur": 1.583,
+  "tracks": 53,
+  "footMin": 0.14,
+  "footMinAvg": 0.144
+ },
+ "cheer_one": {
+  "dur": 2.167,
+  "tracks": 53,
+  "footMin": 0.117,
+  "footMinAvg": 0.121
+ },
+ "victory": {
+  "dur": 1.667,
+  "tracks": 53,
+  "footMin": 0.118,
+  "footMinAvg": 0.298
+ },
+ "fist_pump": {
+  "dur": 2.25,
+  "tracks": 53,
+  "footMin": 0.126,
+  "footMinAvg": 0.131
+ },
+ "dance": {
+  "dur": 1.25,
+  "tracks": 53,
+  "footMin": 0.119,
+  "footMinAvg": 0.125
+ },
+ "dance_charleston": {
+  "dur": 2.333,
+  "tracks": 53,
+  "footMin": 0.11,
+  "footMinAvg": 0.14
+ },
+ "dance_bodyroll": {
+  "dur": 6.5,
+  "tracks": 53,
+  "footMin": 0.113,
+  "footMinAvg": 0.124
+ },
+ "dance_chicken": {
+  "dur": 8,
+  "tracks": 23,
+  "footMin": 0.1,
+  "footMinAvg": 0.132
+ },
+ "jumping_jacks": {
+  "dur": 1.25,
+  "tracks": 53,
+  "footMin": 0.105,
+  "footMinAvg": 0.226
+ },
+ "taichi": {
+  "dur": 20,
+  "tracks": 23,
+  "footMin": 0.086,
+  "footMinAvg": 0.124
+ },
+ "walk_carry": {
+  "dur": 2,
+  "tracks": 53,
+  "footMin": 0.084,
+  "footMinAvg": 0.118,
+  "speed": 0.57,
+  "speedPerHipsY": 0.565
+ },
+ "push": {
+  "dur": 3.333,
+  "tracks": 53,
+  "footMin": 0.158,
+  "footMinAvg": 0.183
+ },
+ "pickup": {
+  "dur": 1.042,
+  "tracks": 53,
+  "footMin": 0.104,
+  "footMinAvg": 0.112
+ },
+ "interact": {
+  "dur": 2.5,
+  "tracks": 53,
+  "footMin": 0.102,
+  "footMinAvg": 0.104
+ },
+ "swim": {
+  "dur": 1.667,
+  "tracks": 53,
+  "footMin": 1.04,
+  "footMinAvg": 1.098,
+  "speed": -0.037,
+  "speedPerHipsY": -0.037
+ },
+ "swim_idle": {
+  "dur": 4.167,
+  "tracks": 53,
+  "footMin": 0.071,
+  "footMinAvg": 0.125,
+  "speed": 0.34,
+  "speedPerHipsY": 0.338
+ },
+ "meditate": {
+  "dur": 1.5,
+  "tracks": 53,
+  "footMin": 0.027,
+  "footMinAvg": 0.027
+ },
+ "sleep": {
+  "dur": 1.667,
+  "tracks": 53,
+  "footMin": -0.043,
+  "footMinAvg": -0.043
+ },
+ "pushup": {
+  "dur": 1.542,
+  "tracks": 53,
+  "footMin": 0.343,
+  "footMinAvg": 0.351
+ },
+ "fishing": {
+  "dur": 1.45,
+  "tracks": 53,
+  "footMin": 0.12,
+  "footMinAvg": 0.123
+ }
+}

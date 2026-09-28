@@ -1,3 +1,5 @@
 .DS_Store
 __pycache__/
 *.pyc
+node_modules/
+# dist/ IS committed: GitHub Pages serves it

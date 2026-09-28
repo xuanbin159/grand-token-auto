@@ -1,5 +1,5 @@
 // Scripted story run-through for the headless smoke test:
-//   node scripts/dev/smoke.mjs --html <build.html> --wait 60 --eval "$(cat scripts/dev/story_run.js)"
+//   node scripts/dev/smoke.mjs --html <build folder or page> --wait 60 --eval "$(cat scripts/dev/story_run.js)"
 // Starts a new game, walks (teleports) to every giver marker, skips cutscenes, satisfies each objective through the
 // game's own API (kill the mission mobs, eat tokens, transform, drive the checkpoints, wreck the HQ, enter / leave doors,
 // beat the bosses) and checks that every marker / objective / door is on reachable ground. Returns a JSON report.

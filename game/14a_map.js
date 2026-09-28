@@ -37,48 +37,70 @@ const fmtDist = (m) => (m < 950 ? Math.max(10, Math.round(m / 10) * 10) + ' 米'
 const MapGfx = {
   E: null, lv: null, ms: 0,
   ready() { if (!this.lv) this.build(); return this.lv; },
+  // phones: 0.75 px/m keeps the detail canvas ~3.6 Mpx; the overview has exaggerated road widths for the zoomed-out map
+  LEVELS: [[LOWQ ? 0.75 : 1, false], [0.3, true]],
   build() {
-    const B = W.bounds, m = 40, t0 = performance.now();
-    this.E = { x0: B.x0 - m, z0: B.z0 - m, x1: B.x1 + m, z1: B.z1 + m };
-    // phones: 0.75 px/m keeps the detail canvas ~3.6 Mpx; the overview has exaggerated road widths for the zoomed-out map
-    this.lv = [this.paint(LOWQ ? 0.75 : 1, false), this.paint(0.3, true)];
-    this.ms = Math.round(performance.now() - t0);
+    const t0 = performance.now(), P = this.painters();
+    for (const p of P) while (p.steps.length) p.steps.shift()();
+    this.lv = P.map((p) => p.out); this.ms = Math.round(performance.now() - t0);
   },
-  paint(k, over) {
-    const E = this.E, C = MAPC, px = 1 / k, c = mkCanvas(Math.ceil((E.x1 - E.x0) * k), Math.ceil((E.z1 - E.z0) * k)), g = c.getContext('2d');
-    g.setTransform(k, 0, 0, k, -E.x0 * k, -E.z0 * k); // draw in world metres
-    g.lineCap = 'round'; g.lineJoin = 'round';
+  // the levels' painters (shared with prebuild, so a build() in the middle of one finishes it instead of starting over)
+  painters() {
+    if (!this._p) { const B = W.bounds, m = 40; this.E = { x0: B.x0 - m, z0: B.z0 - m, x1: B.x1 + m, z1: B.z1 + m }; this._p = this.LEVELS.map(([k, over]) => this.painter(k, over)); }
+    return this._p;
+  },
+  // the same as a string of Jobs slices (~0.1 s each) while the title is idle: no long freeze later
+  prebuild() {
+    if (this.lv || this._pre) return; this._pre = true;
+    const next = () => {
+      if (this.lv) return;
+      const P = this.painters(), p = P.find((q) => q.steps.length);
+      if (p) { p.steps.shift()(); Jobs.add(next); } else { this.lv = P.map((q) => q.out); Jobs.add(() => MapLabels.build()); }
+    };
+    Jobs.add(next);
+  },
+  paint(k, over) { const p = this.painter(k, over); while (p.steps.length) p.steps.shift()(); return p.out; },
+  // one level's canvas, painted in steps: ground + water, the building footprints in batches, landmarks + rail, street casings, street fills
+  painter(k, over) {
+    const E = this.E, C = MAPC, px = 1 / k, c = mkCanvas(Math.ceil((E.x1 - E.x0) * k), Math.ceil((E.z1 - E.z0) * k)), g = c.getContext('2d'), steps = [];
     const path = (rings) => { g.beginPath(); for (const r of rings) { for (let i = 0; i < r.length; i++) i ? g.lineTo(r[i][0], r[i][1]) : g.moveTo(r[i][0], r[i][1]); g.closePath(); } };
     const fill = (rings, col) => { if (!rings || !rings[0]) return; path(rings); g.fillStyle = col; g.fill('evenodd'); };
     const line = (pts) => { for (let i = 0; i < pts.length; i++) i ? g.lineTo(pts[i][0], pts[i][1]) : g.moveTo(pts[i][0], pts[i][1]); };
-    g.fillStyle = C.land; g.fillRect(E.x0, E.z0, E.x1 - E.x0, E.z1 - E.z0);
-    if (W.ringPoly) fill([W.ringPoly], C.old);
-    for (const key of LM_GROUND) { const p = lmPts(key); if (p) fill([p], C.ground); }
-    const zn = lmPts('zhongnanhai'); if (zn) fill([zn], C.grass); // gardens round the lakes
-    for (const gp of W.greenPolys || []) fill(gp.rings, C[gp.type] || C.park);
-    for (const r of W.plazaPolys || []) fill(r, C.plaza);
-    const sq = lmPts('square'); if (sq) fill([sq], C.square);
-    // water: lakes, moats, rivers, the 金水河 channels
-    g.fillStyle = C.water; g.strokeStyle = C.water;
-    for (const wv of W.water) if (!wv.line) { path(wv); g.fill('evenodd'); }
-    for (const wv of W.water) if (wv.line) { g.lineWidth = Math.max(wv.w, 1.5 * px); g.beginPath(); line(wv.line); g.stroke(); }
-    for (const d of W.decoWater || []) g.fillRect(d.x0, d.z0, d.x1 - d.x0, d.z1 - d.z0);
+    steps.push(() => {
+      g.setTransform(k, 0, 0, k, -E.x0 * k, -E.z0 * k); // draw in world metres
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      g.fillStyle = C.land; g.fillRect(E.x0, E.z0, E.x1 - E.x0, E.z1 - E.z0);
+      if (W.ringPoly) fill([W.ringPoly], C.old);
+      for (const key of LM_GROUND) { const p = lmPts(key); if (p) fill([p], C.ground); }
+      const zn = lmPts('zhongnanhai'); if (zn) fill([zn], C.grass); // gardens round the lakes
+      for (const gp of W.greenPolys || []) fill(gp.rings, C[gp.type] || C.park);
+      for (const r of W.plazaPolys || []) fill(r, C.plaza);
+      const sq = lmPts('square'); if (sq) fill([sq], C.square);
+      // water: lakes, moats, rivers, the 金水河 channels
+      g.fillStyle = C.water; g.strokeStyle = C.water;
+      for (const wv of W.water) if (!wv.line) { path(wv); g.fill('evenodd'); }
+      for (const wv of W.water) if (wv.line) { g.lineWidth = Math.max(wv.w, 1.5 * px); g.beginPath(); line(wv.line); g.stroke(); }
+      for (const d of W.decoWater || []) g.fillRect(d.x0, d.z0, d.x1 - d.x0, d.z1 - d.z0);
+    });
     // every building footprint, a touch lighter than the ground under it (walls come out as thin lines)
-    if (!over) {
+    if (!over) for (let i0 = 0; i0 < W.solids.length; i0 += 6000) steps.push(() => {
       g.beginPath();
-      for (const s of W.solids) {
+      for (let i = i0, n = Math.min(W.solids.length, i0 + 6000); i < n; i++) {
+        const s = W.solids[i];
         if (s.kind === 'pillar' || s.kind === 'hq' || (s.h || 0) < 2) continue;
         if (s.obb) { const ax = s.ux * s.hx, az = s.uz * s.hx, bx = -s.uz * s.hz, bz = s.ux * s.hz; g.moveTo(s.cx - ax - bx, s.cz - az - bz); g.lineTo(s.cx + ax - bx, s.cz + az - bz); g.lineTo(s.cx + ax + bx, s.cz + az + bz); g.lineTo(s.cx - ax + bx, s.cz - az + bz); g.closePath(); }
         else g.rect(s.x0, s.z0, s.x1 - s.x0, s.z1 - s.z0);
       }
       g.fillStyle = C.bld; g.fill();
-    }
-    const gg = lmPts('gugong'); if (gg) { path([gg]); g.lineWidth = Math.max(3, 1.4 * px); g.strokeStyle = C.wall; g.stroke(); }
-    for (const key in LM_HALL) { const p = lmPts(key); if (p) fill([p], C[LM_HALL[key]]); }
-    // railways
-    g.strokeStyle = C.rail; g.lineWidth = Math.max(1.2, px); g.setLineDash([6, 4]); g.beginPath();
-    for (const f of MAPD.raw.rail || []) line(MAPD.pts(f));
-    g.stroke(); g.setLineDash([]);
+    });
+    steps.push(() => {
+      const gg = lmPts('gugong'); if (gg) { path([gg]); g.lineWidth = Math.max(3, 1.4 * px); g.strokeStyle = C.wall; g.stroke(); }
+      for (const key in LM_HALL) { const p = lmPts(key); if (p) fill([p], C[LM_HALL[key]]); }
+      // railways
+      g.strokeStyle = C.rail; g.lineWidth = Math.max(1.2, px); g.setLineDash([6, 4]); g.beginPath();
+      for (const f of MAPD.raw.rail || []) line(MAPD.pts(f));
+      g.stroke(); g.setLineDash([]);
+    });
     // streets: hutongs and walks, then every casing, then the fills from small to big so junctions stay clean
     const byCls = [[], [], [], [], [], [], [], []];
     for (const e of Roads.edges) byCls[e.cls].push(e);
@@ -90,10 +112,10 @@ const MapGfx = {
       g.strokeStyle = col;
       for (const [lw, es] of groups) { g.lineWidth = lw; g.beginPath(); for (const e of es) line(e.pts); g.stroke(); }
     };
-    stroke(byCls[6], 0, C.road[6]); stroke(byCls[7], 0, C.road[7]);
-    for (let q = 5; q >= 0; q--) stroke(byCls[q], (over ? 1.2 : 1.6) * px, C.casing);
-    for (let q = 5; q >= 0; q--) stroke(byCls[q], 0, C.road[q]);
-    return { c, k };
+    steps.push(() => { stroke(byCls[6], 0, C.road[6]); stroke(byCls[7], 0, C.road[7]); });
+    steps.push(() => { for (let q = 5; q >= 0; q--) stroke(byCls[q], (over ? 1.2 : 1.6) * px, C.casing); });
+    steps.push(() => { for (let q = 5; q >= 0; q--) stroke(byCls[q], 0, C.road[q]); });
+    return { steps, out: { c, k } };
   },
   // draw the part of level L covering [x0,x1]×[z0,z1] (world) under the caller's world-space transform
   blit(g, L, x0, z0, x1, z1) {

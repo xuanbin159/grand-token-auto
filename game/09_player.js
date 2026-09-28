@@ -3,8 +3,10 @@
    plus Combat (all damage dealing) and specialisation ultimates
    ============================================================ */
 const ATK = {
-  h_punch: { dur: 0.3, hit: 0.11, reach: 1.2, rad: 1.35, dmg: 11, kind: 'punch', anim: 'punchR', knock: 3 },
-  h_kick: { dur: 0.42, hit: 0.18, reach: 1.5, rad: 1.45, dmg: 15, kind: 'kick', anim: 'kick', knock: 6 },
+  // on foot (the 1.8 m VRM hero, arm ~0.65 m): the hit circle sits just past the fist / foot, a little generous so a swing at a
+  // body in front lands, one at thin air a body-length off doesn't (human foes r 0.42: punch lands to ~1.8 m, kick ~1.9 m)
+  h_punch: { dur: 0.3, hit: 0.11, reach: 0.6, rad: 0.75, dmg: 11, kind: 'punch', anim: 'punchR', knock: 3 },
+  h_kick: { dur: 0.42, hit: 0.18, reach: 0.7, rad: 0.8, dmg: 15, kind: 'kick', anim: 'kick', knock: 6 },
   r_punchR: { dur: 0.3, hit: 0.1, reach: 4.8, rad: 3.5, dmg: 55, kind: 'punch', anim: 'punchR', knock: 20, up: 7 },
   r_punchL: { dur: 0.3, hit: 0.1, reach: 4.8, rad: 3.5, dmg: 55, kind: 'punch', anim: 'punchL', knock: 20, up: 7 },
   r_upper: { dur: 0.48, hit: 0.19, reach: 4.6, rad: 3.9, dmg: 105, kind: 'punch', anim: 'upper', knock: 16, up: 22, heavy: true },
@@ -193,7 +195,7 @@ const Player = {
   },
   rebuildHuman() {
     const vis = this.human.root.visible;
-    scene.remove(this.human.root); disposeOwn(this.human.root);
+    scene.remove(this.human.root); disposeOwn(this.human.root); if (this.human.rig) this.human.rig.dispose();
     this.human = buildHuman(RPG.outfit, RPG.equip);
     this.human.root.visible = vis;
     this.refreshHead();
@@ -206,6 +208,7 @@ const Player = {
     if (this.faceMatH) { this.faceMatH.map = TEX.faceEq; this.faceMatH.needsUpdate = true; }
     if (old) old.dispose();
     const pc = mkCanvas(160, 160); pc.getContext('2d').drawImage(c, 52, 62, 280, 280, 0, 0, 160, 160); UI.portraitH = pc.toDataURL(); UI.last.portrait = null;
+    if (HeroFace.look !== 'photo' && CharLib.ready) UI.portraitH = HeroFace.portraitURL();
   },
   radius() { return this.mode === 'robot' ? 2.5 : this.mode === 'truck' ? 2.9 : this.mode === 'car' ? 2.1 : this.mode === 'xform' ? 2.3 : 0.6; },
   pickupR() { return { human: 1.9, car: 3.0, robot: 3.8, truck: 3.6, xform: 3 }[this.mode] || 0; },
@@ -296,7 +299,7 @@ const Player = {
       key = ['r_punchR', 'r_punchL', 'r_upper', 'r_spin'][this.combo];
     }
     this.atk = { def: ATK[key], t: 0, done: false };
-    this.aimAssist(pre === 'h' ? 3.4 : 9);
+    this.aimAssist(pre === 'h' ? 2 : 9); // on foot: turn to a foe within ~2 m of your reach, not one across the lane
     if (type === 'punch') G.stats.punches++; else G.stats.kicks++;
   },
   // SA-style soft lock: swing toward the nearest foe in reach instead of thin air
@@ -340,7 +343,9 @@ const Player = {
     else this.stamina = Math.min(100, this.stamina + 16 * dt);
     if (sprint) { this.sprintAcc += dt; if (this.sprintAcc > 2) { this.sprintAcc = 0; RPG.train('stamina', 1); } }
     const busy = !!this.atk;
-    const spd = busy ? 2 : sprint ? 12.5 * RPG.m.sprint : 7.2 * RPG.m.speed;
+    // sprint ~9.3 m/s: what the sprint clip plants at its top cadence (Actors.loco: rate 2.2); 12.5 needed the widest stride and
+    // still skated. Shoes / cap add stride on top, up to 11 m/s
+    const spd = busy ? 2 : sprint ? Math.min(11, 9.3 * RPG.m.sprint) : 7.2 * RPG.m.speed;
     this.vel.x = damp(this.vel.x, mx * spd, 12, dt); this.vel.z = damp(this.vel.z, mz * spd, 12, dt);
     this.pos.x += this.vel.x * dt; this.pos.z += this.vel.z * dt;
     this.pushOutCars(0.6); collideWorld(this.pos, 0.6); // walls win: a parked car never shoves you into a house
@@ -703,7 +708,7 @@ const Player = {
         // shatter: the human bursts into cubes of their own clothes, the mech parts appear in a ring
         X.shatter = true; H.root.visible = false; Robot.root.visible = true;
         const o = OUTFITS[RPG.outfit] || OUTFITS.tee, cols = [o.shirt, o.shirt, o.pants, o.shoe, 0xe8b890, o.print || o.shirt];
-        for (let k = 0; k < 42; k++) { const a = rand(TAU), sp = rand(4, 10); Debris.spawn(px + rand(-0.5, 0.5), rand(0.4, 3.4) + X.lift, pz + rand(-0.5, 0.5), Math.cos(a) * sp, rand(1, 6), Math.sin(a) * sp, rand(0.22, 0.42), rand(0.22, 0.42), rand(0.22, 0.42), pick(cols), rand(0.7, 1.1)); }
+        if (!H.rig) for (let k = 0; k < 42; k++) { const a = rand(TAU), sp = rand(4, 10); Debris.spawn(px + rand(-0.5, 0.5), rand(0.4, 3.4) + X.lift, pz + rand(-0.5, 0.5), Math.cos(a) * sp, rand(1, 6), Math.sin(a) * sp, rand(0.22, 0.42), rand(0.22, 0.42), rand(0.22, 0.42), pick(cols), rand(0.7, 1.1)); }
         for (let k = 0; k < 40; k++) { const a = rand(TAU), sp = rand(8, 16); FX.glowSys.spawn(px, 2 + X.lift, pz, Math.cos(a) * sp, rand(-2, 6), Math.sin(a) * sp, rand(0.4, 0.8), -0.5, 1, 0.9, 0.55, 1, 0.45, 1.5, 0); }
         FX.light(px, 4, pz, 2.2, 0xfff0b0); UI.flash(); Cam.shake(0.8);
         FX.ring(px, pz, 0.5, 9, 0.4, 0xffffff, 0.9);
@@ -791,7 +796,8 @@ const Player = {
     const gh = Interiors.cur ? 0 : groundH(this.pos.x, this.pos.z), m = this.mode, X = this.xf;
     const walk = clamp(hyp(this.vel.x, this.vel.z) / 7, 0, 1);
     const H = this.human;
-    if (H.root.visible) {
+    if (H.rig) heroSync(this, dt, gh);
+    else if (H.root.visible) {
       if (m === 'human') {
         this.ph += dt * hyp(this.vel.x, this.vel.z) * 1.5;
         const sw = Math.sin(this.ph) * 0.8 * walk;
@@ -833,13 +839,137 @@ const Player = {
     } else if (m === 'truck' || (m === 'xform' && Robot.pose === 'truck')) {
       x = this.pos.x + Math.sin(this.heading) * 2.2; z = this.pos.z + Math.cos(this.heading) * 2.2; y = gh + 6.0; size = 3.1; robo = true;
     }
-    this.face.visible = !hideFace;
+    // the mech has a modelled helmet, and a driver sits inside the (tinted) car: no sprite over either (bike riders keep theirs)
+    this.face.visible = !hideFace && !(robo && Robot.head3d) && !(m === 'car' && this.car && !this.car.k.bike);
     this.face.material = robo ? this.faceMatR : this.faceMatH;
     const s = size * (1 + Math.sin(Math.min(1, (0.22 - this.gulp) / 0.22) * Math.PI) * (this.gulp > 0 ? 0.28 : 0));
     const k = size * 0.45, hs = robo ? 1 : 1.5;
     this.face.position.set(x + Cam.toCam.x * k, y + Cam.toCam.y * k, z + Cam.toCam.z * k);
     this.face.scale.set(s * hs, s * hs, 1); this.face.center.set(0.5, robo ? 0.5 : 1 - 224 / 384);
     this.bubbleH = y - (gh + this.y) + size * 0.5 - 3;
+    if (H.rig && (m === 'human' || m === 'dead' || (m === 'xform' && X.kind === 'r2h' && X.pop))) this.bubbleH = H.rig.height + 0.35 - 3;
   },
 };
 const _faceTmp = new V3();
+
+/* ---- the VRM hero's animation (07b_vrm CharRig): clips chosen from the game state every frame ---- */
+const _hs = { atk: null, n: 0, lastAtk: -9, air: false, hurt: -99, idleT: 0, xk: '', seat: null };
+// [clip, striking limb]: the jab is the lead (left) hand, the cross the rear (right) one (measured on the retargeted clips: with the
+// limbs swapped the jab's "impact" read as frame 0, so it played at the 0.9 floor and landed ~0.2 s after the damage)
+const HERO_PUNCH = [['punch_jab', 'leftHand'], ['punch_cross', 'rightHand'], ['hook', 'rightHand']], HERO_KICK = [['kick', 'rightFoot'], ['kick_spin', 'rightFoot']];
+function heroSync(P, dt, gh) {
+  const H = P.human, rig = H.rig, m = P.mode, X = P.xf, S = _hs, T = rig.T;
+  const sp = hyp(P.vel.x, P.vel.z), bike = m === 'car' && P.car && P.car.k && P.car.k.bike;
+  rig.inner.position.set(0, rig.legY ?? (rig.legY = rig.inner.position.y), 0);
+  rig.over = null; rig.talk = false; if (m !== 'human') rig.phone(false);
+  // the transformation: after the burst the hero burns away in gold light, feet first, while the mech builds up round him;
+  // coming back he glows back into being, head first
+  if (m === 'xform' && rig.ownC) {
+    if (X.kind === 'h2r' && X.shatter) { if (S.disT === undefined) S.disT = X.t; const u = X.t >= 2.7 ? 1 : clamp((X.t - S.disT) / 0.95, 0, 1); H.root.visible = u < 1; rig.dissolve(u, 1); }
+    else if (X.kind === 'r2h') { if (!X.pop) rig.dissolve(1, 1); else { if (S.popT === undefined) S.popT = X.t; const u = clamp((X.t - S.popT) / 0.6, 0, 1); rig.dissolve(1 - u, 1); heroAura(rig, 1 - u); } }
+  }
+  if (H.head3d && H.head3d.userData.vrm) H.head3d.visible = !(rig.dis > 0.55);
+  if (!H.root.visible) { S.air = false; return; }
+  const lift = X && X.lift ? X.lift : 0;
+  if (m === 'human') {
+    H.root.position.set(P.pos.x, gh + P.y + lift, P.pos.z); H.root.rotation.set(0, P.heading, 0);
+    // a new strike: jab / cross / hook (kick / spin kick) in turn, played so its impact lands on the hit frame
+    if (P.atk && P.atk !== S.atk) {
+      const d = P.atk.def, chain = G.time - S.lastAtk < 0.9, L = d.kind === 'kick' ? HERO_KICK : HERO_PUNCH;
+      S.n = chain ? (S.n + 1) % L.length : 0; S.lastAtk = G.time;
+      // played so the impact frame lands on the hit frame (jab ~2.4×, cross ~3×, kicks ~3.2×); an impact that reads as the first
+      // frames (a clip still streaming in) gets a plain quick rate instead of the slow floor
+      const [clip, limb] = L[S.n % L.length], ti = CharLib.hitTime(T, clip, limb), rate = ti > 0.05 ? clamp(ti / Math.max(0.05, d.hit), 1, 3.4) : 2.4;
+      rig.once(clip, { rate, fade: 0.06, end: clamp((ti + 0.45) / (CharLib.clip(T, clip) || { duration: 1 }).duration, 0.35, 1), back: 0.16 });
+      rig.expr('angry', 0.7);
+    }
+    S.atk = P.atk;
+    // jump: take-off → air → landing
+    if (!P.onGround) { if (!S.air) { S.air = true; rig.once('jump_start', { start: 0.38, rate: 2.2, fade: 0.06, then: 'jump_air', back: 0.08 }); } }
+    else if (S.air) { S.air = false; if (!P.atk) { if (sp < 3) rig.once('jump_land', { start: 0.1, rate: 1.8, fade: 0.05, end: 0.5, back: 0.15 }); else rig.stopOnce(0.12); } }
+    // hit reactions
+    if (P.lastHurt !== S.hurt) { const fresh = G.time - P.lastHurt < 0.2 && S.hurt > -99; S.hurt = P.lastHurt; if (fresh && !P.atk && P.onGround) { rig.once(Math.random() < 0.5 ? 'hit_front' : 'hit_head', { rate: 1.3, fade: 0.05 }); rig.expr('Surprised', 0.8); } }
+    // moving breaks out of a finishing move early
+    if (rig.busy && !P.atk && P.onGround && sp > 2.5 && !/jump|hit/.test(rig.oneK)) rig.stopOnce(0.18);
+    const carry = Actors.map.carry, gym = typeof Gym !== 'undefined' && Gym.active;
+    if (gym || carry || !(P.onGround || !S.air)) S.ak = '';
+    if (gym) rig.play(gym.kind === 'stamina' ? 'jog' : 'pushup', { fade: 0.3, rate: clamp(0.7 + gym.n * 0.04, 0.7, 2) });
+    else if (carry) rig.play('walk_carry', { fade: 0.3, rate: clamp(sp / (0.52 * T.hipsY * rig.k), 0, 1.8) });
+    else if (P.onGround || !S.air) {
+      // fight stance with a foe close by
+      let foe = false; for (const e of Enemies.list) if (!e.dead && e.aggro && dist2(e.pos.x, e.pos.z, P.pos.x, P.pos.z) < 100) { foe = true; break; }
+      S.idleT = sp < 0.3 && !P.atk ? S.idleT + dt : 0;
+      const call = typeof Phone !== 'undefined' && Phone.cur && Phone.t > -0.6; // answers the phone standing about
+      S.ak = Actors.loco(rig, sp, { idleK: foe || G.time - S.lastAtk < 3 ? 'fight_idle' : call ? 'phone_call' : S.idleT > 9 ? 'idle_soft' : 'idle' });
+      if (!foe && G.time - S.lastAtk > 3 && rig._mood !== 'angry') rig.expr('angry', 0);
+    }
+    rig.phone(S.ak === 'phone_call' && !rig.busy);
+    if (H.cape) H.cape.rotation.x = damp(H.cape.rotation.x, 0.12 + clamp(sp / 7, 0, 1) * 0.9 + (P.onGround ? 0 : 0.5), 6, dt || 0.016);
+    heroLook(P, rig, sp);
+  } else if (m === 'dead') {
+    H.root.position.set(P.pos.x, gh + P.y, P.pos.z); H.root.rotation.set(0, P.heading, 0);
+    rig.play('death', { fade: 0.15 }); rig.expr('ko', 1); rig.look(null);
+  } else if (bike) {
+    // 共享单车: seated (06_vehicles Bikes places the root on the saddle and writes the pedal angles into the legacy leg dummies)
+    rig.play('drive', { fade: 0.2 });
+    if (!S.seat) S.seat = heroSeat(rig);
+    rig.inner.position.set(0, rig.legY + S.seat[0], S.seat[1]);
+    const pl = H.legL.rotation.x + 0.55, pr = H.legR.rotation.x + 0.55;
+    rig.over = { legL: 0.2 + pl, legR: 0.2 + pr, kneeL: 0.3 + pl * 0.9, kneeR: 0.3 + pr * 0.9 };
+    rig.look(null);
+  } else if (m === 'xform') {
+    H.root.position.set(P.pos.x, gh + P.y + lift, P.pos.z);
+    if (X.kind === 'h2r') {
+      // charge: power-up pose, the body lit from the edges in by a gold aura, sparks peeling off the limbs; then it bursts (updXform)
+      rig.play('power_up', { fade: 0.1, hold: clamp(X.t / 0.8, 0.05, 0.62) }); rig.expr('angry', 1);
+      heroAura(rig, clamp(X.t / 0.9, 0, 1));
+      if (!X.shatter && Math.random() < dt * 30) { const b = pick(['handL', 'handR', 'footL', 'footR', 'head', 'chest']); rig.bonePos(b, _heroT); FX.glowSys.spawn(_heroT.x, _heroT.y, _heroT.z, rand(-1, 1), rand(1, 3), rand(-1, 1), rand(0.25, 0.5), -0.3, 1, 0.82, 0.35, 1, 0.45, 0.4, 0); }
+      if (X.shatter && !S.burst) { S.burst = true; for (const b of ['head', 'chest', 'hips', 'handL', 'handR', 'foreL', 'foreR', 'kneeL', 'kneeR', 'footL', 'footR']) { rig.bonePos(b, _heroT); for (let k = 0; k < 4; k++) { const a = rand(TAU), v = rand(4, 9); FX.glowSys.spawn(_heroT.x, _heroT.y, _heroT.z, Math.cos(a) * v, rand(1, 6), Math.sin(a) * v, rand(0.4, 0.8), -0.5, 1, 0.9, 0.55, 1, 0.45, 1.5, 0); } } }
+    }
+    else if (X.kind === 'r2h' && X.pop && S.xk !== 'pop') rig.once('land_hero', { start: 0.2, rate: 1.1, then: 'idle' });
+    S.xk = X.kind === 'r2h' && X.pop ? 'pop' : X.kind;
+    rig.look(null);
+  } else { H.root.position.set(P.pos.x, gh + P.y, P.pos.z); H.root.rotation.set(0, P.heading, 0); }
+  // back from the dead (respawn, a checkpoint retry): the KO face goes (it would stay on every later close-up)
+  if (m !== 'dead' && (rig.ex.ko || rig.ex.blink)) rig.expr('ko', 0).expr('blink', 0);
+  if (m !== 'xform') { S.xk = ''; S.burst = false; S.disT = S.popT = undefined; if (rig.aura) heroAura(rig, 0); if (rig.dis) rig.dissolve(0); }
+  if (P.gulp > 0.15) rig.expr('happy', 1); else if (P.gulp <= 0 && rig._mood !== 'happy') rig.expr('happy', 0);
+  if (rig.ex.Surprised && G.time - P.lastHurt > 0.8) rig.expr('Surprised', 0);
+}
+// the transformation aura: MToon rim light turned up to a gold glow (no shader change: VRoid's black emission maps stay)
+function heroAura(rig, k) {
+  if (!rig.aura) { if (k <= 0) return; rig.aura = new Map(); for (const m of rig.meshes) for (const x of [].concat(m.material)) if (x.uniforms && x.uniforms.parametricRimColorFactor && !rig.aura.has(x)) { rig.aura.set(x, [x.uniforms.parametricRimColorFactor.value.clone(), x.uniforms.parametricRimLiftFactor.value, x.uniforms.rimLightingMixFactor.value]); x.userData.gtaAura = 1; } } // (gtaAura: the low-sun skin tune keeps off it meanwhile)
+  for (const [x, v] of rig.aura) {
+    const u = x.uniforms;
+    u.parametricRimColorFactor.value.copy(v[0]).lerp(_auraC, k); u.parametricRimLiftFactor.value = lerp(v[1], 0.35, k * k); u.rimLightingMixFactor.value = lerp(v[2], 0, k);
+  }
+  if (k <= 0) { for (const x of rig.aura.keys()) { delete x.userData.gtaAura; if (VRM_SKIN.has(x)) vrmSkinSun(x, VRM_SKIN.k); } rig.aura = null; }
+}
+const _auraC = new THREE.Color(2.2, 1.45, 0.45);
+// the saddle: how far the seated clip's hips sit above / behind the root (so they land on the bike seat)
+function heroSeat(rig) {
+  const c = CharLib.clip(rig.T, 'drive'); let hy = rig.T.hipsY, hz = 0;
+  if (c) for (const t of c.tracks) if (t.name.endsWith('.position')) { hy = t.values[1]; hz = -t.values[2]; break; }
+  // Bikes puts the root 0.2 m above the ground, 0.2 m back; the saddle is ~0.86 m above that, 0.16 m further back
+  return [0.86 - hy * rig.k, -0.16 - hz * rig.k];
+}
+// who the hero looks at: the speaker in a scene, the nearest foe in a fight, the camera when idling
+function heroLook(P, rig, sp) {
+  const L = Cutscene.active ? Cutscene.line : null;
+  let t = null;
+  if (L) {
+    rig.talk = L.who === 'hero' && L.shown < L.text.length;
+    vrmMood(rig, L.who === 'hero' ? L : null);
+    const a = L.actor || Actors.map[L.who];
+    if (L.who === 'hero') { let bd = 64; for (const id in Actors.map) { const q = Actors.map[id], d = dist2(q.pos.x, q.pos.z, P.pos.x, P.pos.z); if (q.R.rig && d < bd && q.anim !== 'lie' && q.anim !== 'carry') { bd = d; t = q.R.rig.bonePos('head', _heroT); } } } // talks to whoever stands closest
+    else if (a && a.R && a.R.rig) t = a.R.rig.bonePos('head', _heroT);
+  } else vrmMood(rig, null);
+  if (!L && !P.atk) {
+    let best = null, bd = 64;
+    for (const e of Enemies.list) { if (e.dead) continue; const d = dist2(e.pos.x, e.pos.z, P.pos.x, P.pos.z); if (d < bd) { bd = d; best = e; } }
+    if (best) t = _heroT.set(best.pos.x, best.y + 1.5 + (Interiors.cur ? 0 : groundH(best.pos.x, best.pos.z)), best.pos.z);
+    else if (_hs.idleT > 1.4) { const d = angDiff(P.heading, Math.atan2(Cam.toCam.x, Cam.toCam.z)); if (Math.abs(d) < 1.9) t = camera.position; }
+  }
+  rig.look(t);
+}
+const _heroT = new V3();

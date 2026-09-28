@@ -34,7 +34,8 @@ const PED_OPEN = (1 << GK.WALK) | (1 << GK.FREE) | (1 << GK.PARK) | (1 << GK.PLA
 const PED_STEP = 2;
 const PED_SHOPF = (e) => e.len > 6 && (e.cls === 7 || pedShop(e) === 2);
 const _pp = [0, 0, 0, 1], _pw = [0, 0, 0, 1], _pm = [0, 0, 0, 1];
-const pedShop = (e) => e._shop ?? (e._shop = SHOP_STREETS.test(e.name) ? 2 : /大街|前门|大栅栏|南锣|王府井|西单|烟袋|后海|什刹海|步行/.test(e.name) ? 1 : 0);
+// 2: shop streets and the 什刹海 bar lanes (后海 / 前海 / 烟袋斜街 …: busy at night); 1: big named streets
+const pedShop = (e) => e._shop ?? (e._shop = SHOP_STREETS.test(e.name) || BAR_STREETS.test(e.name) ? 2 : /大街|前门|大栅栏|南锣|王府井|西单|烟袋|后海|什刹海|步行/.test(e.name) ? 1 : 0);
 // how busy a street is: 步行街 and shop streets teem, the 二环 is for cars
 const pedWeight = (e) => [0.25, 0.6, 0.9, 1, 1, 0.8, 1.1, 3][e.cls] * [1, 2, 4][pedShop(e)];
 const pedOff = (e) => (e.cls >= 6 ? 0 : e.hw + e.C.walk * 0.5);
@@ -86,57 +87,9 @@ function standableSpot(x, z) {
   return [p.x, p.z];
 }
 
-/* ---------------- looks: merged boxes with a limb id per vertex ---------------- */
-const PED_BALL = new THREE.SphereGeometry(1, 8, 6), PED_BALL_LO = new THREE.IcosahedronGeometry(1, 0);
-const PED_DOME = new THREE.SphereGeometry(1, 10, 5, 0, TAU, 0, Math.PI / 2), PED_CYL = new THREE.CylinderGeometry(1, 1, 1, 10);
-// groups: [body, leg -x, leg +x, arm -x, arm +x]
-function pedMerge(groups) {
-  const gs = groups.map((ps) => (ps.length ? mergeParts(ps) : null));
-  let nv = 0, ni = 0; for (const g of gs) if (g) { nv += g.attributes.position.count; ni += g.index.count; }
-  const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 3), limb = new Float32Array(nv), idx = new (nv > 65535 ? Uint32Array : Uint16Array)(ni);
-  let vo = 0, io = 0;
-  gs.forEach((g, li) => {
-    if (!g) return;
-    const c = g.attributes.position.count, ia = g.index.array;
-    pos.set(g.attributes.position.array, vo * 3); nor.set(g.attributes.normal.array, vo * 3); col.set(g.attributes.color.array, vo * 3); limb.fill(li, vo, vo + c);
-    for (let i = 0; i < ia.length; i++) idx[io + i] = ia[i] + vo;
-    vo += c; io += ia.length; g.dispose();
-  });
-  const out = new THREE.BufferGeometry();
-  out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-  out.setAttribute('color', new THREE.BufferAttribute(col, 3)); out.setAttribute('aLimb', new THREE.BufferAttribute(limb, 1));
-  out.setIndex(new THREE.BufferAttribute(idx, 1)); out.computeBoundingSphere();
-  return out;
-}
-// o: shirt pants skin hair hs(hair style) capC shoe sleeve('short'|'long'|'tank') skirt pack phone extra:[[group, parts]]
-function pedGeo(o) {
-  const G = [[], [], [], [], []], B = G[0], sk = o.skin ?? SKINS[0], sh = o.shirt, pa = o.pants, hair = o.hair ?? 0x1b1b1b;
-  const up = o.sleeve === 'tank' ? sk : sh, lo = o.sleeve === 'long' ? sh : sk;
-  for (const [li, x] of [[1, -0.16], [2, 0.16]]) G[li].push(box(x, 0.48, 0, 0.25, 0.74, 0.28, o.bare ? sk : pa), box(x, 0.06, 0.05, 0.26, 0.12, 0.38, o.shoe ?? 0x2b2b2b));
-  for (const [li, x] of [[3, -0.41], [4, 0.41]]) G[li].push(box(x, 1.33, 0, 0.18, 0.28, 0.21, up), box(x, 1.06, 0, 0.15, 0.3, 0.18, lo), box(x, 0.85, 0.01, 0.14, 0.13, 0.15, sk));
-  B.push(box(0, 0.96, 0, 0.58, 0.26, 0.31, o.skirt ?? pa), box(0, 1.27, 0, 0.64, 0.48, 0.34, sh));
-  if (o.skirt !== undefined) B.push(box(0, 0.72, 0, 0.62, 0.34, 0.37, o.skirt));
-  B.push(box(0, 1.55, 0, 0.17, 0.1, 0.17, sk), Head3D.pedSkull(sk)); // round skull (02c_head3d.js), same size as the old box head
-  B.push(box(-0.09, 1.8, 0.19, 0.07, 0.05, 0.02, 0x1b1b1b), box(0.09, 1.8, 0.19, 0.07, 0.05, 0.02, 0x1b1b1b), box(0, 1.69, 0.19, 0.11, 0.03, 0.02, 0x9a4a3a));
-  const cap = o.capC ?? 0xd7263d;
-  switch (o.hs) {
-    case 'short': B.push(box(0, 1.99, -0.01, 0.42, 0.08, 0.41, hair), box(0, 1.86, -0.18, 0.42, 0.28, 0.05, hair), box(-0.2, 1.9, -0.04, 0.03, 0.16, 0.3, hair), box(0.2, 1.9, -0.04, 0.03, 0.16, 0.3, hair)); break;
-    case 'buzz': B.push(box(0, 1.985, -0.01, 0.41, 0.05, 0.39, hair)); break;
-    case 'long': B.push(box(0, 1.99, -0.01, 0.43, 0.08, 0.41, hair), box(0, 1.68, -0.2, 0.44, 0.62, 0.07, hair), box(-0.21, 1.8, -0.05, 0.04, 0.4, 0.3, hair), box(0.21, 1.8, -0.05, 0.04, 0.4, 0.3, hair)); break;
-    case 'bun': B.push(box(0, 1.99, -0.01, 0.43, 0.08, 0.41, hair), box(0, 1.86, -0.19, 0.42, 0.28, 0.05, hair), gpart(PED_BALL, hair, 0, 2.02, -0.2, 0, 0, 0, 0.15, 0.15, 0.15)); break;
-    case 'perm': B.push(gpart(PED_BALL, hair, 0, 1.92, -0.03, 0, 0, 0, 0.27, 0.2, 0.26)); break;
-    case 'bald': B.push(box(-0.205, 1.8, -0.06, 0.03, 0.14, 0.26, hair), box(0.205, 1.8, -0.06, 0.03, 0.14, 0.26, hair), box(0, 1.8, -0.195, 0.4, 0.14, 0.03, hair)); break;
-    case 'cap': B.push(box(0, 2.01, -0.01, 0.44, 0.1, 0.42, cap), box(0, 1.975, 0.27, 0.4, 0.03, 0.2, cap), box(0, 1.86, -0.18, 0.42, 0.22, 0.05, hair)); break;
-    case 'helmet': B.push(gpart(PED_DOME, cap, 0, 1.9, 0, 0, 0, 0, 0.26, 0.27, 0.26), box(0, 1.93, 0.2, 0.36, 0.1, 0.1, 0x111111)); break;
-    case 'chef': B.push(gpart(PED_CYL, 0xf8fafc, 0, 2.12, 0, 0, 0, 0, 0.21, 0.28, 0.21)); break;
-    case 'cg': B.push(box(0, 2.0, -0.01, 0.44, 0.1, 0.43, 0x1c2733), box(0, 2.07, 0.02, 0.47, 0.06, 0.47, 0x1c2733), box(0, 1.975, 0.27, 0.4, 0.03, 0.18, 0x111111), box(0, 2.03, 0.235, 0.1, 0.08, 0.01, 0xe0b64a)); break;
-  }
-  if (o.pack) B.push(box(0, 1.25, -0.27, 0.5, 0.52, 0.2, o.pack));
-  if (o.phone) G[4].push(box(0.41, 0.84, 0.09, 0.08, 0.15, 0.02, 0x111111));
-  for (const [gi, parts] of o.extra || []) G[gi].push(...parts);
-  return pedMerge(G);
-}
-// the e-bike (root space; the rider's root sits 0.12 m up on the seat)
+/* ---------------- looks: VRoid townspeople (07b_vrm: compact CharRigs, pooled per look) ---------------- */
+const PED_CYL = new THREE.CylinderGeometry(1, 1, 1, 10), PED_DOME = new THREE.SphereGeometry(1, 10, 5, 0, TAU, 0, Math.PI / 2), PED_BALL_LO = new THREE.IcosahedronGeometry(1, 0), PED_BALL = new THREE.SphereGeometry(1, 8, 6);
+// the e-bike (root space; the rider's root sits 0.12 m up, on the seat line)
 function pedBike(c) {
   const g = -0.12, wheel = (z) => gpart(PED_CYL, 0x1b1b1b, 0, g + 0.27, z, 0, 0, Math.PI / 2, 0.27, 0.08, 0.27);
   return [wheel(0.74), wheel(-0.62), box(0, g + 0.36, 0.05, 0.26, 0.2, 1.2, c), box(0, g + 0.62, -0.38, 0.34, 0.36, 0.62, c), box(0, g + 0.86, -0.3, 0.3, 0.09, 0.6, 0x151515),
@@ -144,61 +97,181 @@ function pedBike(c) {
     box(0, g + 0.74, 0.6, 0.66, 0.62, 0.05, 0x3b5b8a), // 挡风被: the quilt every Beijing e-bike wears
     box(0, g + 1.2, -0.72, 0.56, 0.5, 0.5, c), box(0, g + 1.2, -0.975, 0.4, 0.2, 0.01, 0x111111)];
 }
-function pedHulu() { // 草把子 stuck with 糖葫芦
-  const p = [box(0.6, 1.05, 0.18, 0.06, 2.1, 0.06, 0xa77c4a), gpart(PED_CYL, 0xd9b76a, 0.6, 2.0, 0.18, 0, 0, 0, 0.2, 0.55, 0.2)];
+// 草把子 stuck with 糖葫芦 (held upright in the right hand: hand space after vrmHandItem's turn, y up the pole)
+function pedHulu() {
+  const p = [box(0, -0.2, 0, 0.035, 1.9, 0.035, 0xa77c4a), gpart(PED_CYL, 0xd9b76a, 0, 0.72, 0, 0, 0, 0, 0.12, 0.34, 0.12)];
   for (let k = 0; k < 12; k++) {
-    const a = (k / 12) * TAU, y = 1.84 + (k % 3) * 0.14, ca = Math.cos(a), sa = Math.sin(a);
-    for (const r of [0.27, 0.37, 0.47]) p.push(gpart(PED_BALL_LO, 0xc8102e, 0.6 + ca * r, y + (r - 0.27) * 0.3, 0.18 + sa * r, 0, 0, 0, 0.065, 0.065, 0.065));
+    const a = (k / 12) * TAU, y = 0.62 + (k % 3) * 0.09, ca = Math.cos(a), sa = Math.sin(a);
+    for (const r of [0.16, 0.22, 0.28]) p.push(gpart(PED_BALL_LO, 0xc8102e, ca * r, y + (r - 0.16) * 0.3, sa * r, 0, 0, 0, 0.038, 0.038, 0.038));
   }
   return p;
 }
-function pedCage() { // 鸟笼 with a cloth cover, hanging from the hand
-  const x = 0.41, p = [gpart(PED_CYL, 0xc9a36a, x, 0.36, 0.06, 0, 0, 0, 0.2, 0.03, 0.2), gpart(PED_DOME, 0x1e3a8a, x, 0.72, 0.06, 0, 0, 0, 0.21, 0.16, 0.21), box(x, 0.84, 0.06, 0.03, 0.12, 0.03, 0xc9a36a), gpart(PED_BALL, 0xf6d23a, x, 0.48, 0.06, 0, 0, 0, 0.07, 0.07, 0.07)];
-  for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + 0.4; p.push(box(x + Math.cos(a) * 0.19, 0.54, 0.06 + Math.sin(a) * 0.19, 0.02, 0.36, 0.02, 0xc9a36a)); }
+// 鸟笼 with a cloth cover, hanging from the hand (origin at the hook)
+function pedCage() {
+  const p = [gpart(PED_CYL, 0xc9a36a, 0, -0.42, 0, 0, 0, 0, 0.12, 0.02, 0.12), gpart(PED_DOME, 0x1e3a8a, 0, -0.2, 0, 0, 0, 0, 0.13, 0.1, 0.13), box(0, -0.06, 0, 0.02, 0.1, 0.02, 0xc9a36a), gpart(PED_BALL, 0xf6d23a, 0, -0.34, 0, 0, 0, 0, 0.04, 0.04, 0.04)];
+  for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + 0.4; p.push(box(Math.cos(a) * 0.115, -0.31, Math.sin(a) * 0.115, 0.012, 0.22, 0.012, 0xc9a36a)); }
   return p;
 }
-function pedRandomLook(k) {
-  const f = k % 3 === 1;
-  return { shirt: pick(SHIRTS), pants: pick(PANTS), skin: pick(SKINS), hair: pick(HAIRS), hs: f ? pick(['long', 'bun', 'long']) : pick(['short', 'short', 'cap', 'buzz']), capC: pick([0xd7263d, 0x1f2937, 0xf5f5f5, 0x2563eb]),
-    skirt: f && Math.random() < 0.4 ? pick([0x1f2937, 0x7c3aed, 0xb91c1c, 0x0f766e]) : undefined, sleeve: Math.random() < 0.35 ? 'long' : 'short',
-    pack: Math.random() < 0.25 ? pick([0x2d3a4a, 0xb45309, 0x111827]) : 0, phone: Math.random() < 0.5, shoe: pick([0x2b2b2b, 0xf5f5f5, 0x6b4a2f]) };
-}
-const PED_LOOKS = () => ({
-  daye: { shirt: 0xf4f2ec, pants: 0x3b4252, skin: 0xe8b890, hair: 0xbdbdbd, hs: 'bald', sleeve: 'tank', shoe: 0x1b1b1b, extra: [[3, [box(-0.41, 0.8, 0.16, 0.04, 0.34, 0.42, 0xd9c28e)]]] }, // 跨栏背心 + 蒲扇
-  dama: { shirt: 0xd7263d, pants: 0x1f2937, skin: 0xf0c8a4, hair: 0x2b1d16, hs: 'perm', sleeve: 'long', extra: [[3, [box(-0.41, 0.78, 0.2, 0.03, 0.36, 0.5, 0xf472b6)]]] },
-  dama2: { shirt: 0xec4899, pants: 0x111827, skin: 0xf5d5b8, hair: 0x3b2a20, hs: 'perm', extra: [[4, [box(0.41, 0.78, 0.2, 0.03, 0.36, 0.5, 0xd7263d)]]] },
-  dama3: { shirt: 0x7c3aed, pants: 0x1f2937, skin: 0xe0ac86, hair: 0x1b1b1b, hs: 'perm', sleeve: 'long', extra: [[0, [box(0, 1.5, 0.1, 0.5, 0.1, 0.34, 0xef4444)]]] },
-  office: { shirt: 0xf8fafc, pants: 0x1f2937, skin: 0xf1c9a5, hair: 0x1b1b1b, hs: 'short', sleeve: 'long', pack: 0x1f2937, phone: true, extra: [[0, [box(0, 1.33, 0.175, 0.14, 0.18, 0.01, 0x2563eb)]]] },
-  office2: { shirt: 0xe5e7eb, pants: 0x1f2937, skin: 0xf5d5b8, hair: 0x2b1d16, hs: 'long', skirt: 0x1f2937, sleeve: 'long', phone: true, extra: [[3, [box(-0.5, 0.92, 0, 0.1, 0.26, 0.32, 0x7c2d12)]]] },
-  tourist: { shirt: 0x22c55e, pants: 0xe5e7eb, skin: 0xe0ac86, hair: 0x3b2a20, hs: 'cap', capC: 0xd7263d, extra: [[0, [box(0, 1.34, 0.2, 0.22, 0.15, 0.1, 0x111111)]]] },
-  guide: { shirt: 0xf97316, pants: 0x1f2937, skin: 0xf1c9a5, hair: 0x1b1b1b, hs: 'cap', capC: 0xfacc15, extra: [[4, [box(0.41, 1.05, 0.12, 0.03, 1.0, 0.03, 0x8a6a44), box(0.41, 1.5, 0.3, 0.02, 0.22, 0.32, 0xfacc15)]]] }, // 导游小旗
-  courier: { shirt: 0xc81e28, pants: 0x1f2937, skin: 0xc98e6b, hair: 0x1b1b1b, hs: 'cap', capC: 0xc81e28, sleeve: 'long', extra: [[4, [box(0.55, 1.05, 0, 0.22, 0.32, 0.42, 0xc9a36a)]]] },
-  student: { shirt: 0x1e56c8, pants: 0x1e56c8, skin: 0xf5d5b8, hair: 0x111111, hs: 'short', sleeve: 'long', pack: 0x111827, shoe: 0xf5f5f5, extra: [[0, [box(0, 1.27, 0.172, 0.06, 0.46, 0.01, 0xffffff), box(-0.33, 1.27, 0, 0.02, 0.46, 0.2, 0xffffff), box(0.33, 1.27, 0, 0.02, 0.46, 0.2, 0xffffff)]]] },
-  bird: { shirt: 0x2b3a67, pants: 0x1b1b1b, skin: 0xe8b890, hair: 0xd1d5db, hs: 'bald', sleeve: 'long', shoe: 0x151515, extra: [[4, pedCage()], [0, [box(0.05, 1.42, 0.172, 0.22, 0.04, 0.01, 0xe8b422), box(0.05, 1.3, 0.172, 0.22, 0.04, 0.01, 0xe8b422), box(0.05, 1.18, 0.172, 0.22, 0.04, 0.01, 0xe8b422)]]] },
-  cg: { shirt: 0x1c2733, pants: 0x1c2733, skin: 0xe0ac86, hair: 0x111111, hs: 'cg', sleeve: 'long', shoe: 0x0b0b0b,
-    extra: [[3, [box(-0.41, 1.3, 0, 0.19, 0.1, 0.22, 0xd7263d)]], [0, [box(-0.15, 1.38, 0.175, 0.1, 0.12, 0.01, 0xe0b64a), box(0, 1.06, 0, 0.6, 0.06, 0.32, 0x111111), box(0, 1.22, 0.172, 0.64, 0.05, 0.01, 0xd9f99d)]]] },
-  jb: { shirt: 0xf8fafc, pants: 0x3f3f46, skin: 0xe0ac86, hair: 0x1b1b1b, hs: 'chef', sleeve: 'long', extra: [[0, [box(0, 1.02, 0.17, 0.52, 0.76, 0.02, 0xb91c1c)]], [4, [box(0.41, 0.7, 0.14, 0.05, 0.3, 0.14, 0x9ca3af)]]] },
-  hulu: { shirt: 0x7c2d12, pants: 0x1f2937, skin: 0xc98e6b, hair: 0x6b7280, hs: 'cap', capC: 0x1f2937, sleeve: 'long', extra: [[0, pedHulu()]] },
-  taiji: { shirt: 0xf5f5f0, pants: 0xf5f5f0, skin: 0xe8b890, hair: 0xe5e7eb, hs: 'bald', sleeve: 'long', shoe: 0x111111, extra: [[0, [box(0, 1.06, 0, 0.6, 0.06, 0.32, 0x111111), box(0, 1.3, 0.172, 0.05, 0.4, 0.01, 0xd1c7a8)]]] },
-  rider: { shirt: 0xf6c21a, pants: 0x1f2937, skin: 0xc98e6b, hair: 0x111111, hs: 'helmet', capC: 0xf6c21a, sleeve: 'long', extra: [[0, pedBike(0xf6c21a)]] },
-  rider2: { shirt: 0x1d9bf0, pants: 0x1f2937, skin: 0xe0ac86, hair: 0x111111, hs: 'helmet', capC: 0x1d9bf0, sleeve: 'long', extra: [[0, pedBike(0x1d9bf0)]] },
-});
 const PED_NCOMMON = LOWQ ? 7 : 14;
-// vertex shader: rotate leg / arm vertices about the hip / shoulder
-const PED_VS = [
-  'attribute float aLimb; attribute vec4 aPose; attribute float aSpread;',
-  'mat3 pedRot(out vec3 pv) {',
-  '  float ax = 0.0, az = 0.0; pv = vec3(0.0);',
-  '  if (aLimb > 0.5) {',
-  '    if (aLimb < 1.5) { ax = aPose.x; pv = vec3(0.0, 0.84, 0.0); }',
-  '    else if (aLimb < 2.5) { ax = aPose.y; pv = vec3(0.0, 0.84, 0.0); }',
-  '    else if (aLimb < 3.5) { ax = aPose.z; az = -aSpread; pv = vec3(-0.36, 1.46, 0.0); }',
-  '    else { ax = aPose.w; az = aSpread; pv = vec3(0.36, 1.46, 0.0); }',
-  '  }',
-  '  float cx = cos(ax), sx = sin(ax), cz = cos(az), sz = sin(az);',
-  '  return mat3(cz, sz, 0.0, -sz, cz, 0.0, 0.0, 0.0, 1.0) * mat3(1.0, 0.0, 0.0, 0.0, cx, sx, 0.0, -sx, cx);',
-  '}',
-].join('\n');
+// who wears what: a VRM spec (body / hair donor / palette / height) and props; the common looks are random townspeople
+const PED_LOOKS = () => {
+  const M = (o) => Object.assign({ g: 'm' }, o), F = (o) => Object.assign({ g: 'f' }, o);
+  return {
+    daye: M({ body: 'base_male', hair: 'hairsample_male', pal: { top: '#f4f2ec', bottom: '#3b4252', hair: '#bdbdbd', iris: '#3a2a22', shoe: '#1b1b1b' }, h: 0.96, props: ['puShan'], slow: true }),
+    dama: F({ body: 'base_female', hair: 'vivi', pal: { top: '#d7263d', bottom: '#1f2937', hair: '#2b1d16', iris: '#3a2a22' }, h: 0.94, props: ['fanPink'] }),
+    dama2: F({ body: 'hairsample_female', hair: 'vivi', pal: { top: '#ec4899', bottom: '#111827', hair: '#3b2a20', iris: '#3a2a22' }, h: 0.95, props: ['fanRed'] }),
+    dama3: F({ body: 'base_female', hair: 'sendagaya_shibu', pal: { top: '#7c3aed', bottom: '#1f2937', hair: '#1b1b1b', iris: '#3a2a22' }, h: 0.94 }),
+    office: M({ body: 'sakurada_fumiriya', pal: { top: '#f4f6f8', bottom: '#1f2937', hair: '#161414', iris: '#3a2a22' }, props: ['briefcase'], formal: true }),
+    office2: F({ body: 'hairsample_female', pal: { top: '#e5e7eb', bottom: '#1f2937', hair: '#2b1d16', iris: '#3a2a22' }, props: ['handbag'], formal: true }),
+    tourist: M({ body: 'hairsample_male', pal: { top: '#3f9a5a', bottom: '#8a7a62', hair: '#3b2a20', iris: '#3a2a22' }, hat: 'cap' }),
+    tourist2: F({ body: 'sendagaya_shino', hair: 'victoria_rubin', pal: { top: '#f2efe8', bottom: '#3b4f6b', hair: '#4a3326', iris: '#3a2a22' }, props: ['handbag'] }),
+    tourist3: M({ body: 'avatarsample_c', hair: 'sakurada_fumiriya', pal: { top: '#e07a3a', bottom: '#2b2b2e', hair: '#1c1616', iris: '#3a2a22' }, hat: 'capDark', props: ['backpack'] }),
+    guide: F({ body: 'sendagaya_shibu', pal: { top: '#f97316', bottom: '#1f2937', hair: '#1b1b1b', iris: '#3a2a22' }, props: ['flag'] }),
+    courier: M({ body: 'avatarsample_c', pal: { top: '#c81e28', bottom: '#1f2937', hair: '#1b1b1b', iris: '#3a2a22' }, hat: 'cap', props: ['parcel'] }),
+    student: M({ body: 'hairsample_male', pal: { top: '#1e56c8', bottom: '#1e56c8', hair: '#111111', iris: '#3a2a22', shoe: '#f5f5f5' }, props: ['backpack'] }),
+    bird: M({ body: 'base_male', hair: 'sakurada_fumiriya', pal: { top: '#2b3a67', bottom: '#1b1b1b', hair: '#d1d5db', iris: '#3a2a22' }, h: 0.95, props: ['cage'], slow: true, formal: true }),
+    cg: M({ body: 'avatarsample_c', pal: { top: '#1c2733', bottom: '#1c2733', hair: '#111111', iris: '#3a2a22', shoe: '#0b0b0b' }, hat: 'cg', formal: true }),
+    jb: M({ body: 'base_male', hair: 'hairsample_male', pal: { top: '#f4f6f8', bottom: '#3f3f46', hair: '#1b1b1b', iris: '#3a2a22' }, hat: 'chef' }),
+    hulu: M({ body: 'base_male', hair: 'sakurada_fumiriya', pal: { top: '#7c2d12', bottom: '#1f2937', hair: '#6b7280', iris: '#3a2a22' }, hat: 'capDark', props: ['hulu'] }),
+    taiji: M({ body: 'base_male', hair: 'hairsample_male', pal: { top: '#f5f5f0', bottom: '#f5f5f0', hair: '#e5e7eb', iris: '#3a2a22', shoe: '#111111' }, h: 0.96 }),
+    rider: M({ body: 'hairsample_male', pal: { top: '#f6c21a', bottom: '#1f2937', hair: '#111111', iris: '#3a2a22' }, hat: 'helmetY', bike: 0xf6c21a }),
+    rider2: M({ body: 'avatarsample_c', pal: { top: '#1d9bf0', bottom: '#1f2937', hair: '#111111', iris: '#3a2a22' }, hat: 'helmetB', bike: 0x1d9bf0 }),
+  };
+};
+// props on the rig (character frame on the bone: x = their left, y up, z forward, metres)
+const _pedGeoC = new Map();
+function pedPropMesh(key, parts, glow) { let g = _pedGeoC.get(key); if (!g) { g = mergeParts(parts()); _pedGeoC.set(key, g); } const m = new THREE.Mesh(g, glow ? MAT.glowVC : MAT.vc); m.castShadow = true; return m; }
+// hats: smooth lathed crowns + curved brims, built for a 0.1 m crown (band at y = 0, +z forward) and fitted per head:
+// sized round the skull and the hair at the band, the hair above the band inside the crown cut away (palette clip)
+const PED_LATHE = new Map();
+function pedLathe(pts, seg = 20) { const k = pts.join('|') + seg; let g = PED_LATHE.get(k); if (!g) PED_LATHE.set(k, g = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg)); return g; }
+// a visor: inner edge on the crown (radius R) across ±span rad, L out at the front, sides curling down by drop, t thick
+function pedBrim(R, L, span, drop, tilt = 0.16, t = 0.005) {
+  const nu = 16, nv = 3, pos = [], idx = [], W = nv + 1, S = (nu + 1) * W;
+  for (let s = 0; s < 2; s++) for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) {
+    const u = (i / nu) * 2 - 1, v = j / nv, a = u * span, len = L * v * (1 - 0.55 * u * u);
+    pos.push(Math.sin(a) * (R + len * 0.4), -len * tilt - drop * u * u * v - s * t, Math.cos(a) * R + len);
+  }
+  const q = (a, b, c, d) => idx.push(a, b, c, a, c, d);
+  for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) { const a = i * W + j; q(a, a + 1, a + W + 1, a + W); q(S + a, S + a + W, S + a + W + 1, S + a + 1); }
+  for (let i = 0; i < nu; i++) { const a = i * W + nv; q(a, a + W, S + a + W, S + a); } // the front edge
+  for (let j = 0; j < nv; j++) { q(j, S + j, S + j + 1, j + 1); const e = nu * W + j; q(e, e + 1, S + e + 1, S + e); } // the ends
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+const PED_HATS = {
+  cap: (c = 0xd7263d, b = 0xb8151f) => [gpart(pedLathe([[0.1, -0.004], [0.1015, 0.018], [0.1, 0.042], [0.094, 0.064], [0.082, 0.084], [0.063, 0.099], [0.036, 0.108], [0, 0.111]]), c),
+    gpart(pedBrim(0.097, 0.062, 1.2, 0.01, 0.12), b), gpart(PED_BALL, c, 0, 0.11, 0, 0, 0, 0, 0.011, 0.007, 0.011)],
+  capDark: () => PED_HATS.cap(0x1f2937, 0x111827),
+  cg: () => [gpart(pedLathe([[0.1, -0.004], [0.1, 0.036], [0.104, 0.05], [0.118, 0.068], [0.127, 0.08], [0.125, 0.089], [0.1, 0.095], [0.05, 0.098], [0, 0.099]]), 0x1c2733),
+    gpart(pedLathe([[0.1012, -0.002], [0.1012, 0.036]]), 0x0d1117), gpart(pedBrim(0.099, 0.055, 1.05, 0.006, 0.42), 0x0d1117),
+    gpart(new THREE.CylinderGeometry(0.014, 0.014, 0.004, 12), 0xe0b64a, 0, 0.052, 0.107, Math.PI / 2 - 0.25, 0, 0)],
+  chef: () => [gpart(pedLathe([[0.1, -0.004], [0.101, 0.062]]), 0xf1f3f5), gpart(pedLathe([[0.1, 0.056], [0.113, 0.075], [0.128, 0.11], [0.132, 0.15], [0.124, 0.18], [0.1, 0.2], [0.06, 0.212], [0, 0.215]], 24), 0xf8fafc)],
+  helmet: (c) => [gpart(pedLathe([[0.12, -0.03], [0.122, 0.0], [0.12, 0.03], [0.113, 0.06], [0.098, 0.088], [0.074, 0.11], [0.042, 0.124], [0, 0.128]]), c),
+    gpart(pedLathe([[0.121, -0.036], [0.123, -0.026]]), 0x111111), gpart(pedBrim(0.118, 0.04, 1.0, 0.004, 0.3), 0x16181c)],
+  helmetY: () => PED_HATS.helmet(0xf6c21a), helmetB: () => PED_HATS.helmet(0x1d9bf0),
+};
+let _hatMats = null;
+const _hatFit = new Map();
+// where a hat sits on this rig's head (holder frame: x their left, y up, z forward, from the head joint) and the hair clip
+function pedHatFit(rig) {
+  const B = rig.T, Hr = rig.Hr || B, key = B.key + '|' + Hr.key; let f = _hatFit.get(key); if (f) return f;
+  // the band: a little above the brows (eye line + 5.6 cm), kept on the skull box
+  const hb = vrmHeadBox(B), c = hb.c, s = hb.s, yb = clamp(B.eyeY - B.headY + 0.056, c.y - 0.02, c.y + s.y * 0.35), cx = -c.x, cz = -c.z;
+  const hp = Hr.bones.get(Hr.hb.head).getWorldPosition(new V3()), [k, off] = Hr !== B ? vrmHairFit(B, Hr) : [1, new V3()];
+  // how far the hair reaches round the band (hair bind space → our head frame through the donor fit)
+  const P = CharLib.compact(Hr).parts.hair, A = P && P.geo.attributes.position, dx = [], dz = [];
+  if (A) for (let i = 0; i < A.count; i += 2) {
+    const y = off.y + k * (A.getY(i) - hp.y); if (Math.abs(y - yb) > 0.02) continue;
+    dx.push(Math.abs(-(off.x + k * (A.getX(i) - hp.x)) - cx)); dz.push(Math.abs(-(off.z + k * (A.getZ(i) - hp.z)) - cz));
+  }
+  const q = (L) => { if (L.length < 12) return 0; L.sort((a, b) => a - b); return L[Math.floor(L.length * 0.75)]; };
+  const rx = clamp(Math.max(s.x * 0.5 + 0.008, q(dx) + 0.003), 0.08, 0.125), rz = clamp(Math.max(s.z * 0.5 + 0.008, q(dz) + 0.003), 0.085, 0.13);
+  // the clip: hair above the band and inside ~1.35× the crown, in the hair's own bind space
+  const bx = (-cx - off.x) / k + hp.x, by = (yb + 0.006 - off.y) / k + hp.y, bz = (-cz - off.z) / k + hp.z;
+  f = { yb, cx, cz, rx, rz, sy: clamp((c.y + s.y * 0.5 - yb + 0.014) / 0.11, 0.85, 1.25), clip: [bx, by, bz, (rx * 1.35) / k, (rz * 1.35) / k].map((v) => +v.toFixed(4)) };
+  _hatFit.set(key, f);
+  return f;
+}
+function pedHat(rig, kind) {
+  const P = PED_HATS[kind]; if (!P) return;
+  if (!_hatMats) {
+    _hatMats = [new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide }), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.05, side: THREE.DoubleSide })];
+    for (const m of _hatMats) Render.prepMaterial(m);
+  }
+  const F = pedHatFit(rig), h = vrmHolder(rig, 'head');
+  let g = _pedGeoC.get('hat:' + kind); if (!g) { g = mergeParts(P()); _pedGeoC.set('hat:' + kind, g); }
+  const m = new THREE.Mesh(g, _hatMats[/helmet/.test(kind) ? 1 : 0]); m.castShadow = true;
+  m.position.set(F.cx, F.yb, F.cz); m.scale.set(F.rx / 0.1, F.sy, F.rz / 0.1); m.rotation.x = /helmet/.test(kind) ? 0.02 : 0.05; h.add(m);
+  // the hair under the crown goes (its own clipped copy of the hair material)
+  const hm = rig.meshes.find((x) => x.name === 'hair');
+  if (hm && rig.cparts) hm.material = rig.hairFit ? CharLib.palette(rig.Hr, { hair: rig.spec.pal && rig.spec.pal.hair, clip: F.clip }) : CharLib.palette(rig.T, Object.assign({}, rig.spec.pal, { clip: F.clip }));
+  return m;
+}
+function pedProps(rig, L) {
+  if (L.hat) pedHat(rig, L.hat);
+  const hand = (k, parts, y = 0, side = 'handR') => { const m = pedPropMesh(k, parts); m.position.y = y; return vrmInHand(rig, m, side); };
+  for (const k of L.props || []) {
+    if (k === 'backpack') vrmGear(rig, { back: 'backpack' });
+    else if (k === 'cage') hand('cage', pedCage, -0.06);
+    else if (k === 'hulu') rig.huluProp = hand('hulu', pedHulu, 0.5);
+    else if (k === 'briefcase') hand(k, () => [gpart(rboxGeo(0.08, 0.26, 0.36, 0.018), 0x1f2937, 0, -0.18, 0), gpart(new THREE.TorusGeometry(0.035, 0.008, 6, 12, Math.PI), 0x111111, 0, -0.05, 0, 0, Math.PI / 2, 0), gpart(rboxGeo(0.084, 0.012, 0.03, 0.004), 0xb8bcc2, 0, -0.1, 0.12)]);
+    else if (k === 'handbag') { const h = vrmHolder(rig, 'foreL'), m = pedPropMesh(k, () => [gpart(rboxGeo(0.26, 0.2, 0.1, 0.03), 0x7c2d12, 0, -0.12, 0), gpart(new THREE.TorusGeometry(0.07, 0.008, 6, 14, Math.PI), 0x5a1f0c, 0, -0.03, 0)]); m.position.set(0.06, 0.02, 0); h.add(m); }
+    else if (k === 'flag') hand('flag', () => [box(0, 0.35, 0, 0.018, 0.9, 0.018, 0x8a6a44), box(0, 0.68, 0.14, 0.01, 0.2, 0.28, 0xfacc15)]);
+    else if (k === 'parcel') { const h = vrmHolder(rig, 'chest'), m = pedPropMesh('parcel', () => [gpart(rboxGeo(0.42, 0.3, 0.34, 0.012), 0xc9a36a, 0, -0.12, 0.34), box(0, -0.12, 0.512, 0.1, 0.3, 0.004, 0x8a6a44), box(0, 0.031, 0.34, 0.1, 0.004, 0.34, 0x8a6a44)]); h.add(m); }
+    else if (k === 'puShan' || k === 'fanPink' || k === 'fanRed') {
+      const c = k === 'puShan' ? 0xd9c28e : k === 'fanPink' ? 0xf472b6 : 0xd7263d;
+      hand(k, () => k === 'puShan' ? [gpart(PED_CYL, c, 0, -0.2, 0.02, 0, 0, Math.PI / 2, 0.15, 0.01, 0.17), box(0, -0.05, 0, 0.012, 0.12, 0.02, 0x8a6a44)] : [gpart(new THREE.CylinderGeometry(0.22, 0.22, 0.01, 12, 1, false, -Math.PI / 2, Math.PI), c, 0, -0.06, 0, 0, 0, Math.PI / 2)], 0, 'handL');
+    }
+  }
+}
+// weather gear, made on first use: an umbrella over the right shoulder, a face mask
+const PED_UMB = [0xd7263d, 0x1d4ed8, 0x111827, 0x16a34a, 0xf59e0b, 0x7c3aed, 0xf472b6, 0x0f766e];
+let _umbGeo = null, _umbMats = null;
+function pedUmbrella(rig, k) {
+  if (!_umbGeo) {
+    _umbGeo = mergeParts([gpart(new THREE.ConeGeometry(0.62, 0.26, 10, 1, true), 0xffffff, 0, 0.98, 0), gpart(new THREE.ConeGeometry(0.62, 0.01, 10), 0xdddddd, 0, 0.84, 0, Math.PI, 0, 0), box(0, 0.4, 0, 0.018, 1.1, 0.018, 0x333333), box(0, -0.12, 0.04, 0.022, 0.08, 0.1, 0x333333)]);
+    _umbMats = PED_UMB.map((c) => { const m = new THREE.MeshLambertMaterial({ vertexColors: true, color: c, side: THREE.DoubleSide }); return m; });
+  }
+  const m = new THREE.Mesh(_umbGeo, _umbMats[k % PED_UMB.length]); m.castShadow = true;
+  m.position.set(-0.2, 1.22, 0.16); m.rotation.set(0.05, 0, 0.08); rig.root.add(m);
+  return m;
+}
+let _maskGeo = null;
+function pedFaceMask(rig) {
+  if (!_maskGeo) _maskGeo = mergeParts([box(0, 0, 0, 0.13, 0.075, 0.03, 0xf1f5f9), box(-0.07, 0.02, -0.05, 0.008, 0.008, 0.1, 0xf1f5f9), box(0.07, 0.02, -0.05, 0.008, 0.008, 0.1, 0xf1f5f9)]);
+  const h = vrmHolder(rig, 'head'), m = new THREE.Mesh(_maskGeo, MAT.vc); m.position.set(0, 0.022, 0.1); h.add(m);
+  return h;
+}
+// bikes: one shared merged mesh per colour, a child of the rider's root
+const _bikeGeo = new Map();
+// the 外卖电驴 of the traffic (06a: rounded cowls, delivery box, spoked wheels baked in), paint = the platform colour
+let _ebikeGeo;
+function pedEbikeGeo() {
+  if (_ebikeGeo !== undefined) return _ebikeGeo;
+  _ebikeGeo = guard('ped.ebike', () => {
+    const M = carModel('ebike'), vb = new VB().addG(M.body, new THREE.Matrix4());
+    for (const [x, y, z, r, wd] of M.wheels) vb.addG(wheelGeo('bike'), vmx(x, y, z, 0, 0, 0, wd, r, r));
+    return vb.geometry();
+  }) || null;
+  return _ebikeGeo;
+}
+function pedBikeMesh(c) {
+  const eg = typeof carModel === 'function' && typeof carMat === 'function' ? pedEbikeGeo() : null;
+  if (eg) { const m = new THREE.Mesh(eg, carMat(c)); m.position.y = -0.12; m.castShadow = true; m.receiveShadow = true; return m; }
+  let g = _bikeGeo.get(c); if (!g) { g = mergeParts(pedBike(c)); _bikeGeo.set(c, g); } const m = new THREE.Mesh(g, MAT.vc); m.castShadow = true; m.receiveShadow = true; return m;
+}
+const PED_SEAT = () => (_ebikeGeo ? [0.74, -0.3] : [0.855, -0.3]); // hips above / along the rider's root
+// height of a clip's hips above the feet (first key; sitting / seated clips)
+const _clipHips = new Map();
+function pedClipHips(T, name) {
+  const k = T.key + name; if (_clipHips.has(k)) return _clipHips.get(k);
+  const c = CharLib.clip(T, name); let v = [T.hipsY, 0];
+  if (c) for (const t of c.tracks) if (t.name.endsWith('.position')) { v = [t.values[1], -t.values[2]]; break; }
+  _clipHips.set(k, v); return v;
+}
+const PED_IDLES = ['idle', 'idle', 'idle_alt', 'idle_listen', 'idle_arms', 'idle_soft'];
+const PED_DANCES = ['dance_chicken', 'dance_charleston', 'dance_bodyroll', 'dance'];
 
 /* ---------------- one pedestrian ---------------- */
 const _cands = Array.from({ length: 48 }, () => ({ e: null, k: 0, s: 0, dir: 1, w: 0, x: 0, z: 0 }));
@@ -210,7 +283,7 @@ class Ped {
     this.e = null; this.k = 0; this.s = 0; this.dir = 1; this.lat = 0; this.speed = 1.4; this.v = 0; this.amp = 0.5; this.mv = 0; this.lpx = 0; this.lpz = 0;
     this.ne = null; this.nk = 0; this.ns = 0; this.nd = 1; this.B = [0, 0]; this.crossT = 0; this.sig = null; this.axis = 0; this.crossRoad = false;
     this.role = null; this.home = null; this.goal = null; this.lead = null; this.bold = false; this.phone = false; this.fan = false; this.carry = false; this.talkT = rand(6, 20);
-    this.legL = 0; this.legR = 0; this.armL = 0; this.armR = 0; this.spread = 0; this.rx = 0; this.rz = 0; this.ry = 0; this.bob = 0;
+    this.rx = 0; this.rz = 0; this.ry = 0; this.bob = 0; this.rig = null; this.ak = ''; this.idleK = 'idle';
     this.wx = 0; this.wz = 0; this.wr = 8; this.roff = 0; this.boost = 0; this.blocked = false; this.moveT = 0;
   }
   // ---- sidewalk paths ----
@@ -479,88 +552,105 @@ class Ped {
     if (this.moveT > 0) this.moveT -= dt;
     this.pose(dt);
   }
+  // how fast they really move (clips are matched to it) and where the feet are; the clip itself is picked in Peds.poseRig
   pose(dt) {
     const x = this.pos.x, z = this.pos.z, st = this.state;
     const mv = dt > 0 ? Math.min(9, hyp(x - this.lpx, z - this.lpz) / dt) : 0; this.lpx = x; this.lpz = z;
-    this.mv = dt > 0 ? damp(this.mv, mv, 12, dt) : 0;
-    this.ph += dt * this.mv * 4.4;
-    if (st === 'dance') { this.ry = groundH(x, z) + this.bob; return; }
-    let lL = 0, lR = 0, aL = 0, aR = 0, sp = 0.06, rx = 0, yo = 0, bob = 0, rz = 0;
-    if (this.role === 'rider' && st !== 'down' && st !== 'dive') { lL = lR = -0.75; aL = aR = -0.95; sp = 0.12; yo = 0.12; rz = this.rz; }
-    else switch (st) {
-      case 'down': rx = -1.45 * this.fallA; aL = -2.7; aR = -2.3; sp = 0.8; lL = 0.25; lR = -0.2; yo = this.y + 0.15 * this.fallA; break;
-      case 'dive': rx = -1.1; aL = aR = -2.9; lL = 0.35; lR = 0.1; break;
-      case 'sit': lL = lR = -1.4; aL = -0.75; aR = this.moveT > 0 ? -1.25 : -0.75; yo = -0.36; break;
-      case 'vend': aL = -0.55; aR = this.look === Peds.lookIx.jb ? -1.0 + Math.sin(Peds.clock * 5 + this.ph) * 0.3 : -0.25; break;
-      default: {
-        const w = Math.sin(this.ph) * Math.min(1.25, this.mv / 1.4) * (st === 'panic' ? 0.85 : this.amp);
-        lL = w; lR = -w;
-        if (st === 'panic') { aL = -2.5 + w * 0.4; aR = -2.5 - w * 0.4; sp = 0.3; }
-        else {
-          aL = -w * 0.8; aR = this.carry ? w * 0.2 : w * 0.8;
-          if (this.mv < 0.25) { if (this.phone) aR = -1.15; if (this.fan) aL = -1.3 + Math.sin(Peds.clock * 7 + this.ph) * 0.25; }
-          rz = Math.sin(this.ph) * 0.025;
-        }
-        bob = Math.abs(Math.cos(this.ph)) * Math.min(this.mv, 6) * (st === 'panic' ? 0.02 : 0.03);
-      }
-    }
-    this.legL = lL; this.legR = lR; this.armL = aL; this.armR = aR; this.spread = sp; this.rx = rx; this.rz = rz;
-    this.ry = groundH(x, z) + yo + bob;
+    this.mv = dt > 0 ? damp(this.mv, mv, 12, dt) : 0; this.wph = ((this.wph || 0) + (this.mv * dt) / 1.35) % 1;
+    this.rx = 0; if (this.role !== 'rider') this.rz = 0;
+    this.ry = groundH(x, z) + (this.role === 'rider' && st !== 'down' && st !== 'dive' ? 0.12 : 0) + (st === 'down' ? this.y : 0);
   }
 }
 
 /* ---------------- the crowd ---------------- */
 const Peds = {
   pool: [], list: [], looks: [], lookIx: {}, mat: null, depth: null, life: null,
-  clock: 0, px: 0, pz: 0, pr: 0, shopNear: false, checkT: 0, streamT: 0, carT: 0, lx: 1e9, lz: 1e9, weather: '', cfx: 0, cfz: 1, _cf: new V3(), _o: new THREE.Object3D(),
+  clock: 0, px: 0, pz: 0, pr: 0, shopNear: false, checkT: 0, streamT: 0, carT: 0, lx: 1e9, lz: 1e9, weather: '', cfx: 0, cfz: 1, _cf: new V3(), _ca: new V3(), _o: new THREE.Object3D(),
   cap() { return LOWQ ? 46 : 88; },
   base() { return LOWQ ? 24 : 50; },
   hourK(h) { return h < 5 ? 0.3 : h < 6.5 ? 0.5 : h < 9.5 ? 1 : h < 11.5 ? 0.8 : h < 13.5 ? 0.95 : h < 17 ? 0.8 : h < 20 ? 1 : h < 22.5 ? 0.85 : 0.45; },
   riderN(h) { const n = LOWQ ? 3 : 7; return Math.round(n * (h < 6.5 ? 0.3 : (h > 10.5 && h < 13.5) || (h > 16.5 && h < 20.5) ? 1 : 0.6)); },
   init() {
     this.buildLooks();
+    // a capped look made off-scene once the warm-up is done: the hat and the hair-cut material compile then, not on first sight
+    if (this.vrm) Warm.after(() => guard('ped.hatWarm', () => Warm.adopt(() => { const l = this.looks[this.lookIx.tourist]; if (l) l.pool.push(this.newRig(l)); })));
+    Hooks.on('vrm', (k) => Jobs.add(() => guard('ped.base', () => this.onBase(k))));
     for (let k = 0; k < this.cap(); k++) this.pool.push(new Ped());
     Life.init(); this.life = Life;
     Hooks.on('weather', (d) => { this.weather = String((d && d.kind) || d || ''); });
     this.stream(true); this.draw();
   },
+  // looks: a CharRig spec per key (random townspeople + the street-life roles); bodies come from a per-look pool and go to
+  // the walkers nearest the camera (draw), the rest of the crowd isn't drawn
   buildLooks() {
-    const base = MAT.vc, prev = base.onBeforeCompile, mat = base.clone();
-    mat.onBeforeCompile = (sh, r) => {
-      if (prev) prev.call(mat, sh, r);
-      sh.vertexShader = PED_VS + '\n' + sh.vertexShader
-        .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n  vec3 pedP; mat3 pedR = pedRot(pedP); objectNormal = pedR * objectNormal;')
-        .replace('#include <begin_vertex>', 'vec3 transformed = pedP + pedR * (position - pedP);');
-    };
-    mat.customProgramCacheKey = () => 'ped-anim|' + (base.customProgramCacheKey ? base.customProgramCacheKey() : '');
-    const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
-    depth.onBeforeCompile = (sh) => { sh.vertexShader = PED_VS + '\n' + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 pedP; mat3 pedR = pedRot(pedP); vec3 transformed = pedP + pedR * (position - pedP);'); };
-    depth.customProgramCacheKey = () => 'ped-depth';
-    this.mat = mat; this.depth = depth;
-    const cap = this.cap(), add = (key, o) => {
-      const geo = pedGeo(o);
-      const pose = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage), spr = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1).setUsage(THREE.DynamicDrawUsage);
-      geo.setAttribute('aPose', pose); geo.setAttribute('aSpread', spr);
-      const m = new THREE.InstancedMesh(geo, mat, cap); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; m.customDepthMaterial = depth; m.count = 0; m.visible = false; m.name = 'ped:' + key;
-      scene.add(m);
-      this.lookIx[key] = this.looks.length; this.looks.push({ key, mesh: m, pose, spr, n: 0 });
-    };
-    for (let k = 0; k < PED_NCOMMON; k++) add('c' + k, pedRandomLook(k));
+    this.vrm = CharLib.ready; this.rigs = 0; this.newT = 0;
+    const add = (key, L) => { this.lookIx[key] = this.looks.length; this.looks.push({ key, L, pool: [] }); };
+    // (g kept as asked: while no woman's model has streamed in yet, a female look stands in with a man's body until onBase re-rolls it)
+    for (let k = 0; k < PED_NCOMMON; k++) { const g = k % 2 ? 'f' : 'm'; add('c' + k, this.vrm ? Object.assign(randomPedSpec(g), { g }) : {}); }
     const L = PED_LOOKS(); for (const k in L) add(k, L[k]);
-    // umbrellas in the rain / snow, face masks in 雾霾 / 沙尘: one instanced mesh each, riding on the ped's matrix
-    const acc = (parts) => { const m = new THREE.InstancedMesh(mergeParts(parts), new THREE.MeshLambertMaterial({ vertexColors: true }), cap); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.castShadow = true; m.count = 0; m.visible = false; scene.add(m); return m; };
-    this.umb = acc([gpart(new THREE.ConeGeometry(0.78, 0.34, 8, 1, true), 0xffffff, 0.18, 2.38, 0.14, 0, 0.39, 0), gpart(new THREE.ConeGeometry(0.78, 0.02, 8), 0xdddddd, 0.18, 2.2, 0.14, Math.PI, 0.39, 0), box(0.41, 1.62, 0.3, 0.03, 1.5, 0.03, 0x333333), box(0.41, 0.9, 0.3, 0.05, 0.08, 0.12, 0x333333)]);
-    this.umb.material.side = THREE.DoubleSide;
-    this.mask = acc([box(0, 1.7, 0.195, 0.3, 0.17, 0.03, 0xf1f5f9), box(-0.19, 1.74, 0.07, 0.02, 0.02, 0.24, 0xf1f5f9), box(0.19, 1.74, 0.07, 0.02, 0.02, 0.24, 0xf1f5f9)]);
-    this.umbCols = [0xd7263d, 0x1d4ed8, 0x111827, 0x16a34a, 0xf59e0b, 0x7c3aed, 0xf472b6, 0x0f766e].map((c) => new THREE.Color(c));
+    for (const l of this.looks) if (!l.L.g && l.L.body) l.L.g = VRM_BASES[l.L.body];
+    // the atlases the crowd uses (one per base), built now so the first walkers don't hitch
+    if (this.vrm) for (const l of this.looks) guard('ped.atlas', () => { CharLib.compact(CharLib.tpl(CharLib.base(l.L.body, l.L.g))); if (l.L.hair) CharLib.compact(CharLib.tpl(CharLib.base(l.L.hair, l.L.g))); });
+  },
+  // a VRM streamed in after the start: its atlas, the common looks of its gender re-rolled over the bigger pool, spare bodies that
+  // stood in for it retired (bodies in use change once they're out of sight: takeRig), their far sprites re-baked
+  onBase(k) {
+    const g = VRM_BASES[k]; if (!g || !this.vrm) return;
+    CharLib.compact(CharLib.tpl(k));
+    for (const l of this.looks) {
+      if (/^c\d+$/.test(l.key) && l.L.g === g) { l.L = Object.assign(randomPedSpec(g), { g }); }
+      const sig = this.lookSig(l.L), keep = l.pool.filter((r) => r.lookL === l.L && r.sig === sig);
+      for (const r of l.pool) if (!keep.includes(r)) { scene.remove(r.root); r.dispose(); this.rigs--; }
+      l.pool = keep;
+      if (CharImp.rows.has(l.key) && !CharImp.queue.some((q) => q.key === l.key)) CharImp.queue.push({ key: l.key, spec: this.impSpec(l), row: CharImp.rows.get(l.key) });
+    }
+    // one body of the new base made off-scene: its programs compile in the background, not when it first walks on
+    const l = this.looks.find((x) => /^c\d+$/.test(x.key) && CharLib.base(x.L.body, x.L.g) === k);
+    if (l) Warm.adopt(() => { const r = this.newRig(l); l.pool.push(r); });
+  },
+  // the far crowd as sprites (07b CharImp), baked after boot one look per frame; not on software GL (headless tests).
+  // Every look has a row (e-bike riders: seated on the bike, a wider cell)
+  initImp() {
+    if (!this.vrm || (Render.soft && !DEV.impostors)) return;
+    CharImp.init(this.looks.map((l) => [l.key, this.impSpec(l)]));
+  },
+  impSpec(l) { return { body: CharLib.base(l.L.body, l.L.g), hair: l.L.hair, pal: l.L.pal, h: l.L.h, bike: l.L.bike }; },
+  // can a far sprite stand in for this walker? (standing / walking / riding looks; not the seated or knocked down)
+  impOk(p) { return !!CharImp.mesh && CharImp.rows.has(this.looks[p.look].key) && p.state !== 'down' && p.state !== 'dive' && p.state !== 'sit'; },
+  // bodies: desktop ~30 near walkers, phones 3 (the hero / cast / enemies come on top)
+  budget() { return LOWQ || Render.quality === 'low' ? 3 : Render.quality === 'med' ? 20 : 30; },
+  // the bases a look resolves to right now (a base still streaming stands in with one of the same gender)
+  lookSig(L) { return CharLib.base(L.body, L.g) + '|' + (L.hair ? CharLib.base(L.hair, L.g) : ''); },
+  newRig(l) {
+    const L = l.L, rig = new CharRig({ body: CharLib.base(L.body, L.g), hair: L.hair, pal: L.pal, h: L.h, full: false, springs: !LOWQ }); // springs only run for the nearest few (Chars.frame)
+    rig.look = l; rig.lookL = L; rig.sig = this.lookSig(L); rig.idleY = rig.inner.position.y;
+    guard('ped.props', () => pedProps(rig, L));
+    if (L.bike) { rig.bike = pedBikeMesh(L.bike); rig.root.add(rig.bike); }
+    rig.root.visible = false; scene.add(rig.root); this.rigs++;
+    return rig;
+  },
+  giveRig(p) {
+    const l = this.looks[p.look]; let r = l.pool.pop();
+    if (!r) { if (this.newT <= 0) return false; this.newT--; r = guard('ped.rig', () => this.newRig(l)); if (!r) return false; }
+    p.rig = r; r.ped = p; r.root.visible = true; p.ak = ''; r.stopOnce(0); r.over = null; r.acc = 0; r.needSnap = true; r.fresh = true;
+    return true;
+  },
+  takeRig(p) {
+    const r = p.rig; if (!r) return;
+    p.rig = null; r.ped = null; r.root.visible = false; r.over = null;
+    const l = r.look;
+    // a body made before its look's model streamed in (or before the look was re-rolled): retire it now it's out of sight
+    if (r.lookL !== l.L || r.sig !== this.lookSig(l.L)) { scene.remove(r.root); r.dispose(); this.rigs--; return; }
+    l.pool.push(r);
+    // too many spare bodies: drop one from the biggest pool
+    if (this.rigs > this.budget() + 12) { let big = l; for (const q of this.looks) if (q.pool.length > big.pool.length) big = q; const x = big.pool.shift(); if (x) { x.dispose(); this.rigs--; } }
   },
   // who walks here (street, hour, neighbourhood)
   pickLook(e, park) {
     const h = DayNight.hour, hut = e ? e.cls >= 6 : !!park, shop = e ? pedShop(e) : 0, rush = (h > 7 && h < 9.5) || (h > 17 && h < 19.5), morn = h > 5.5 && h < 10.5;
     const k = weighted([['c', 7], ['daye', hut ? 2.2 : 0.6], ['dama', hut ? 1.4 : 0.6], ['office', rush ? 3 : 0.8], ['tourist', shop === 2 ? 2.6 : shop ? 0.9 : 0.25], ['guide', shop === 2 ? 0.5 : 0],
       ['courier', 0.4], ['student', rush ? 1.2 : 0.25], ['bird', morn ? (hut ? 2 : 0.7) : 0.12]]);
-    return k === 'c' ? 'c' + randi(0, PED_NCOMMON - 1) : k === 'office' ? pick(['office', 'office2']) : k === 'dama' ? pick(['dama', 'dama2', 'dama3']) : k;
+    return k === 'c' ? 'c' + randi(0, PED_NCOMMON - 1) : k === 'office' ? pick(['office', 'office2']) : k === 'dama' ? pick(['dama', 'dama2', 'dama3']) : k === 'tourist' ? pick(['tourist', 'tourist2', 'tourist3']) : k;
   },
   free() { for (const p of this.pool) if (!p.active) return p; return null; },
   // street life: free peds first, then the farthest walkers nobody is watching
@@ -580,10 +670,12 @@ const Peds = {
     p.amp = rand(0.45, 0.6); p.bold = Math.random() < 0.1; p.phone = false; p.talkT = rand(4, 16); p.crossT = 0;
     p.fan = key === 'daye' || key.startsWith('dama'); p.carry = key === 'bird' || key === 'courier';
     p.umbK = Math.random() < 0.65 && !p.carry ? randi(0, 7) : -1; p.maskOn = Math.random() < 0.7 && key !== 'jb';
+    p.idleK = pick(PED_IDLES); p.formal = !!(this.looks[p.look] && this.looks[p.look].L.formal); p.bubbleH = -0.95; p.ak = '';
+    if (p.rig && p.rig.look !== this.looks[p.look]) this.takeRig(p);
     if (!this.list.includes(p)) this.list.push(p);
     return p;
   },
-  deactivate(p) { p.active = false; p.removed = true; p.role = null; p.home = null; p.lead = null; p.goal = null; const i = this.list.indexOf(p); if (i >= 0) this.list.splice(i, 1); },
+  deactivate(p) { this.takeRig(p); p.active = false; p.removed = true; p.role = null; p.home = null; p.lead = null; p.goal = null; const i = this.list.indexOf(p); if (i >= 0) this.list.splice(i, 1); },
   // is (x, z) on screen-ish? (spawns and recycling stay out of sight)
   seen(x, z) {
     const c = camera.position, dx = x - c.x, dz = z - c.z, d2 = dx * dx + dz * dz;
@@ -632,10 +724,12 @@ const Peds = {
     const dir = e.oneway ? 1 : (x - _pp[0]) * -_pp[3] + (z - _pp[1]) * _pp[2] > 0 ? 1 : -1, px = _pp[0], pz = _pp[1], tx = _pp[2], tz = _pp[3], off = riderOff(e, dir, n.s), r = _near;
     r.e = e; r.k = 0; r.s = n.s; r.dir = dir; r.x = px - dir * tz * off; r.z = pz + dir * tx * off; return r;
   },
-  spawnWalker(minD, maxD, hide) {
+  // at: spawn around that point instead of the player (the crowd ahead); shopK: the share put on the shop streets themselves;
+  // toward: walk the way that leads to this point (into view)
+  spawnWalker(minD, maxD, hide, at = null, shopK = 0.5, toward = null) {
     const p = this.free(); if (!p) return null;
-    const P = Player.pos;
-    if (Math.random() < 0.18) { // strolling a square or a park
+    const P = at || Player.pos;
+    if (!at && Math.random() < 0.18) { // strolling a square or a park
       for (let t = 0; t < 10; t++) {
         const a = rand(TAU), r = rand(Math.max(minD, 6), maxD), x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r, g = Grid.at(x, z);
         if ((g !== GK.PLAZA && g !== GK.PARK) || !pedCellOk(x, z, PED_OPEN) || (hide && this.seen(x, z))) continue;
@@ -643,10 +737,11 @@ const Peds = {
         return p;
       }
     }
-    // on a shop street / 步行街 half the crowd lands on the shop streets themselves
-    const o = this.shopNear && Math.random() < 0.5 ? { hide, filter: PED_SHOPF } : hide ? { hide: true } : null;
+    // on a shop street / 步行街 half the crowd (shopK) lands on the shop streets themselves
+    const o = this.shopNear && Math.random() < shopK ? { hide, filter: PED_SHOPF } : hide ? { hide: true } : null;
     const sp = this.randomSpot(P.x, P.z, minD, maxD, o) || (o && o.filter ? this.randomSpot(P.x, P.z, minD, maxD, hide ? { hide: true } : null) : null); if (!sp) return null;
-    this.activate(p, this.pickLook(sp.e)); p.lat = p.latFor(sp.e); p.setPath(sp.e, sp.k, sp.s, Math.random() < 0.5 ? 1 : -1); p.place();
+    const dir = toward ? (sp.tx * (toward.x - sp.x) + sp.tz * (toward.z - sp.z) >= 0 ? 1 : -1) : Math.random() < 0.5 ? 1 : -1;
+    this.activate(p, this.pickLook(sp.e)); p.lat = p.latFor(sp.e); p.setPath(sp.e, sp.k, sp.s, dir); p.place();
     return p;
   },
   spawnRider(minD, maxD, hide) {
@@ -669,19 +764,50 @@ const Peds = {
     for (let i = this.list.length - 1; i >= 0; i--) { const p = this.list[i]; if (!p.home && dist2(p.pos.x, p.pos.z, px, pz) > 140 * 140) this.deactivate(p); }
     if (typeof Weather !== 'undefined' && Weather.cur) this.weather = Weather.cur;
     const h = DayNight.hour, wk = /rain|snow|sand|storm|dust/.test(this.weather) ? 0.55 : /smog|haze|fog/.test(this.weather) ? 0.85 : 1;
-    const ne = Roads.nearest(px, pz, 25); this.shopNear = !!ne && PED_SHOPF(ne.e);
+    // on the move: which way, and is a shop street coming up (the crowd is there before you are)
+    const v = Player.vel, sp = hyp(v.x, v.z), mv = sp > 2.5 && Player.mode !== 'dead', ux = mv ? v.x / sp : 0, uz = mv ? v.z / sp : 0;
+    const ne = Roads.nearest(px, pz, 25); let shop = !!ne && PED_SHOPF(ne.e);
+    if (!shop && mv) { const na = Roads.nearest(px + ux * 50, pz + uz * 50, 25); shop = !!na && PED_SHOPF(na.e); }
+    this.shopNear = shop;
     const boost = this.shopNear ? 1.5 : 1;
     const want = Math.round(this.base() * this.hourK(h) * wk * boost), wr = Math.round(this.riderN(h) * (wk < 1 ? 0.7 : 1));
     let walkers = 0, riders = 0; for (const p of this.list) if (p.role === 'rider') riders++; else if (!p.role) walkers++;
     if (jump) {
-      for (let t = 0; t < want * 2 && walkers < want; t++) if (t & 1 ? this.spawnWalker(55, 110, false) : this.spawnWalker(4, 55, false)) walkers++;
+      // shop streets: two in three within 60 m (the street you land on is busy, not the blocks round it)
+      for (let t = 0; t < want * 2 && walkers < want; t++) {
+        const far = shop ? t % 3 === 2 : t & 1;
+        if (far ? this.spawnWalker(55, 110, false) : this.spawnWalker(4, shop ? 60 : 55, false, null, shop ? 0.8 : 0.5)) walkers++;
+      }
       for (let t = 0; t < wr * 2 && riders < wr; t++) if (this.spawnRider(8, 105, false)) riders++;
       return;
     }
+    if (shop) walkers = this.crowdNear(px, pz, want, walkers, mv, ux, uz);
     if (walkers < want) { if (this.spawnWalker(55, 112, true)) walkers++; if (walkers < want - 6) this.spawnWalker(55, 112, true); }
     else if (walkers > want + 3) { const p = this.farthest((q) => !q.role && !this.seen(q.pos.x, q.pos.z)); if (p) this.deactivate(p); }
     if (riders < wr) this.spawnRider(45, 112, true);
     else if (riders > wr + 1) { const p = this.farthest((q) => q.role === 'rider' && !this.seen(q.pos.x, q.pos.z)); if (p) this.deactivate(p); }
+  },
+  // shop streets / 步行街 / the bar lanes: the crowd you walk through, not one strung out over 100 m. About 55 % of the walkers
+  // are kept within 60 m (standing: out of sight 30–62 m off, to the sides and behind, heading into view; on the move:
+  // 108–140 m ahead, past the 118 m sight line, so you walk into them). At the walker count, the farthest walker nobody sees
+  // (and not ahead) makes room: the per-tier totals (base × hour × 1.5) stay as they were
+  crowdNear(px, pz, want, walkers, mv, ux, uz) {
+    const ahead = (p) => { const ex = p.pos.x - px, ez = p.pos.z - pz, d2 = ex * ex + ez * ez; return mv && d2 < 140 * 140 && ex * ux + ez * uz > Math.sqrt(d2) * 0.6; };
+    let near = 0;
+    for (const p of this.list) if (!p.role && (dist2(p.pos.x, p.pos.z, px, pz) < 60 * 60 || ahead(p))) near++;
+    const goal = Math.round(want * 0.55);
+    for (let k = 0; k < 2 && near < goal; k++) {
+      if (walkers >= want) {
+        const f = this.farthest((q) => !q.role && q.state !== 'down' && dist2(q.pos.x, q.pos.z, px, pz) > 75 * 75 && !ahead(q) && !this.seen(q.pos.x, q.pos.z));
+        if (!f) break; this.deactivate(f); walkers--;
+      }
+      // (standing, they set off toward the spot the camera looks at, so they walk into view instead of away)
+      const p = mv ? this.spawnWalker(0, 16, true, this._ca.set(px + ux * 124, 0, pz + uz * 124), 0.85)
+        : this.spawnWalker(30, 62, true, null, 0.85, this._ca.set(px + this.cfx * 20, 0, pz + this.cfz * 20));
+      if (!p) break;
+      walkers++; near++;
+    }
+    return walkers;
   },
   // e-bikes brake for cars; people crossing jump out of the way of traffic
   carCheck() {
@@ -745,30 +871,67 @@ const Peds = {
     this.streamT -= dt; if (this.streamT <= 0) { this.streamT = 0.3; this.stream(false); }
     this.draw();
   },
+  // bodies to the walkers nearest the camera (on screen first), at most two new ones a frame; then their clips.
+  // The few a sprite can't show (the seated, the knocked down, a look still baking) get bodies on top of the budget out to
+  // ~75 m (phones ~40 m) instead of popping in
   draw() {
-    const o = this._o, L = this.looks, wx = this.weather, wetW = wx === 'rain' || wx === 'snow', dust = wx === 'smog' || wx === 'sand';
-    let nu = 0, nm = 0;
-    for (let i = 0; i < L.length; i++) L[i].n = 0;
-    for (const p of this.list) {
-      const l = L[p.look], i = l.n++;
-      const umb = wetW && p.umbK >= 0 && !p.role && p.state !== 'down' && p.state !== 'dive' && p.state !== 'panic';
-      if (umb) p.armR = -0.5;
-      o.position.set(p.pos.x, p.ry, p.pos.z); o.rotation.set(p.rx, p.heading, p.rz, 'YXZ'); o.updateMatrix();
-      l.mesh.setMatrixAt(i, o.matrix);
-      const a = l.pose.array, j = i * 4; a[j] = p.legL; a[j + 1] = p.legR; a[j + 2] = p.armL; a[j + 3] = p.armR; l.spr.array[i] = p.spread;
-      if (umb) { this.umb.setMatrixAt(nu, o.matrix); this.umb.setColorAt(nu++, this.umbCols[p.umbK]); }
-      if (dust && p.maskOn && p.role !== 'rider') this.mask.setMatrixAt(nm++, o.matrix);
+    if (!this.vrm) return;
+    const c = camera.position, B = this.budget(), wx = this.weather, wet = wx === 'rain' || wx === 'snow', dust = wx === 'smog' || wx === 'sand';
+    this.newT = LOWQ ? 1 : 2;
+    const rank = this._rank || (this._rank = []); rank.length = 0;
+    for (const p of this.list) { const dx = p.pos.x - c.x, dz = p.pos.z - c.z; let d = dx * dx + dz * dz; if (d > 400 && !this.seen(p.pos.x, p.pos.z)) d *= 9; p._rk = d; rank.push(p); }
+    rank.sort((a, b) => a._rk - b._rk);
+    const maxD = (LOWQ ? 50 : 100) ** 2, xB = LOWQ ? 2 : 8, xD = (LOWQ ? 40 : 75) ** 2, imp = !!CharImp.mesh;
+    let nb = 0, nx = 0;
+    for (const p of rank) {
+      let w = false;
+      if (p._rk < maxD) { if (nb < B) { w = true; nb++; } else if (imp && nx < xB && p._rk < xD && !this.impOk(p)) { w = true; nx++; } }
+      p._want = w; if (!w && p.rig) this.takeRig(p);
     }
-    for (const [m, n] of [[this.umb, nu], [this.mask, nm]]) {
-      m.count = n; m.visible = n > 0;
-      if (n) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+    for (const p of rank) if (p._want && !p.rig && !this.giveRig(p)) break;
+    for (const p of this.list) if (p.rig) guard('ped.pose', () => this.poseRig(p, wet, dust));
+    // everyone else in sight: a sprite
+    if (CharImp.mesh) {
+      CharImp.begin();
+      for (const p of rank) {
+        if (p.rig || p._rk > 125 * 125 || !this.impOk(p)) continue;
+        if (!this.seen(p.pos.x, p.pos.z)) continue;
+        CharImp.add(this.looks[p.look].key, p.pos.x, p.ry, p.pos.z, p.heading, p.wph || 0, p.mv > 0.3);
+      }
+      CharImp.end();
     }
-    for (const l of L) {
-      const m = l.mesh; m.count = l.n; m.visible = l.n > 0;
-      if (!l.n) continue;
-      m.instanceMatrix.updateRange.count = l.n * 16; m.instanceMatrix.needsUpdate = true;
-      l.pose.updateRange.count = l.n * 4; l.pose.needsUpdate = true; l.spr.updateRange.count = l.n; l.spr.needsUpdate = true;
+  },
+  // the clip for what a walker is doing now (state / role / speed), seat and saddle heights, weather gear
+  poseRig(p, wet, dust) {
+    const r = p.rig, st = p.state, T = r.T, k0 = p.ak;
+    let k = null, o = null, yo = 0, zo = 0;
+    r.over = null;
+    if (p.role === 'rider' && st !== 'down' && st !== 'dive') {
+      k = 'drive'; const [hy, hz] = pedClipHips(T, 'drive'), st = PED_SEAT(); yo = st[0] - hy * r.k - r.idleY; zo = st[1] - hz * r.k;
+    } else switch (st) {
+      case 'down': k = p.t > 1.3 ? 'knockdown' : 'getup'; o = { fade: 0.08, rate: k === 'getup' ? 1.15 : 1.3 }; break;
+      case 'dive': k = 'roll'; o = { rate: 2.2, fade: 0.06 }; break;
+      case 'sit': { k = p.moveT > 0 ? 'sit_talk' : 'sit_idle'; const [hy, hz] = pedClipHips(T, 'sit_idle'); yo = 0.52 - hy * r.k - r.idleY; zo = -hz * r.k; o = { fade: 0.4 }; break; }
+      case 'vend': k = p.look === this.lookIx.jb ? 'interact' : 'idle_arms'; o = { loop: true, fade: 0.4 }; break;
+      case 'push': k = 'push'; o = { rate: 1.3 }; break;
+      case 'dance': k = p.dk || 'dance'; o = { fade: 0.6, at: p.dAt || 0 }; break;
+      case 'stand': k = p.idleK === 'idle' ? 'idle_listen' : p.idleK; break;
     }
+    if (!k) {
+      // walking about: loco by speed; standing: on the phone, fanning, or one of their idles
+      p.fleeing = st === 'panic';
+      const idle = p.phone ? 'phone_call' : p.fan && p.mv < 0.25 ? 'idle_arms' : p.idleK;
+      const save = p.idleK; p.idleK = idle; p.ak = Actors.loco(r, p.mv, p); p.idleK = save;
+    } else { if (k !== k0) r.play(k, o || { fade: 0.25 }); p.ak = k; }
+    r.phone(p.ak === 'phone_call');
+    r.inner.position.set(0, r.idleY + yo, zo);
+    r.root.position.set(p.pos.x, p.ry, p.pos.z); r.root.rotation.set(p.rx, p.heading, p.rz, 'YXZ');
+    // rain / snow: the umbrella over the right shoulder (right arm raised to hold it); 雾霾 / 沙尘: a face mask
+    const umb = wet && p.umbK >= 0 && !p.role && st !== 'down' && st !== 'dive' && st !== 'panic';
+    if (umb) { if (!r.umb) r.umb = pedUmbrella(r, p.umbK); r.umb.visible = true; r.over = { armR: { x: 0.2, y: 0.5, z: -1.05, fy: 1.9 } }; }
+    else if (r.umb) r.umb.visible = false;
+    const mk = dust && p.maskOn && p.role !== 'rider';
+    if (mk) { if (!r.mask) r.mask = pedFaceMask(r); r.mask.visible = true; } else if (r.mask) r.mask.visible = false;
   },
 };
 
@@ -897,23 +1060,17 @@ const Life = {
     }
   },
   tick_dance(v, dt) {
-    const bt = Peds.clock * v.bpm / 60, mv = Math.floor(bt / 8) % 4, ph = bt * Math.PI, P = Player.pos, near = dist2(v.x, v.z, P.x, P.z) < 45 * 45;
+    const bt = Peds.clock * v.bpm / 60, mv = Math.floor(bt / 8) % 4, P = Player.pos, near = dist2(v.x, v.z, P.x, P.z) < 45 * 45;
     let alive = 0;
     for (const p of v.peds) {
       if (!p.active || p.role !== 'dance') continue;
       alive++;
       if (p.state !== 'dance') continue;
-      const H = p.home, lead = H.h !== v.fh ? -1 : 1;
-      let ox = 0, oz = 0, hd = H.h, lL = 0, lR = 0, aL = 0, aR = 0, sp = 0.1, hop = 0;
-      if (v.taiji) { const q = bt * 0.5, s = Math.sin(q); aL = -1.25 + s * 0.45; aR = -1.25 - s * 0.45; sp = 0.35 + 0.3 * Math.sin(q * 0.5); hd += Math.sin(q * 0.25) * 0.7; lL = s * 0.18; lR = -lL; ox = Math.sin(q * 0.25) * 0.3; }
-      else switch (mv) {
-        case 0: { const s = Math.sin(ph); ox = Math.sin(ph * 0.5) * 0.45 * lead; lL = Math.max(0, s) * -0.35; lR = Math.max(0, -s) * -0.35; aL = -1.0 - 0.8 * s; aR = -1.0 + 0.8 * s; sp = 0.35; break; }
-        case 1: aL = aR = -2.8 + 0.25 * Math.sin(ph * 2); sp = 0.25 + 0.2 * Math.abs(Math.sin(ph)); hop = Math.abs(Math.sin(ph)) * 0.08; lL = -hop * 2; break;
-        case 2: hd += ((bt % 8) / 8) * TAU; sp = 1.3; aL = aR = -0.2 + 0.25 * Math.sin(ph); lL = Math.sin(ph) * 0.3; lR = -lL; break;
-        default: { const s = Math.sin(ph); oz = Math.sin(ph * 0.25) * 0.6; lL = 0.45 * s; lR = -lL; aL = -lL * 1.6 - 0.3; aR = lL * 1.6 - 0.3; }
-      }
-      p.pos.x = H.x + v.rx * ox + v.fx * oz * lead; p.pos.z = H.z + v.rz * ox + v.fz * oz * lead; p.heading = hd;
-      p.legL = lL; p.legR = lR; p.armL = aL; p.armR = aR; p.spread = sp; p.bob = hop; p.rx = 0; p.rz = 0;
+      // everyone on the same clip, switched on the beat every 8 counts (太极: one slow 20 s form); the 领舞 faces the crowd
+      const H = p.home;
+      const k = v.taiji ? 'taichi' : PED_DANCES[mv];
+      if (p.dk !== k) { p.dk = k; p.dAt = 0; }
+      p.pos.x = H.x; p.pos.z = H.z; p.heading = H.h; p.rx = 0; p.rz = 0;
     }
     if (!alive) { v.dead = true; return; }
     v.prop.led.material.color.setHSL((bt / 8) % 1, 1, 0.55);

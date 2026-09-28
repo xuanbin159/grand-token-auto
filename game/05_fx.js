@@ -20,7 +20,7 @@ class SoftSystem {
       vertexShader: 'attribute vec4 pcolor; attribute float psize; uniform float scale; varying vec4 vC;' +
         'void main(){ vC = pcolor; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = min(psize * scale / -mv.z, 900.0); gl_Position = projectionMatrix * mv; }',
       fragmentShader: '#include <common>\nuniform sampler2D map; varying vec4 vC;\n' +
-        'void main(){ vec4 t = texture2D(map, gl_PointCoord); float a = t.a * vC.a; if (a < 0.004) discard; gl_FragColor = vec4(gtaLin(vC.rgb), a);\n#include <tonemapping_fragment>\n#include <encodings_fragment>\n}',
+        'void main(){ vec4 t = texture2D(map, gl_PointCoord); float a = t.a * vC.a; if (a < 0.004) discard; gl_FragColor = vec4(gtaLin(vC.rgb), a);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}',
       transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
     });
     this.points = new THREE.Points(g, this.mat);
@@ -121,7 +121,7 @@ const FX = {
     this.smokeSys = new SoftSystem(LOWQ ? 900 : 1600, false);
     this.glowSys = new SoftSystem(LOWQ ? 900 : 1600, true);
     Debris.init();
-    this.flash = new THREE.PointLight(0xffa040, 0, 70, 1.6); scene.add(this.flash);
+    this.flash = new THREE.PointLight(0xffa040, 0, 70, 0.5); scene.add(this.flash); // r155+ physical falloff: decay 0.5 × 7.3 matches the old 1.6 fall to ~40 m
     const rg = new THREE.PlaneGeometry(1, 1); rg.rotateX(-Math.PI / 2);
     for (let k = 0; k < 10; k++) {
       const m = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ map: TEX.ring, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xffffff }));
@@ -145,7 +145,7 @@ const FX = {
       if (u >= 1) { r.m.visible = false; continue; }
       const s = lerp(r.r0, r.r1, easeOut(u)) * 2; r.m.scale.set(s, 1, s); r.m.material.opacity = (1 - u) * r.a;
     }
-    if (this.flashI > 0) { this.flashI = Math.max(0, this.flashI - dt * 9); this.flash.intensity = this.flashI; }
+    if (this.flashI > 0) { this.flashI = Math.max(0, this.flashI - dt * 9); this.flash.intensity = this.flashI * 7.3; }
     this.updateTelegraphs(dt);
   },
   ring(x, z, r0, r1, life = 0.6, color = 0xffffff, a = 1, y = 0.4) {
@@ -153,7 +153,7 @@ const FX = {
     r.m.visible = true; r.t = 0; r.life = life; r.r0 = r0; r.r1 = r1; r.a = a;
     r.m.position.set(x, y, z); r.m.material.color.set(color);
   },
-  light(x, y, z, i = 4, color = 0xffa040) { this.flash.position.set(x, y, z); toLin(this.flash.color.set(color)); this.flashI = Math.max(this.flashI, i); this.flash.intensity = this.flashI; },
+  light(x, y, z, i = 4, color = 0xffa040) { this.flash.position.set(x, y, z); toLin(this.flash.color.set(color)); this.flashI = Math.max(this.flashI, i); this.flash.intensity = this.flashI * 7.3; },
   sparkle(x, y, z, n) { for (let k = 0; k < n; k++) this.glowSys.spawn(x, y, z, rand(-3, 3), rand(3, 8), rand(-3, 3), rand(0.5, 1.1), -0.4, 1, 0.85, 0.3, 1, rand(0.35, 0.7), 1.5, 4); },
   sparks(x, y, z, n, col = [1, 0.7, 0.25]) { for (let k = 0; k < n; k++) this.glowSys.spawn(x, y, z, rand(-10, 10), rand(2, 12), rand(-10, 10), rand(0.35, 0.7), -0.3, col[0], col[1], col[2], 1, rand(0.25, 0.55), 2.5, 22); },
   smoke(x, y, z, n, size = 4, dark = 0.3) {
@@ -268,7 +268,7 @@ const Weather = {
     const s = this.str;
     this.wet = clamp(this.wet + (s.rain > 0.5 ? dt / 25 : -dt / 140), 0, 1);
     this.snowC = clamp(this.snowC + (s.snow > 0.5 ? dt / 60 : -dt / 160), 0, 1);
-    if (typeof Ground !== 'undefined' && Ground.U) Ground.U.uWet.value = this.wet;
+    if (typeof Ground !== 'undefined' && Ground.U) { const U = Ground.U; U.uWet.value = this.wet; U.uRain.value = DayNight.indoor ? 0 : s.rain; U.uTime.value = (U.uTime.value + dt) % 1000; }
     GTA_U.wx.x = DayNight.indoor ? 0 : this.snowC; GTA_U.wx.z = DayNight.indoor ? 0 : this.wet * 0.3;
     GTA_U.fog.y = 0.5;
     this.animate(dt);
@@ -307,7 +307,7 @@ const Weather = {
     const wrap = 'float wr(float p, float c, float B, float v){ return c - B * 0.5 + fract(p - (c - B * 0.5) / B + v * uT / B) * B; }\n' +
       'float edge(vec3 w){ vec2 q = abs(w.xz - uC.xz) / (uBox.xz * 0.5); return 1.0 - smoothstep(0.7, 1.0, max(q.x, q.y)); }\n';
     const head = 'uniform vec3 uC, uBox; uniform float uT, uA, uScale; uniform vec2 uWind; uniform float uFall; varying float vA;\n' + wrap;
-    const tail = '\n#include <tonemapping_fragment>\n#include <encodings_fragment>\n}';
+    const tail = '\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}';
     this.sys.rain = mk(5200, true,
       head + 'attribute float aEnd; void main(){ vec3 p = position;\n' +
       '  vec3 w = vec3(wr(p.x, uC.x, uBox.x, uWind.x), wr(p.y, uC.y, uBox.y, -uFall), wr(p.z, uC.z, uBox.z, uWind.y));\n' +
@@ -323,13 +323,22 @@ const Weather = {
       '  vA = uA * edge(w) * smoothstep(0.5, 3.0, -mv.z); gl_Position = projectionMatrix * mv; }',
       '#include <common>\nuniform vec3 uCol; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.15, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(uCol, a);' + tail,
       { uBox: { value: new V3(50, 30, 50) }, uWind: { value: new THREE.Vector2(0.8, 0.3) }, uFall: { value: 1.4 } });
-    this.sys.sand = mk(1800, false,
+    // 沙尘: fine grains (a few px, faded out near the lens: big close points read as dirt on the camera) plus wind-blown streaks,
+    // both in the haze colour so the air itself looks dusty (Weather.animate: 'dust' follows the sand strength)
+    this.sys.sand = mk(2600, false,
       head + 'void main(){ vec3 p = position;\n' +
       '  vec3 w = vec3(wr(p.x, uC.x, uBox.x, uWind.x * (0.7 + p.y * 0.6)), wr(p.y, uC.y, uBox.y, -0.4), wr(p.z, uC.z, uBox.z, uWind.y));\n' +
       '  w.y += sin(uT * 2.0 + p.x * 50.0) * 0.8;\n' +
-      '  vec4 mv = viewMatrix * vec4(w, 1.0); gl_PointSize = clamp((0.25 + p.z * 0.6) * uScale / -mv.z, 1.0, 90.0);\n' +
-      '  vA = uA * edge(w) * smoothstep(0.5, 4.0, -mv.z) * (0.25 + 0.35 * p.x); gl_Position = projectionMatrix * mv; }',
-      '#include <common>\nuniform vec3 uCol; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(uCol, a);' + tail,
+      '  vec4 mv = viewMatrix * vec4(w, 1.0); gl_PointSize = clamp((0.03 + p.z * 0.05) * uScale / -mv.z, 1.0, 10.0);\n' +
+      '  vA = uA * edge(w) * smoothstep(4.0, 6.5, -mv.z) * (0.1 + 0.14 * p.x); gl_Position = projectionMatrix * mv; }',
+      '#include <common>\nuniform vec3 uCol; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.1, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(uCol, a);' + tail,
+      { uBox: { value: new V3(60, 16, 60) }, uWind: { value: new THREE.Vector2(15, 4) }, uFall: { value: 0 } });
+    this.sys.dust = mk(1400, true,
+      head + 'attribute float aEnd; void main(){ vec3 p = position; float k = 0.8 + p.y * 0.5;\n' +
+      '  vec3 w = vec3(wr(p.x, uC.x, uBox.x, uWind.x * k), wr(p.y, uC.y, uBox.y, -0.3), wr(p.z, uC.z, uBox.z, uWind.y * k));\n' +
+      '  w.y += sin(uT * 1.7 + p.z * 40.0) * 0.6; w += normalize(vec3(uWind.x, 0.0, uWind.y)) * aEnd * (0.5 + p.x * 0.9);\n' +
+      '  vec4 mv = viewMatrix * vec4(w, 1.0); vA = uA * edge(w) * smoothstep(4.0, 7.0, -mv.z) * (0.3 + 0.7 * aEnd); gl_Position = projectionMatrix * mv; }',
+      '#include <common>\nuniform vec3 uCol; varying float vA; void main(){ gl_FragColor = vec4(uCol, vA * 0.3);' + tail,
       { uBox: { value: new V3(60, 16, 60) }, uWind: { value: new THREE.Vector2(15, 4) }, uFall: { value: 0 } });
     Hooks.update(function weather(dt) { Weather.update(dt); });
     this.resize();
@@ -337,15 +346,15 @@ const Weather = {
   resize() { this.scale = (innerHeight * renderer.getPixelRatio()) / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); for (const k in this.sys) this.sys[k].u.uScale.value = this.scale; },
   animate(dt) {
     const f = camera.getWorldDirection(this._f), cp = camera.position, parts = Render.Q ? Render.Q.parts : 1;
-    const lum = clamp(W.hemi.intensity * 0.9 + W.sun.intensity * 0.35, 0.08, 1.2);
+    const lum = clamp((W.hemi.intensity * 0.9 + W.sun.intensity * 0.35) / LIGHT_K, 0.08, 1.2);
     for (const k in this.sys) {
-      const S = this.sys[k], a = DayNight.indoor ? 0 : this.str[k];
+      const S = this.sys[k], a = DayNight.indoor ? 0 : this.str[k === 'dust' ? 'sand' : k];
       S.o.visible = a > 0.01; if (!S.o.visible) continue;
       S.u.uA.value = a; S.u.uT.value = (S.u.uT.value + dt) % 1000;
-      S.u.uC.value.set(cp.x + f.x * 14, (k === 'sand' ? groundH(cp.x, cp.z) + 6 : cp.y + 4), cp.z + f.z * 14);
+      S.u.uC.value.set(cp.x + f.x * 14, (k === 'sand' || k === 'dust' ? groundH(cp.x, cp.z) + 6 : cp.y + 4), cp.z + f.z * 14);
       if (k === 'rain') S.u.uCol.value.setRGB(0.55, 0.6, 0.68).multiplyScalar(lum);
       else if (k === 'snow') S.u.uCol.value.setRGB(0.85, 0.88, 0.95).multiplyScalar(lum);
-      else S.u.uCol.value.setRGB(0.42, 0.26, 0.11).multiplyScalar(lum);
+      else S.u.uCol.value.copy(scene.fog.color).multiplyScalar(k === 'dust' ? 1.18 : 1.08); // (fog colour: already linear and lit for the hour)
       S.o.geometry.setDrawRange(0, Math.round(S.n * parts) * S.per);
     }
   },

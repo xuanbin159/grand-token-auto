@@ -9,7 +9,7 @@ const TEX = {}, MAT = {}, HEADS = {};
 const FACE_IMG = new Image();
 
 function mkCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
-// colour textures stay LinearEncoding on purpose: the render pipeline decodes sRGB once, on the final albedo
+// colour textures stay NoColorSpace (no GPU sRGB decode) on purpose: the render pipeline decodes sRGB once, on the final albedo
 // (gtaLin in 03_render), which also covers vertex colours, material colours and custom shader maths
 function tex(c, rep) {
   const t = new THREE.CanvasTexture(c);
@@ -267,11 +267,19 @@ function discTex() { // soft pool of light / telegraph disc
   g.fillStyle = grd; g.fillRect(0, 0, S, S);
   return tex(c);
 }
-function coneTex() { // headlight throw on the road
-  const c = mkCanvas(64, 128), g = c.getContext('2d');
-  const grd = g.createLinearGradient(0, 128, 0, 0); grd.addColorStop(0, 'rgba(255,255,255,.8)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grd; g.beginPath(); g.moveTo(26, 128); g.lineTo(38, 128); g.lineTo(64, 0); g.lineTo(0, 0); g.closePath(); g.fill();
-  return tex(c);
+function coneTex() { // headlight throw on the road (06a BEAM_GEO): canvas top = at the bumper, bottom = the far end
+  // a soft pool, not a lit trapezoid: dim at the bumper (the lamps aim past it), brightest half way out (~5 m: seen over the
+  // roof from the chase cam), faded to nothing by the far end; across, a smooth falloff that widens with distance. No hard edge
+  const W = 64, H = 128, c = mkCanvas(W, H), g = c.getContext('2d'), im = g.createImageData(W, H), d = im.data;
+  for (let y = 0; y < H; y++) {
+    const t = (y + 0.5) / H, lon = (0.12 + 0.88 * smooth(clamp(t / 0.5, 0, 1))) * Math.pow(1 - smooth(clamp((t - 0.5) / 0.5, 0, 1)), 1.2), hw = 0.35 + 0.55 * t;
+    for (let x = 0; x < W; x++) {
+      const u = ((x + 0.5) / W) * 2 - 1, q = u / hw, a = clamp(lon * Math.exp(-q * q * 2.4) * (1 - u * u), 0, 1), i = (y * W + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = Math.round(a * 255);
+    }
+  }
+  g.putImageData(im, 0, 0);
+  const t = tex(c); t.anisotropy = Math.min(4, MAX_ANISO); return t;
 }
 function letterTex() {
   const c = mkCanvas(128, 96), g = c.getContext('2d');
@@ -764,7 +772,7 @@ function buildAssets() {
   MAT.lampHead = new THREE.MeshBasicMaterial({ color: 0xfff1b8 });
   MAT.lampPool = new THREE.MeshBasicMaterial({ map: TEX.disc, color: 0xffcf7a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
   MAT.carLights = new THREE.MeshBasicMaterial({ vertexColors: true });
-  MAT.headBeam = new THREE.MeshBasicMaterial({ map: TEX.cone, color: 0xfff0c8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  MAT.headBeam = new THREE.MeshBasicMaterial({ map: TEX.cone, color: 0xfff0c8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
   MAT.ads = Render.cutout(new THREE.MeshBasicMaterial({ map: TEX.ads }));
   MAT.redBlink = Render.cutout(new THREE.MeshBasicMaterial({ color: 0xff2a2a }));
   MAT.markerGlow = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });

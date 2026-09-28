@@ -1,0 +1,122 @@
+{
+ "guohuai": {
+  "name": "国槐 Chinese scholar tree",
+  "height": 11,
+  "size": [
+   9.39,
+   11,
+   9.4
+  ],
+  "bytes": 469844,
+  "tris": {
+   "lod0": 7980,
+   "lod1": 2458,
+   "bark": 3500,
+   "leaves": 4480,
+   "bark_lod1": 964,
+   "leaves_lod1": 1494
+  },
+  "impostor": {
+   "views": [
+    0,
+    45,
+    90,
+    135
+   ],
+   "grid": "2x2",
+   "halfExtent": 5.61,
+   "centerY": 5.5,
+   "bytes": 177408
+  }
+ },
+ "liu": {
+  "name": "柳 weeping willow",
+  "height": 10,
+  "size": [
+   15.9,
+   10,
+   12.09
+  ],
+  "bytes": 697604,
+  "tris": {
+   "lod0": 7968,
+   "lod1": 2441,
+   "bark": 4048,
+   "leaves": 3920,
+   "bark_lod1": 1133,
+   "leaves_lod1": 1308
+  },
+  "impostor": {
+   "views": [
+    0,
+    45,
+    90,
+    135
+   ],
+   "grid": "2x2",
+   "halfExtent": 8.109,
+   "centerY": 5,
+   "bytes": 131074
+  }
+ },
+ "cypress": {
+  "name": "桧柏 Chinese juniper / cypress",
+  "height": 9,
+  "size": [
+   2.81,
+   9,
+   3
+  ],
+  "bytes": 597968,
+  "tris": {
+   "lod0": 5440,
+   "lod1": 1705,
+   "bark": 2560,
+   "leaves": 2880,
+   "bark_lod1": 745,
+   "leaves_lod1": 960
+  },
+  "impostor": {
+   "views": [
+    0,
+    45,
+    90,
+    135
+   ],
+   "grid": "2x2",
+   "halfExtent": 4.59,
+   "centerY": 4.5,
+   "bytes": 53384
+  }
+ },
+ "yinxing": {
+  "name": "银杏 ginkgo (autumn gold)",
+  "height": 13,
+  "size": [
+   6.96,
+   13,
+   7.1
+  ],
+  "bytes": 451172,
+  "tris": {
+   "lod0": 5576,
+   "lod1": 1777,
+   "bark": 2232,
+   "leaves": 3344,
+   "bark_lod1": 661,
+   "leaves_lod1": 1116
+  },
+  "impostor": {
+   "views": [
+    0,
+    45,
+    90,
+    135
+   ],
+   "grid": "2x2",
+   "halfExtent": 6.63,
+   "centerY": 6.5,
+   "bytes": 98066
+  }
+ }
+}
