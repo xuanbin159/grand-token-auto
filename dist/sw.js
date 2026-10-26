@@ -1,4 +1,4 @@
-// Grand Token Auto: 四九城 service worker (build 6755f9bbb8)
+// Grand Token Auto: 四九城 service worker (build f1d358e62b)
 const C = 'gta-files';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));

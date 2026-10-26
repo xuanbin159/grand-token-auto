@@ -17079,7 +17079,7 @@ function defineMissions() {
       O.obj(`Démolissez les bureaux Doubao à coups de pied (${hqWhere('doubao')}, nord-ouest)`, () => hqById('doubao').dead, { target: 'hq:doubao' }),
     ], reward: { xp: 600, money: 500000, next: 'm7' } },
     { id: 'm7', title: 'Balayer Qichacha', giver: 'klaude', where: () => plaza, steps: [
-      O.call('klaude', ['Qichacha a scanné tout votre historique et diffusé un avis de recherche dans toute la ville.', `C'est à ${hqWhere('qcc')}, au bout est de Chang'an. Lancez des voitures (${KH('F', 'Saisir voiture').trim()}) ou foncez dedans en camion.`]),
+      O.call('klaude', ['Qichacha a scanné tout votre historique et diffusé un avis de recherche dans toute la ville.', `C'est à ${hqWhere('qcc')}, au bout est de Chang'an. Lancez des voitures (${KH('F', 'Saisir').trim()}) ou foncez dedans en camion.`]),
       O.obj(`Rasez l'immeuble Qichacha (${hqWhere('qcc')}, est de Chang'an)`, () => hqById('qcc').dead, { target: 'hq:qcc' }),
       O.cut([
         act(() => { const mech = Player.isMech(), a = Player.pos.x + (mech ? 8 : 4), b = Player.pos.z + (mech ? 4 : 2); Actors.spawn('gordon', 'gordon', a, b, Math.PI); Actors.face('gordon', Player.pos.x, Player.pos.z); Player.heading = Math.atan2(a - Player.pos.x, b - Player.pos.z); Sfx.mood('cut');
@@ -19208,12 +19208,7 @@ const UI = {
     const shown = tgt || (GPS.wp && !Cutscene.active ? GPS.wp : null); // no mission blip: the pillar / edge arrow lead to your waypoint
     Pillar.update(shown && shown.kind === 'wp' ? { x: shown.x, z: shown.z, kind: 'marker', color: MAPC.route } : shown); this.edge(shown); this.hqbars();
     this.radarT -= rdt; if (this.radarT <= 0 && !Cutscene.active) { this.radarT = LOWQ ? 1 / 20 : 1 / 30; this.drawRadar(tgt); } // (hidden under the letterbox)
-    if (IS_TOUCH) {
-      this.touchLabels();
-      // the message stack (head.html #hudB, sideways) ends left of the context-button column: its right offset from Touch.place
-      const cx = $('tctx') && $('tctx').style.getPropertyValue('--x');
-      if (cx && cx !== this.last.ctxR) { this.last.ctxR = cx; $('hud').style.setProperty('--ctx-r', cx); }
-    }
+    if (IS_TOUCH) this.touchLabels();
     if (this.panelOpen && kpRaw('Escape', 'Tab')) this.closePanel();
     else if (this.shopId && kpRaw('Escape')) this.closeShop();
   },
@@ -20012,11 +20007,11 @@ const BigMap = {
 const TOUCH_ARC = {
   human: [['KeyJ', 'Poing'], ['KeyK', 'Pied'], ['Space', 'Saut']],
   car: [['Space', 'Frein'], ['KeyJ', 'Klaxon']],
-  robot: [['KeyJ', 'Poing'], ['KeyK', 'Pied'], ['Space', 'Séisme'], ['KeyL', 'Rayon'], ['KeyR', 'Ultime']],
-  truck: [['ShiftLeft', 'Nitro'], ['Space', 'Frein'], ['KeyJ', 'Klaxon'], ['KeyR', 'Ultime']],
+  robot: [['KeyJ', 'Poing'], ['KeyK', 'Pied'], ['Space', 'Choc'], ['KeyL', 'Rayon'], ['KeyR', 'Ulti']],
+  truck: [['ShiftLeft', 'Nitro'], ['Space', 'Frein'], ['KeyJ', 'Klaxon'], ['KeyR', 'Ulti']],
 };
 // arc slots around the main button: [ring, angle° counter-clockwise from "straight left"]; upright phones fold the outer ring up
-const TOUCH_SLOTS = [[1, 0], [1, 47], [1, 94], [2, 18], [2, 54]], TOUCH_SLOTS_P = [[1, 0], [1, 47], [1, 94], [2, 30], [2, 66]];
+const TOUCH_SLOTS = [[1, 0], [1, 45], [1, 90], [2, 62], [2, 26]], TOUCH_SLOTS_P = [[1, 0], [1, 45], [1, 90], [2, 64], [2, 28]];
 const Touch = {
   on: false, B: {}, held: new Map(), sig: '', mode: 'human', lastM: '', ct: 0, ctxFns: [], arc: [], ctxs: [], M: null,
   stick: { id: null, cx: 0, cy: 0, R: 58 }, look: { id: null, x: 0, y: 0, sx: 0, sy: 0, t: 0, moved: false },
@@ -20058,13 +20053,15 @@ const Touch = {
   bindStick() {
     const zone = $('joyzone'), base = $('joy'), knob = $('joy-knob'), S = this.stick, J = Input.joy;
     const place = () => { base.style.left = S.cx.toFixed(1) + 'px'; base.style.top = S.cy.toFixed(1) + 'px'; };
+    const cxClamp = (x) => clamp(x, S.R + 10, Math.max(S.R + 10, innerWidth * 0.48 - S.R * 0.5));
+    const cyClamp = (y) => clamp(y, Math.max(S.R + 54, innerHeight * 0.32), innerHeight - S.R - 10);
     zone.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       if (Gym.active) Input.click = true;
       if (S.id !== null) return;
       S.id = e.pointerId; try { zone.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-      // the stick appears where the thumb lands (kept whole on screen)
-      S.cx = clamp(e.clientX, S.R + 10, innerWidth - S.R - 10); S.cy = clamp(e.clientY, S.R + 10, innerHeight - S.R - 10);
+      // the stick appears where the thumb lands (kept whole on the left half of the screen)
+      S.cx = cxClamp(e.clientX); S.cy = cyClamp(e.clientY);
       place(); base.classList.add('on'); knob.style.transform = ''; J.on = true; J.x = J.y = 0;
     });
     zone.addEventListener('pointermove', (e) => {
@@ -20074,7 +20071,7 @@ const Touch = {
       const lim = S.R * 1.35;
       if (l > lim) {
         const k = (l - lim) / l;
-        S.cx = clamp(S.cx + dx * k, S.R + 6, innerWidth - S.R - 6); S.cy = clamp(S.cy + dy * k, S.R + 6, innerHeight - S.R - 6); place();
+        S.cx = cxClamp(S.cx + dx * k); S.cy = cyClamp(S.cy + dy * k); place();
         dx = e.clientX - S.cx; dy = e.clientY - S.cy; l = hyp(dx, dy);
       }
       const c = Math.min(l, S.R), ux = l ? dx / l : 0, uy = l ? dy / l : 0, m = c / S.R, mm = m < 0.12 ? 0 : (m - 0.12) / 0.88;
@@ -20123,7 +20120,7 @@ const Touch = {
       // same pick as Cars.enterable (without its side effects): the closest car, or a 共享单车 that's clearly closer
       const x = P.pos.x, z = P.pos.z, c = Cars.nearestDrivable ? Cars.nearestDrivable(x, z, 4.8) : null;
       const b = typeof Bikes === 'object' && Bikes.nearest ? Bikes.nearest(x, z, 2.4) : null;
-      if (b && (!c || dist2(x, z, b.x, b.z) < dist2(x, z, c.pos.x, c.pos.z) * 0.8)) return 'Scanner';
+      if (b && (!c || dist2(x, z, b.x, b.z) < dist2(x, z, c.pos.x, c.pos.z) * 0.8)) return 'Vélo';
       return c ? 'Monter' : '';
     }
     if (m === 'car') return 'Sortir';
@@ -20131,7 +20128,7 @@ const Touch = {
       if (P.held) return 'Lancer';
       if (Interiors.cur) return '';
       const fx = P.pos.x + Math.sin(P.heading) * 3, fz = P.pos.z + Math.cos(P.heading) * 3;
-      for (const c of Cars.list) if (!c.removed && c.state !== 'held' && c.state !== 'thrown' && c.y <= 2 && dist2(fx, fz, c.pos.x, c.pos.z) < 64) return 'Saisir voiture';
+      for (const c of Cars.list) if (!c.removed && c.state !== 'held' && c.state !== 'thrown' && c.y <= 2 && dist2(fx, fz, c.pos.x, c.pos.z) < 64) return 'Saisir';
     }
     return '';
   },
@@ -20166,17 +20163,17 @@ const Touch = {
   },
   // sizes follow the short screen edge; the main button sits in the bottom-right corner, the rest on arcs around it
   layout() {
-    const w = innerWidth, h = innerHeight, land = w > h, s = clamp(Math.min(w, h) / 410, 0.86, 1.3);
-    const M = Math.round(80 * s), S = Math.round(60 * s), gap = 12 * s;
-    const mx = (land ? 26 : 18) * s, my = (land ? 18 : 24) * s;
-    this.M = { land, s, M, S, cx: mx + M / 2, cy: my + M / 2, r1: M / 2 + gap + S / 2, r2: M / 2 + gap * 1.9 + S * 1.5, my };
+    const w = innerWidth, h = innerHeight, land = w > h, s = clamp(Math.min(w, h) / (land ? 445 : 410), 0.78, 1.25);
+    const M = Math.round(80 * s), S = Math.round(60 * s), gap = 11 * s;
+    const mx = (land ? 22 : 18) * s, my = (land ? 12 : 22) * s;
+    this.M = { land, s, M, S, cx: mx + M / 2, cy: my + M / 2, r1: M / 2 + gap + S / 2, r2: M / 2 + gap * 1.85 + S * 1.45, my };
     this.stick.R = Math.round(58 * s);
     const t = $('touch').style; t.setProperty('--jd', Math.round(this.stick.R * 2.28) + 'px'); t.setProperty('--jk', Math.round(this.stick.R * 1.04) + 'px');
     this.place();
   },
   place() {
     const L = this.M; if (!L) return;
-    let top = L.cy + L.M / 2, left = L.cx + L.M / 2;
+    let top = L.cy + L.M / 2, left = L.cx + L.M / 2, leftLow = left;
     this.arc.forEach(([k], i) => {
       const b = this.B[k]; if (!b) return;
       let x, y, sz;
@@ -20185,14 +20182,26 @@ const Touch = {
         const SL = L.land ? TOUCH_SLOTS : TOUCH_SLOTS_P, [ring, a] = SL[i - 1] || SL[4], r = ring === 1 ? L.r1 : L.r2, ang = a * Math.PI / 180;
         sz = L.S; x = L.cx + Math.cos(ang) * r; y = L.cy + Math.sin(ang) * r; b.classList.remove('main');
       }
-      b.style.setProperty('--s', sz + 'px'); b.style.setProperty('--x', (x - sz / 2).toFixed(1) + 'px'); b.style.setProperty('--y', (y - sz / 2).toFixed(1) + 'px');
+      const len = (b.textContent || '').length;
+      const fs = i === 0 ? (len <= 2 ? Math.round(sz * 0.25) : len <= 5 ? Math.round(sz * 0.22) : Math.round(sz * 0.19))
+                         : (len <= 2 ? Math.round(sz * 0.25) : len <= 4 ? Math.round(sz * 0.23) : Math.round(sz * 0.195));
+      b.style.setProperty('--s', sz + 'px'); b.style.setProperty('--fs', fs + 'px');
+      b.style.setProperty('--x', (x - sz / 2).toFixed(1) + 'px'); b.style.setProperty('--y', (y - sz / 2).toFixed(1) + 'px');
       top = Math.max(top, y + sz / 2); left = Math.max(left, x + sz / 2);
+      if (y - sz / 2 < L.my + 110 * L.s) leftLow = Math.max(leftLow, x + sz / 2);
     });
-    // context buttons: above the arc (portrait) or just left of it (landscape), stacked upward
-    const box = $('tctx');
-    if (L.land) { box.style.setProperty('--x', (left + 18 * L.s).toFixed(1) + 'px'); box.style.setProperty('--y', L.my.toFixed(1) + 'px'); }
-    else { box.style.setProperty('--x', (14 * L.s).toFixed(1) + 'px'); box.style.setProperty('--y', (top + 16 * L.s).toFixed(1) + 'px'); }
-    this.ctxs.forEach(([k], i) => { const b = this.B[k]; if (b) b.style.setProperty('--o', (i * 60) + 'px'); });
+    // context buttons: above the arc (portrait) or just left of the bottom arc buttons (landscape), stacked upward
+    const box = $('tctx'), hud = $('hud'), nCtx = this.ctxs.length;
+    if (L.land) {
+      const cx = leftLow + 14 * L.s;
+      box.style.setProperty('--x', cx.toFixed(1) + 'px'); box.style.setProperty('--y', L.my.toFixed(1) + 'px');
+      if (hud) hud.style.setProperty('--ctx-r', Math.round(nCtx ? cx + 114 : leftLow + 12 * L.s) + 'px');
+    } else {
+      const cx = 14 * L.s;
+      box.style.setProperty('--x', cx.toFixed(1) + 'px'); box.style.setProperty('--y', (top + 14 * L.s).toFixed(1) + 'px');
+      if (hud) hud.style.setProperty('--ctx-r', Math.round(Math.max(nCtx ? cx + 120 : 0, left + 12 * L.s)) + 'px');
+    }
+    this.ctxs.forEach(([k], i) => { const b = this.B[k]; if (b) b.style.setProperty('--o', (i * 54) + 'px'); });
   },
 };
 

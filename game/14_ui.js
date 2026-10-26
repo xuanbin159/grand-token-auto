@@ -545,12 +545,7 @@ const UI = {
     const shown = tgt || (GPS.wp && !Cutscene.active ? GPS.wp : null); // no mission blip: the pillar / edge arrow lead to your waypoint
     Pillar.update(shown && shown.kind === 'wp' ? { x: shown.x, z: shown.z, kind: 'marker', color: MAPC.route } : shown); this.edge(shown); this.hqbars();
     this.radarT -= rdt; if (this.radarT <= 0 && !Cutscene.active) { this.radarT = LOWQ ? 1 / 20 : 1 / 30; this.drawRadar(tgt); } // (hidden under the letterbox)
-    if (IS_TOUCH) {
-      this.touchLabels();
-      // the message stack (head.html #hudB, sideways) ends left of the context-button column: its right offset from Touch.place
-      const cx = $('tctx') && $('tctx').style.getPropertyValue('--x');
-      if (cx && cx !== this.last.ctxR) { this.last.ctxR = cx; $('hud').style.setProperty('--ctx-r', cx); }
-    }
+    if (IS_TOUCH) this.touchLabels();
     if (this.panelOpen && kpRaw('Escape', 'Tab')) this.closePanel();
     else if (this.shopId && kpRaw('Escape')) this.closeShop();
   },
