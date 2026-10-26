@@ -585,10 +585,13 @@ const UI = {
   // ---- touch ----
   initTouch() {
     const zone = $('joyzone'), base = $('joy'), knob = $('joy-knob');
+    if ($('btn-menu')) $('btn-menu').textContent = '角色';
     let id = null, cx = 0, cy = 0; const R = 56;
     zone.addEventListener('pointerdown', (e) => {
       if (id !== null) return;
-      id = e.pointerId; cx = e.clientX; cy = e.clientY;
+      id = e.pointerId;
+      cx = clamp(e.clientX, R + 10, Math.max(R + 10, innerWidth * 0.48 - R * 0.5));
+      cy = clamp(e.clientY, Math.max(R + 54, innerHeight * 0.32), innerHeight - R - 10);
       base.style.left = cx + 'px'; base.style.top = cy + 'px'; base.classList.add('on'); knob.style.transform = 'translate(-50%,-50%)';
       Input.joy.on = true; Input.joy.x = 0; Input.joy.y = 0; zone.setPointerCapture(e.pointerId); e.preventDefault();
       if (Gym.active) Input.click = true;
@@ -599,7 +602,7 @@ const UI = {
       if (l > R) { dx = (dx / l) * R; dy = (dy / l) * R; }
       knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`; Input.joy.x = dx / R; Input.joy.y = dy / R;
     });
-    const end = (e) => { if (e.pointerId !== id) return; id = null; Input.joy.on = false; Input.joy.x = Input.joy.y = 0; base.classList.remove('on'); };
+    const end = (e) => { if (e.pointerId !== id) return; id = null; Input.joy.on = false; Input.joy.x = Input.joy.y = 0; base.classList.remove('on'); base.style.left = base.style.top = ''; knob.style.transform = 'translate(-50%,-50%)'; };
     zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
     for (const b of document.querySelectorAll('#tbtns button')) {
       const k = b.dataset.k;
@@ -617,7 +620,11 @@ const UI = {
     if (Interiors.nearAct) L.KeyF = '交互';
     if (!RPG.spec) L.KeyR = '';
     for (const b of document.querySelectorAll('#tbtns button')) {
-      const t = L[b.dataset.k]; b.hidden = !t; if (t) b.textContent = t;
+      const t = L[b.dataset.k]; b.hidden = !t;
+      if (t) {
+        b.textContent = t;
+        b.style.setProperty('--fs', (t.length <= 2 ? 15 : t.length <= 4 ? 13 : t.length <= 6 ? 11.5 : 10.5) + 'px');
+      }
       if (b.dataset.k === 'KeyT') b.classList.toggle('ready', (m === 'human' || m === 'car') && P.tokens >= CAP);
       if (b.dataset.k === 'KeyR') b.classList.toggle('ready', RPG.ult >= 100);
     }

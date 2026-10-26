@@ -934,7 +934,7 @@
     "它们怕脚。甭问我为什么。": "Leurs serveurs craignent les coups de pied. Ne me demandez pas pourquoi.",
     "横扫起查查": "Balayer Qichacha",
     "起查查把您的底细全查出来了，满世界发通缉。": "Qichacha a scanné tout votre historique et diffusé un avis de recherche dans toute la ville.",
-    "抓车": "Saisir voiture",
+    "抓车": "Saisir",
     "您就是把起查查拆了的那位……那个……玩意儿？": "C'est donc vous qui avez démoli Qichacha… espèce de… truc ?",
     "我是 Token 侠。": "Je suis Token-Man.",
     "法务部里全是百模帮的人。就我一个，还按规矩办事儿。": "Tout le Service Juridique est à la solde du Gang des Cent Modèles. Je suis le seul à encore respecter la loi.",
@@ -1560,12 +1560,12 @@
     "跳": "Saut",
     "手刹": "Frein",
     "喇叭": "Klaxon",
-    "砸地": "Séisme",
-    "大招": "Ultime",
+    "砸地": "Choc",
+    "大招": "Ulti",
     "氮气": "Nitro",
     "角色": "Perso",
     "交互": "Action",
-    "扫码": "Scanner",
+    "扫码": "Vélo",
     "上车": "Monter",
     "下车": "Sortir",
     "扔车": "Lancer",
@@ -1971,7 +1971,7 @@
     ],
     [
       ">大招</button>",
-      ">Ultime</button>"
+      ">Ulti</button>"
     ],
     [
       ">氮气</button>",
