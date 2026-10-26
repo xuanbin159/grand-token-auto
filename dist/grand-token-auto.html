@@ -255,7 +255,7 @@ body.cine #toast,body.cine #prompt,body.cine #bossbar,body.cine #hqbars,body.cin
 .fp-btns button{border:0;border-radius:3px;padding:10px 14px;font:900 14px/1 var(--cn);background:#232833}
 .fp-btns button.primary{background:var(--gold);color:#111}.fp-btns button:disabled{opacity:.45}
 @media (max-width:600px){.fp-body{grid-template-columns:1fr}.fp-stage{width:min(240px,100%);margin:0 auto}}
-#t-face{background:#20252e;color:#f7f2e8;font-size:18px;padding:12px 18px}
+#t-face,#t-lang{background:#20252e;color:#f7f2e8;font-size:18px;padding:12px 18px}
 #confirm .sheet{width:min(420px,100%);padding:16px}
 #confirm p{font:800 15px/1.6 var(--cn);margin:0 0 14px}
 #confirm .row{display:flex;gap:8px;justify-content:flex-end}
@@ -488,6 +488,7 @@ body.touch #carname{bottom:auto;top:calc(50% + 90px);right:auto;left:50%;transfo
       <button id="t-new" type="button" disabled>加载中…</button>
       <button id="t-continue" type="button" hidden>继续游戏</button>
       <button id="t-face" type="button">换主角头像</button>
+      <button id="t-lang" type="button" onclick="location.href='grand-token-auto-fr.html'+location.search+location.hash">Français</button>
       <div class="keys"><kbd>WASD</kbd>移动 <kbd>J</kbd>拳 <kbd>K</kbd>踢 <kbd>空格</kbd>跳/砸地 <kbd>F</kbd>上车/交互 <kbd>T</kbd>变身 <kbd>L</kbd>光束 <kbd>R</kbd>大招 <kbd>Q</kbd>解除变身 <kbd>V</kbd>镜头 <kbd>Tab</kbd>角色 <kbd>Esc</kbd>暂停</div>
     </div>
     <div id="boot-msg">正在盖四九城……</div>
@@ -516,7 +517,7 @@ body.touch #carname{bottom:auto;top:calc(50% + 90px);right:auto;left:50%;transfo
       <dt>按住 L / R</dt><dd>注意力光束 / 专精大招</dd>
       <dt>Tab</dt><dd>角色面板：技能树、专精、地图、剧情</dd>
     </dl>
-    <div class="btns"><button id="p-resume" class="primary" type="button">继续</button><button id="p-panel" type="button">角色面板</button><button id="p-save" type="button">保存</button><button id="p-mute" type="button">静音 (M)</button><button id="p-face" type="button">换主角头像</button><button id="p-restart" type="button">重新开始</button></div>
+    <div class="btns"><button id="p-resume" class="primary" type="button">继续</button><button id="p-panel" type="button">角色面板</button><button id="p-save" type="button">保存</button><button id="p-mute" type="button">静音 (M)</button><button id="p-face" type="button">换主角头像</button><button id="p-restart" type="button">重新开始</button><button id="p-lang" type="button" onclick="location.href='grand-token-auto-fr.html'+location.search+location.hash">Français</button></div>
   </div>
 </div>
 

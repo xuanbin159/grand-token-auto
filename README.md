@@ -1,6 +1,6 @@
 # Grand Token Auto: 四九城
 
-**在线玩:https://xuanbin159.github.io/grand-token-auto/**(电脑上用 Chrome / Edge / Safari 打开;也可以下载 `dist/grand-token-auto.html` 双击玩)
+**在线玩:https://xuanbin159.github.io/grand-token-auto/**(法语版 / Version française :https://xuanbin159.github.io/grand-token-auto/fr.html;标题页和暂停菜单也可随时点 `Français` / `中文` 切换;电脑上用 Chrome / Edge / Safari 打开;也可以下载 `dist/grand-token-auto.html` 或 `dist/grand-token-auto-fr.html` 双击玩)
 
 老北京版 GTA 风格的单文件网页游戏(Three.js)。主角 Token 侠吃满 1M Token 就变身成变形金刚,拳打各路 AI 办公楼,最后干掉背刺自己的 Klaude。剧情致敬《蝙蝠侠:侠影之谜》和《圣安地列斯》,台词是京味儿评书腔。
 
