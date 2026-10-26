@@ -107,8 +107,8 @@
     const t = st.target;
     if (t === 'enemy' || /countTag/.test(String(st.until))) for (const e of E.list) { if (!e.dead && e.tag === 'mission') e.hit(1e5, 0, 0, 0, 'test'); }
     else if (t === 'token') P.tokens = Math.max(P.tokens, 1e6);
-    else if (/变成卡车/.test(st.obj)) { if (P.mode === 'human') P.tryTransform(); else if (P.mode === 'robot') P.startXform('r2t'); }
-    else if (/变身/.test(st.obj)) { if (P.mode === 'human') { P.tokens = Math.max(P.tokens, 1e6); P.tryTransform(); } }
+    else if (/变成卡车|mode camion/i.test(st.obj)) { if (P.mode === 'human') P.tryTransform(); else if (P.mode === 'robot') P.startXform('r2t'); }
+    else if (/变身|transform|Transfo/i.test(st.obj)) { if (P.mode === 'human') { P.tokens = Math.max(P.tokens, 1e6); P.tryTransform(); } }
     else if (t === 'cp' && S.cps) { const c = S.cps.list[S.cps.i]; if (c) { P.pos.set(c[0], 0, c[1]); P.vel.set(0, 0, 0); } }
     else if (t && t.startsWith('hq:')) { const h = W.hqs.find((q) => q.id === t.slice(3)); if (!h.dead) h.damage(1e7, h.cx, h.cz + 16, 'test'); }
     else if (t && t.startsWith('door:')) { const d = W.doors.find((q) => q.id === t.slice(5)); if (!I.cur) { P.forceHuman(); P.pos.set(d.x, 0, d.z); } }

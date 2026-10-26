@@ -17,9 +17,12 @@
 import datetime, hashlib, json, os, pathlib, re, shutil, subprocess, sys, tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import i18n_fr
 GAME, ASSETS, DIST, VENDOR = ROOT / 'game', ROOT / 'assets', ROOT / 'dist', ROOT / 'vendor'
 _out = pathlib.Path(sys.argv[sys.argv.index('--out') + 1]).resolve() if '--out' in sys.argv else DIST
 OUT, PAGE = (_out.parent, _out.name) if _out.suffix == '.html' else (_out, 'index.html')
+FR_PAGE = 'fr.html' if PAGE == 'index.html' else (PAGE[:-5] + '-fr.html')
 MINIFY = '--no-min' not in sys.argv and ('--min' in sys.argv or OUT == DIST)
 
 
@@ -129,13 +132,19 @@ def short_hash(*blobs):
 
 def build():
     OUT.mkdir(parents=True, exist_ok=True)
-    head = (GAME / 'head.html').read_text()
+    head_raw = (GAME / 'head.html').read_text()
+    head = i18n_fr.add_lang_switch(head_raw, FR_PAGE, 'Français')
+    head_fr = i18n_fr.translate_html(head_raw, PAGE)
     # modules are concatenated in file-name order into one IIFE (every top-level const / function is shared)
     js = '\n'.join((GAME / f).read_text() for f in sorted(os.listdir(GAME)) if f.endswith('.js'))
+    fr_js = i18n_fr.translate_js(js)
     game = '(function(){\n' + js + '\n})();\n'
+    game_fr = '(function(){\n' + fr_js + '\n})();\n'
     if MINIFY:
         game, _ = minify(game)
+        game_fr, _ = minify(game_fr)
     (OUT / 'game.js').write_text(game)
+    (OUT / 'game-fr.js').write_text(game_fr)
     vj = vendor()
     sync(vj, OUT / 'vendor.js')
     if (VENDOR / 'dist' / 'THIRD_PARTY.txt').exists():
@@ -162,8 +171,9 @@ def build():
     (OUT / 'assets' / 'runtime' / 'files.json').write_text(man)
     # cache-busting query strings: a new build is never served from a stale browser / Pages cache
     v = lambda p: short_hash(p.read_bytes())
-    ver = short_hash(game, man)
+    ver = short_hash(game, game_fr, man)
     split = head.index('<canvas id="gta-canvas"')
+    split_fr = head_fr.index('<canvas id="gta-canvas"')
     # service worker: versioned files (?v=hash) cache-first, the rest network-first (a new build is picked up at once)
     (OUT / 'sw.js').write_text(SW_JS.replace('%VER%', ver))
     # the scripts are deferred (the title card paints at once, they download in parallel); the file list is inlined (no extra
@@ -173,10 +183,15 @@ def build():
     scripts = ('<script defer src="vendor.js?v=' + v(OUT / 'vendor.js') + '"></script>\n'
                '<script defer src="assets/map.js?v=' + v(mj) + '"></script>\n'
                '<script defer src="game.js?v=' + v(OUT / 'game.js') + '"></script>\n')
+    scripts_fr = ('<script defer src="vendor.js?v=' + v(OUT / 'vendor.js') + '"></script>\n'
+                  '<script defer src="assets/map.js?v=' + v(mj) + '"></script>\n'
+                  '<script defer src="game-fr.js?v=' + v(OUT / 'game-fr.js') + '"></script>\n')
     full = '<!doctype html>\n<html lang="zh-CN">\n<head>\n' + head[:split] + boot + scripts + '</head>\n<body>\n' + head[split:] + '\n</body>\n</html>\n'
+    full_fr = '<!doctype html>\n<html lang="fr">\n<head>\n' + head_fr[:split_fr] + boot + scripts_fr + '</head>\n<body>\n' + head_fr[split_fr:] + '\n</body>\n</html>\n'
     (OUT / PAGE).write_text(full)
+    (OUT / FR_PAGE).write_text(full_fr)
     size = sum(p.stat().st_size for p in OUT.rglob('*') if p.is_file())
-    return js, size, len(files)
+    return js, fr_js, size, len(files)
 
 
 def syntax_check(js):
@@ -194,7 +209,9 @@ def syntax_check(js):
 
 
 if __name__ == '__main__':
-    js, size, nfiles = build()
+    js, fr_js, size, nfiles = build()
     chk = syntax_check(js)
-    line = f'built {OUT / PAGE}: folder {size // 1024} KB (game js {len(js) // 1024} KB, {nfiles} runtime assets), syntax {chk}'
+    if chk == 'ok':
+        chk = syntax_check(fr_js)
+    line = f'built {OUT / PAGE} + {FR_PAGE}: folder {size // 1024} KB (game js {len(js) // 1024} KB, {nfiles} runtime assets), syntax {chk}'
     print(line)

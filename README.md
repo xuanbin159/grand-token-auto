@@ -1,6 +1,6 @@
 # Grand Token Auto: 四九城
 
-**直接玩:https://xuanbin159.github.io/grand-token-auto/**(电脑上用 Chrome / Edge / Safari / Firefox 打开;手机也能玩,自动用轻量画质)
+**直接玩:https://xuanbin159.github.io/grand-token-auto/**(法语版 / Version française :https://xuanbin159.github.io/grand-token-auto/fr.html;标题页和暂停菜单也可随时点 `Français` / `中文` 切换;电脑上用 Chrome / Edge / Safari / Firefox 打开;手机也能玩,自动用轻量画质)
 
 老北京版 GTA 风格的开放世界网页游戏(three.js r186)。地图是真实的北京二环一带,画风朝《剑灵》那种日韩动漫 3D 走:
 VRoid 动漫角色、PBR 材质的故宫红墙琉璃瓦和胡同灰砖、HDR 天空、泛光和环境光遮蔽。主角 Token 侠吃满 1M Token 就变身成变形金刚,
